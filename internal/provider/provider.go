@@ -1,101 +1,184 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package provider
 
 import (
 	"context"
-	"net/http"
+	"os"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/ephemeral"
-	"github.com/hashicorp/terraform-plugin-framework/function"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
+	sailpoint "github.com/sailpoint-oss/golang-sdk/v2"
 )
 
-// Ensure ScaffoldingProvider satisfies various provider interfaces.
-var _ provider.Provider = &ScaffoldingProvider{}
-var _ provider.ProviderWithFunctions = &ScaffoldingProvider{}
-var _ provider.ProviderWithEphemeralResources = &ScaffoldingProvider{}
+// Ensure the implementation satisfies the expected interfaces.
+var (
+	_ provider.Provider = &sailpointProvider{}
+)
 
-// ScaffoldingProvider defines the provider implementation.
-type ScaffoldingProvider struct {
+// sailpointProviderModel maps provider schema data to a Go type.
+type sailpointProviderModel struct {
+	BaseUrl      types.String `tfsdk:"base_url"`
+	ClientId     types.String `tfsdk:"client_id"`
+	ClientSecret types.String `tfsdk:"client_secret"`
+}
+
+// New is a helper function to simplify provider server and testing implementation.
+func New(version string) func() provider.Provider {
+	return func() provider.Provider {
+		return &sailpointProvider{
+			version: version,
+		}
+	}
+}
+
+// sailpointProvider is the provider implementation.
+type sailpointProvider struct {
 	// version is set to the provider version on release, "dev" when the
 	// provider is built and ran locally, and "test" when running acceptance
 	// testing.
 	version string
 }
 
-// ScaffoldingProviderModel describes the provider data model.
-type ScaffoldingProviderModel struct {
-	Endpoint types.String `tfsdk:"endpoint"`
-}
-
-func (p *ScaffoldingProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = "scaffolding"
+// Metadata returns the provider type name.
+func (p *sailpointProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "sailpoint"
 	resp.Version = p.version
 }
 
-func (p *ScaffoldingProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
+// Schema defines the provider-level schema for configuration data.
+func (p *sailpointProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"endpoint": schema.StringAttribute{
-				MarkdownDescription: "Example provider attribute",
-				Optional:            true,
+			"base_url": schema.StringAttribute{
+				Optional: true,
+			},
+			"client_id": schema.StringAttribute{
+				Optional: true,
+			},
+			"client_secret": schema.StringAttribute{
+				Optional:  true,
+				Sensitive: true,
 			},
 		},
 	}
 }
 
-func (p *ScaffoldingProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	var data ScaffoldingProviderModel
+// Configure prepares a SailPoint API client for data sources and resources.
+func (p *sailpointProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+	tflog.Info(ctx, "Configuring SailPoint client")
 
-	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+	var config sailpointProviderModel
+
+	diags := req.Config.Get(ctx, &config)
+	resp.Diagnostics.Append(diags...)
 
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Configuration values are now available.
-	// if data.Endpoint.IsNull() { /* ... */ }
-
-	// Example client configuration for data sources and resources
-	client := http.DefaultClient
-	resp.DataSourceData = client
-	resp.ResourceData = client
-}
-
-func (p *ScaffoldingProvider) Resources(ctx context.Context) []func() resource.Resource {
-	return []func() resource.Resource{
-		NewExampleResource,
+	if config.BaseUrl.IsUnknown() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("base_url"),
+			"Missing or invalid Base URL",
+			"Ensure the Base URL attribute is set in the configuration.",
+		)
 	}
-}
 
-func (p *ScaffoldingProvider) EphemeralResources(ctx context.Context) []func() ephemeral.EphemeralResource {
-	return []func() ephemeral.EphemeralResource{
-		NewExampleEphemeralResource,
+	if config.ClientId.IsUnknown() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("client_id"),
+			"Missing or invalid Client ID",
+			"Ensure the Client ID attribute is set in the configuration.",
+		)
 	}
+
+	if config.ClientSecret.IsUnknown() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("client_secret"),
+			"Missing or invalid Client Secret",
+			"Ensure the Client Secret attribute is set in the configuration.",
+		)
+	}
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	baseUrl := os.Getenv("SAILPOINT_BASE_URL")
+	clientId := os.Getenv("SAILPOINT_CLIENT_ID")
+	clientSecret := os.Getenv("SAILPOINT_CLIENT_SECRET")
+
+	if !config.BaseUrl.IsNull() {
+		baseUrl = config.BaseUrl.ValueString()
+	}
+	if !config.ClientId.IsNull() {
+		clientId = config.ClientId.ValueString()
+	}
+	if !config.ClientSecret.IsNull() {
+		clientSecret = config.ClientSecret.ValueString()
+	}
+
+	if baseUrl == "" {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("baseUrl"),
+			"Missing Base URL",
+			"The provider cannot create the API client as there is a missing value for the Base URL. "+
+				"Set the Base URL attribute in the configuration or use the SAILPOINT_BASE_URL environment variable.",
+		)
+	}
+
+	if clientId == "" {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("clientId"),
+			"Missing Client ID",
+			"The provider cannot create the API client as there is a missing value for the Client ID. "+
+				"Set the Client ID attribute in the configuration or use the SAILPOINT_CLIENT_ID environment variable.",
+		)
+	}
+
+	if clientSecret == "" {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("clientSecret"),
+			"Missing Client Secret",
+			"The provider cannot create the API client as there is a missing value for the Client Secret. "+
+				"Set the Client Secret attribute in the configuration or use the SAILPOINT_CLIENT_SECRET environment variable.",
+		)
+	}
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	ctx = tflog.SetField(ctx, "sailpoint_base_url", baseUrl)
+	ctx = tflog.SetField(ctx, "sailpoint_client_id", clientId)
+	ctx = tflog.SetField(ctx, "sailpoint_client_secret", clientSecret)
+	ctx = tflog.MaskFieldValuesWithFieldKeys(ctx, "sailpoint_client_secret")
+
+	os.Setenv("SAIL_BASE_URL", baseUrl)
+	os.Setenv("SAIL_CLIENT_ID", clientId)
+	os.Setenv("SAIL_CLIENT_SECRET", clientSecret)
+	sailpointConfiguration := sailpoint.NewDefaultConfiguration()
+
+	sailpointClient := sailpoint.NewAPIClient(sailpointConfiguration)
+
+	resp.DataSourceData = sailpointClient
+	resp.ResourceData = sailpointClient
+
+	tflog.Info(ctx, "SailPoint client configured", map[string]any{"success": true})
 }
 
-func (p *ScaffoldingProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
+// DataSources defines the data sources implemented in the provider.
+func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		NewExampleDataSource,
+		NewTransformsDataSource,
 	}
 }
 
-func (p *ScaffoldingProvider) Functions(ctx context.Context) []func() function.Function {
-	return []func() function.Function{
-		NewExampleFunction,
-	}
-}
-
-func New(version string) func() provider.Provider {
-	return func() provider.Provider {
-		return &ScaffoldingProvider{
-			version: version,
-		}
-	}
+// Resources defines the resources implemented in the provider.
+func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resource {
+	return nil
 }
