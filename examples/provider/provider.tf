@@ -1,3 +1,21 @@
-provider "scaffolding" {
-  # example configuration here
+# Example usage of the SailPoint provider
+# when variables are defined in environment or CLI
+provider "sailpoint" {}
+
+# Example usage of the SailPoint provider
+# when variables are defined in a tfvars file or in this file
+provider "sailpoint" {
+  base_url      = var.base_url
+  client_id     = var.client_id
+  client_secret = var.client_secret
+}
+
+
+# Example usage of the SailPoint provider
+# when variables are defined inline
+# This is NOT recommended for production use
+provider "sailpoint" {
+  base_url      = "https://example.sailpoint.net"
+  client_id     = "your-client-id"
+  client_secret = "your-client-secret"
 }
