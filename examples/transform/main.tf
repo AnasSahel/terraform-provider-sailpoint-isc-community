@@ -15,7 +15,7 @@ resource "sailpoint_transform" "example" {
   attributes_json = jsonencode({
     "input" : {
       "attributes" : {
-        "value" : "active"
+        "value" : "about to be deleted"
       },
       "type" : "static"
     }
