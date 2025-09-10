@@ -1,7 +1,7 @@
 resource "sailpoint_transform" "example" {
   name = "example-transform"
   type = "upper"
-  attributes_json = jsonencode({
+  attributes = jsonencode({
     "input" : {
       "attributes" : {
         "value" : "about to be deleted"

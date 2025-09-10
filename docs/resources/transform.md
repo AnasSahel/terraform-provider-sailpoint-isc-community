@@ -17,7 +17,7 @@ description: |-
 
 ### Required
 
-- `attributes_json` (String) A JSON string representing the attributes of the transform.
+- `attributes` (String) A JSON string representing the attributes of the transform.
 
 This field is required to import existing transforms.
 - `name` (String) The name of the transform.
