@@ -288,4 +288,26 @@ func (r *transformResource) Update(ctx context.Context, req resource.UpdateReque
 
 // Delete deletes the resource and removes the Terraform state on success.
 func (r *transformResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state transformResourceModel
+
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Delete the transform via SailPoint API
+	httpResponse, err := r.client.TransformsAPI.DeleteTransform(context.Background(), state.Id.ValueString()).Execute()
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Failed to Delete Transform",
+			fmt.Sprintf("SailPoint API error while deleting transform '%s' (ID: %s): %s\nHTTP Response: %v",
+				state.Name.ValueString(),
+				state.Id.ValueString(),
+				err.Error(),
+				httpResponse,
+			),
+		)
+		return
+	}
 }
