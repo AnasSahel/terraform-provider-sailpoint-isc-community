@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
@@ -25,8 +26,9 @@ type transformResourceModel struct {
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ resource.Resource              = &transformResource{}
-	_ resource.ResourceWithConfigure = &transformResource{}
+	_ resource.Resource                = &transformResource{}
+	_ resource.ResourceWithConfigure   = &transformResource{}
+	_ resource.ResourceWithImportState = &transformResource{}
 )
 
 // Configure adds the provider configured client to the resource.
@@ -310,4 +312,9 @@ func (r *transformResource) Delete(ctx context.Context, req resource.DeleteReque
 		)
 		return
 	}
+}
+
+func (r *transformResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	// Retrieve import ID and save to id attribute
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
