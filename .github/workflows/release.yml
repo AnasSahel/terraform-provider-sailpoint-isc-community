@@ -12,10 +12,10 @@ on:
 # GitHub considers creating releases and uploading assets as writing contents.
 permissions:
   contents: write
-  concurrency:
-    group: release-${{ github.ref }}   # avoid two runs on same ref killing each other
-    cancel-in-progress: false          # do NOT cancel the current one
-    
+concurrency:
+  group: release-${{ github.ref }}   # avoid two runs on same ref killing each other
+  cancel-in-progress: false          # do NOT cancel the current one
+
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
