@@ -1,3 +1,4 @@
+
 terraform {
   required_providers {
     sailpoint = {
@@ -8,8 +9,15 @@ terraform {
 
 provider "sailpoint" {}
 
-data "sailpoint_transforms" "example" {}
-
-output "example_transforms" {
-  value = data.sailpoint_transforms.example
+resource "sailpoint_transform" "example" {
+  name = "example-transform"
+  type = "upper"
+  attributes_json = jsonencode({
+    "input" : {
+      "attributes" : {
+        "value" : "active"
+      },
+      "type" : "static"
+    }
+  })
 }

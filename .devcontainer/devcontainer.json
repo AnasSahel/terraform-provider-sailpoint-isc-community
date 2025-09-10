@@ -13,6 +13,10 @@
 		"ghcr.io/devcontainers/features/go:1": {},
 		"ghcr.io/devcontainers/features/terraform:1": {}
 	},
+	"runArgs": [
+		"--env-file",
+		".devcontainer/devcontainer.env"
+	],
 	"containerEnv": {
 		"TF_CLI_CONFIG_FILE": "/workspaces/terraform-provider-sailpoint-isc-community/.devcontainer/.terraformrc"
 	}

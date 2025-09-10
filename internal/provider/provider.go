@@ -165,8 +165,8 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 
 	sailpointClient := sailpoint.NewAPIClient(sailpointConfiguration)
 
-	resp.DataSourceData = sailpointClient
-	resp.ResourceData = sailpointClient
+	resp.DataSourceData = sailpointClient.V2025
+	resp.ResourceData = sailpointClient.V2025
 
 	tflog.Info(ctx, "SailPoint client configured", map[string]any{"success": true})
 }
@@ -180,5 +180,7 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 
 // Resources defines the resources implemented in the provider.
 func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resource {
-	return nil
+	return []func() resource.Resource{
+		NewTransformResource,
+	}
 }
