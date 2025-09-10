@@ -19,11 +19,11 @@ import (
 )
 
 type transformResourceModel struct {
-	Id             types.String `tfsdk:"id"`
-	Name           types.String `tfsdk:"name"`
-	Type           types.String `tfsdk:"type"`
-	Internal       types.Bool   `tfsdk:"internal"`
-	AttributesJson types.String `tfsdk:"attributes_json"`
+	Id         types.String `tfsdk:"id"`
+	Name       types.String `tfsdk:"name"`
+	Type       types.String `tfsdk:"type"`
+	Internal   types.Bool   `tfsdk:"internal"`
+	Attributes types.String `tfsdk:"attributes"`
 	// Attributes types.Dynamic `tfsdk:"attributes"`
 }
 
@@ -108,7 +108,7 @@ func (r *transformResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 					boolplanmodifier.UseStateForUnknown(),
 				},
 			},
-			"attributes_json": schema.StringAttribute{
+			"attributes": schema.StringAttribute{
 				Required:            true,
 				Description:         "A JSON string representing the attributes of the transform.",
 				MarkdownDescription: "A JSON string representing the attributes of the transform.\n\nThis field is required to import existing transforms.",
@@ -129,11 +129,11 @@ func (r *transformResource) Create(ctx context.Context, req resource.CreateReque
 
 	// Prepare attributes: convert from JSON string to map
 	var attributesMap map[string]interface{}
-	err := json.Unmarshal([]byte(plan.AttributesJson.ValueString()), &attributesMap)
+	err := json.Unmarshal([]byte(plan.Attributes.ValueString()), &attributesMap)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Invalid Transform Attributes JSON",
-			fmt.Sprintf("Failed to parse attributes_json: %s. Please ensure the JSON is valid and properly formatted.", err.Error()),
+			fmt.Sprintf("Failed to parse attributes: %s. Please ensure the JSON is valid and properly formatted.", err.Error()),
 		)
 		return
 	}
@@ -171,7 +171,7 @@ func (r *transformResource) Create(ctx context.Context, req resource.CreateReque
 	plan.Internal = types.BoolValue(transformResponse.GetInternal())
 	plan.Name = types.StringValue(transformResponse.GetName())
 	plan.Type = types.StringValue(transformResponse.GetType())
-	plan.AttributesJson = types.StringValue(string(attributesByte))
+	plan.Attributes = types.StringValue(string(attributesByte))
 
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
@@ -219,7 +219,7 @@ func (r *transformResource) Read(ctx context.Context, req resource.ReadRequest, 
 	state.Internal = types.BoolValue(transform.GetInternal())
 	state.Name = types.StringValue(transform.GetName())
 	state.Type = types.StringValue(transform.GetType())
-	state.AttributesJson = types.StringValue(string(transformAttributes))
+	state.Attributes = types.StringValue(string(transformAttributes))
 
 	diags = resp.State.Set(ctx, state)
 	resp.Diagnostics.Append(diags...)
@@ -240,11 +240,11 @@ func (r *transformResource) Update(ctx context.Context, req resource.UpdateReque
 
 	// Generate the request body
 	var attributesMap map[string]interface{}
-	err := json.Unmarshal([]byte(plan.AttributesJson.ValueString()), &attributesMap)
+	err := json.Unmarshal([]byte(plan.Attributes.ValueString()), &attributesMap)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Invalid Transform Attributes JSON",
-			fmt.Sprintf("Failed to parse attributes_json during update: %s. Please ensure the JSON is valid and properly formatted.",
+			fmt.Sprintf("Failed to parse attributes during update: %s. Please ensure the JSON is valid and properly formatted.",
 				err.Error(),
 			),
 		)
@@ -282,7 +282,7 @@ func (r *transformResource) Update(ctx context.Context, req resource.UpdateReque
 	plan.Internal = types.BoolValue(transformResponse.GetInternal())
 	plan.Name = types.StringValue(transformResponse.GetName())
 	plan.Type = types.StringValue(transformResponse.GetType())
-	plan.AttributesJson = types.StringValue(string(transformAttributes))
+	plan.Attributes = types.StringValue(string(transformAttributes))
 
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
