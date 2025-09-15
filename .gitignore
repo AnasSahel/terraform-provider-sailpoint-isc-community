@@ -38,3 +38,6 @@ website/vendor
 .env
 *.env.*.local
 *.env
+
+# Local overrides
+local/*
