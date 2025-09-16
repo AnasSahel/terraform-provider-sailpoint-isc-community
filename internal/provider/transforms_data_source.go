@@ -15,11 +15,11 @@ import (
 )
 
 type transformModel struct {
-	Id             types.String `tfsdk:"id"`
-	Internal       types.Bool   `tfsdk:"internal"`
-	Name           types.String `tfsdk:"name"`
-	Type           types.String `tfsdk:"type"`
-	AttributesJson types.String `tfsdk:"attributes_json"`
+	Id         types.String `tfsdk:"id"`
+	Internal   types.Bool   `tfsdk:"internal"`
+	Name       types.String `tfsdk:"name"`
+	Type       types.String `tfsdk:"type"`
+	Attributes types.String `tfsdk:"attributes"`
 }
 
 type transformsDataSourceModel struct {
@@ -75,11 +75,11 @@ func (d *transformsDataSource) Schema(_ context.Context, _ datasource.SchemaRequ
 				Computed: true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
-						"id":              schema.StringAttribute{Computed: true},
-						"internal":        schema.BoolAttribute{Computed: true},
-						"name":            schema.StringAttribute{Computed: true},
-						"type":            schema.StringAttribute{Computed: true},
-						"attributes_json": schema.StringAttribute{Computed: true},
+						"id":         schema.StringAttribute{Computed: true},
+						"internal":   schema.BoolAttribute{Computed: true},
+						"name":       schema.StringAttribute{Computed: true},
+						"type":       schema.StringAttribute{Computed: true},
+						"attributes": schema.StringAttribute{Computed: true},
 					},
 				},
 			},
@@ -111,11 +111,11 @@ func (d *transformsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		}
 
 		transformState := transformModel{
-			Id:             types.StringValue(transform.GetId()),
-			Internal:       types.BoolValue(transform.GetInternal()),
-			Name:           types.StringValue(transform.GetName()),
-			Type:           types.StringValue(transform.GetType()),
-			AttributesJson: types.StringValue(string(attrs)),
+			Id:         types.StringValue(transform.GetId()),
+			Internal:   types.BoolValue(transform.GetInternal()),
+			Name:       types.StringValue(transform.GetName()),
+			Type:       types.StringValue(transform.GetType()),
+			Attributes: types.StringValue(string(attrs)),
 		}
 
 		state.Transforms = append(state.Transforms, transformState)
