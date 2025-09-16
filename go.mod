@@ -1,4 +1,4 @@
-module terraform-provider-sailpoint-isc-community
+module github.com/AnasSahel/terraform-provider-sailpoint-isc-community
 
 go 1.23.7
 
