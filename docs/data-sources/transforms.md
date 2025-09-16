@@ -24,7 +24,7 @@ description: |-
 
 Read-Only:
 
-- `attributes_json` (String)
+- `attributes` (String)
 - `id` (String)
 - `internal` (Boolean)
 - `name` (String)
