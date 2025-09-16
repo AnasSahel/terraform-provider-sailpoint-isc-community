@@ -8,9 +8,8 @@ import (
 	"flag"
 	"log"
 
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
-
-	"terraform-provider-sailpoint-isc-community/internal/provider"
 )
 
 var (
