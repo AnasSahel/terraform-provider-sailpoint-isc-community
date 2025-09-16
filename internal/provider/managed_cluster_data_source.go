@@ -217,7 +217,7 @@ func (d *ManagedClusterDataSource) Read(ctx context.Context, req datasource.Read
 	data.PinnedConfig = types.BoolValue(managedCluster.GetPinnedConfig())
 
 	data.Operational = types.BoolValue(managedCluster.GetOperational())
-	data.Status = types.StringValue(string(managedCluster.GetStatus()))
+	data.Status = types.StringValue(managedCluster.GetStatus())
 	data.PublicKeyCertificate = types.StringValue(*managedCluster.GetKeyPair().PublicKeyCertificate.Get())
 	data.PublicKeyThumbprint = types.StringValue(*managedCluster.GetKeyPair().PublicKeyThumbprint.Get())
 	data.PublicKey = types.StringValue(*managedCluster.GetKeyPair().PublicKey.Get())
