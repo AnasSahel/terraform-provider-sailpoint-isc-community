@@ -81,5 +81,8 @@ jobs:
       - run: go mod download
       - env:
           TF_ACC: "1"
+          SAILPOINT_BASE_URL: ${{ secrets.SAILPOINT_SB_BASE_URL }}
+          SAILPOINT_CLIENT_ID: ${{ secrets.SAILPOINT_SB_CLIENT_ID }}
+          SAILPOINT_CLIENT_SECRET: ${{ secrets.SAILPOINT_SB_CLIENT_SECRET }}
         run: go test -v -cover ./internal/provider/
         timeout-minutes: 10
