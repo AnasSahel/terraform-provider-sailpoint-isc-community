@@ -4,7 +4,7 @@
 This is a Terraform provider for SailPoint Identity Security Cloud (ISC) built using the **Terraform Plugin Framework** (not the legacy SDK). The provider integrates with SailPoint's V2025 API using the official `sailpoint-oss/golang-sdk/v2`.
 
 Key components:
-- **Provider registration**: `main.go` serves the provider at `hashicorp.com/edu/sailpoint`
+- **Provider registration**: `main.go` serves the provider at `registry.terraform.io/providers/AnasSahel/sailpoint-isc-community`
 - **Core provider**: `internal/provider/provider.go` handles authentication and client configuration
 - **Resources/DataSources**: Individual files like `transform_resource.go` implement specific SailPoint objects
 
