@@ -105,43 +105,84 @@ func (d *ManagedClusterDataSource) Read(ctx context.Context, req datasource.Read
 			return
 		}
 	} else {
-		// Look up by name - need to list all clusters and find by name
+		// Look up by name using filters for better performance
 		clusterName := config.Name.ValueString()
-		tflog.Debug(ctx, "Looking up managed cluster by name", map[string]interface{}{
+		tflog.Debug(ctx, "Looking up managed cluster by name using filters", map[string]interface{}{
 			"name": clusterName,
 		})
 
-		clusters, httpResponse, err := d.client.ManagedClustersAPI.GetManagedClusters(
+		// Try using name filter first (more efficient)
+		nameFilter := fmt.Sprintf("name eq \"%s\"", clusterName)
+
+		var clusters []api_v2025.ManagedCluster
+		clusters, httpResponse, err = d.client.ManagedClustersAPI.GetManagedClusters(
 			context.Background(),
-		).Execute()
+		).Filters(nameFilter).Execute()
 
 		if err != nil {
-			resp.Diagnostics.AddError(
-				"Error Listing Managed Clusters",
-				fmt.Sprintf("Could not list managed clusters to find '%s': %s\n\nHTTP Response: %v",
-					clusterName, err.Error(), httpResponse),
-			)
-			return
-		}
+			// If filtering by name is not supported, fall back to listing all clusters
+			tflog.Warn(ctx, "Name filtering not supported, falling back to full list", map[string]interface{}{
+				"name":  clusterName,
+				"error": err.Error(),
+			})
 
-		// Find the cluster with matching name
-		var foundCluster *api_v2025.ManagedCluster
-		for i := range clusters {
-			if clusters[i].GetName() == clusterName {
-				foundCluster = &clusters[i]
-				break
+			clusters, httpResponse, err = d.client.ManagedClustersAPI.GetManagedClusters(
+				context.Background(),
+			).Execute()
+
+			if err != nil {
+				resp.Diagnostics.AddError(
+					"Error Listing Managed Clusters",
+					fmt.Sprintf("Could not list managed clusters to find '%s': %s\n\nHTTP Response: %v",
+						clusterName, err.Error(), httpResponse),
+				)
+				return
 			}
+
+			// Find the cluster with matching name (client-side filtering)
+			var foundCluster *api_v2025.ManagedCluster
+			for i := range clusters {
+				if clusters[i].GetName() == clusterName {
+					foundCluster = &clusters[i]
+					break
+				}
+			}
+
+			if foundCluster == nil {
+				resp.Diagnostics.AddError(
+					"Managed Cluster Not Found",
+					fmt.Sprintf("No managed cluster found with name '%s'", clusterName),
+				)
+				return
+			}
+
+			managedCluster = foundCluster
+		} else {
+			// Server-side filtering worked
+			if len(clusters) == 0 {
+				resp.Diagnostics.AddError(
+					"Managed Cluster Not Found",
+					fmt.Sprintf("No managed cluster found with name '%s'", clusterName),
+				)
+				return
+			}
+
+			// If multiple clusters have the same name (shouldn't happen but handle gracefully)
+			if len(clusters) > 1 {
+				tflog.Warn(ctx, "Multiple managed clusters found with the same name", map[string]interface{}{
+					"name":  clusterName,
+					"count": len(clusters),
+				})
+			}
+
+			// Use the first (and should be only) cluster found
+			managedCluster = &clusters[0]
 		}
 
-		if foundCluster == nil {
-			resp.Diagnostics.AddError(
-				"Managed Cluster Not Found",
-				fmt.Sprintf("No managed cluster found with name '%s'", clusterName),
-			)
-			return
-		}
-
-		managedCluster = foundCluster
+		tflog.Debug(ctx, "Found managed cluster by name", map[string]interface{}{
+			"name":       clusterName,
+			"cluster_id": managedCluster.GetId(),
+		})
 	}
 
 	// Convert API response to Terraform state
