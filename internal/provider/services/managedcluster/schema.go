@@ -1,7 +1,11 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package managedcluster
 
 import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	datasourceSchema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
@@ -135,6 +139,132 @@ func GetManagedClusterResourceSchema() schema.Schema {
 				MarkdownDescription: "The date and time when the managed cluster was initially created, in RFC3339 format.",
 			},
 			"updated_at": schema.StringAttribute{
+				Computed:            true,
+				Description:         "The timestamp when the managed cluster was last updated.",
+				MarkdownDescription: "The date and time when the managed cluster was last modified, in RFC3339 format.",
+			},
+		},
+	}
+}
+
+// GetManagedClusterDataSourceSchema returns the schema definition for the managed cluster data source
+func GetManagedClusterDataSourceSchema() datasourceSchema.Schema {
+	return datasourceSchema.Schema{
+		Description:         "Fetches information about a SailPoint Identity Security Cloud (ISC) managed cluster.",
+		MarkdownDescription: "The `sailpoint_managed_cluster` data source allows you to retrieve information about a specific managed cluster in SailPoint ISC by ID or name.",
+		Attributes: map[string]datasourceSchema.Attribute{
+			"id": datasourceSchema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				Description:         "The unique identifier for the managed cluster. Either 'id' or 'name' must be specified.",
+				MarkdownDescription: "The unique identifier for the managed cluster. Use this field when you know the exact cluster ID. Either `id` or `name` must be specified.",
+			},
+			"name": datasourceSchema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				Description:         "The name of the managed cluster. Either 'id' or 'name' must be specified.",
+				MarkdownDescription: "The display name for the managed cluster. Use this field when you want to look up a cluster by its name. Either `id` or `name` must be specified.",
+			},
+			"description": datasourceSchema.StringAttribute{
+				Computed:            true,
+				Description:         "The description of the managed cluster.",
+				MarkdownDescription: "A human-readable description of the managed cluster and its purpose.",
+			},
+			"type": datasourceSchema.StringAttribute{
+				Computed:            true,
+				Description:         "The type of the managed cluster (e.g., 'idn').",
+				MarkdownDescription: "The type of managed cluster. Common values include `idn` for Identity Now clusters.",
+			},
+			"configuration": datasourceSchema.MapAttribute{
+				ElementType:         types.StringType,
+				Computed:            true,
+				Description:         "Configuration settings for the managed cluster as key-value pairs.",
+				MarkdownDescription: "Configuration settings for the managed cluster. Keys are in snake_case format (e.g., `gmt_offset`).",
+			},
+			// Computed organizational attributes
+			"pod": datasourceSchema.StringAttribute{
+				Computed:            true,
+				Description:         "The pod where the managed cluster is deployed.",
+				MarkdownDescription: "The SailPoint pod (data center) where the managed cluster is deployed.",
+			},
+			"org": datasourceSchema.StringAttribute{
+				Computed:            true,
+				Description:         "The organization that owns the managed cluster.",
+				MarkdownDescription: "The SailPoint organization identifier that owns this managed cluster.",
+			},
+			// Computed cluster information
+			"client_type": datasourceSchema.StringAttribute{
+				Computed:            true,
+				Description:         "The type of client used by the managed cluster.",
+				MarkdownDescription: "The client type used by the managed cluster (e.g., CCG - Cloud Connection Gateway).",
+			},
+			"ccg_version": datasourceSchema.StringAttribute{
+				Computed:            true,
+				Description:         "The version of the Cloud Connection Gateway (CCG).",
+				MarkdownDescription: "The version of the Cloud Connection Gateway software running on the managed cluster.",
+			},
+			"pinned_config": datasourceSchema.BoolAttribute{
+				Computed:            true,
+				Description:         "Indicates whether the cluster configuration is pinned.",
+				MarkdownDescription: "Boolean flag indicating whether the cluster configuration is pinned and cannot be automatically updated.",
+			},
+			"operational": datasourceSchema.BoolAttribute{
+				Computed:            true,
+				Description:         "Indicates whether the managed cluster is operational.",
+				MarkdownDescription: "Boolean flag indicating whether the managed cluster is currently operational and ready to handle requests.",
+			},
+			"status": datasourceSchema.StringAttribute{
+				Computed:            true,
+				Description:         "The current status of the managed cluster.",
+				MarkdownDescription: "The current operational status of the managed cluster (e.g., OPERATIONAL, NO_CLIENTS).",
+			},
+			"alert_key": datasourceSchema.StringAttribute{
+				Computed:            true,
+				Description:         "Key describing any immediate cluster alerts.",
+				MarkdownDescription: "A key that describes any immediate alerts or issues with the managed cluster.",
+			},
+			// Computed metrics and relationships
+			"client_ids": datasourceSchema.ListAttribute{
+				ElementType:         types.StringType,
+				Computed:            true,
+				Description:         "List of client IDs associated with the managed cluster.",
+				MarkdownDescription: "A list of client identifiers that are registered with this managed cluster.",
+			},
+			"service_count": datasourceSchema.Int32Attribute{
+				Computed:            true,
+				Description:         "The number of services bound to the managed cluster.",
+				MarkdownDescription: "The count of services currently bound to and managed by this cluster.",
+			},
+			"cc_id": datasourceSchema.StringAttribute{
+				Computed:            true,
+				Description:         "The connected cloud ID (legacy field).",
+				MarkdownDescription: "Connected cloud identifier. This is a legacy field used only for calling CC APIs.",
+			},
+			// Security/Key attributes
+			"public_key_certificate": datasourceSchema.StringAttribute{
+				Computed:            true,
+				Sensitive:           true,
+				Description:         "The public key certificate of the managed cluster.",
+				MarkdownDescription: "The X.509 public key certificate used by the managed cluster for secure communications.",
+			},
+			"public_key_thumbprint": datasourceSchema.StringAttribute{
+				Computed:            true,
+				Description:         "The thumbprint of the public key certificate.",
+				MarkdownDescription: "The SHA-1 thumbprint of the public key certificate, used for certificate verification.",
+			},
+			"public_key": datasourceSchema.StringAttribute{
+				Computed:            true,
+				Sensitive:           true,
+				Description:         "The public key of the managed cluster.",
+				MarkdownDescription: "The public key component used by the managed cluster for cryptographic operations.",
+			},
+			// Timestamp attributes
+			"created_at": datasourceSchema.StringAttribute{
+				Computed:            true,
+				Description:         "The timestamp when the managed cluster was created.",
+				MarkdownDescription: "The date and time when the managed cluster was initially created, in RFC3339 format.",
+			},
+			"updated_at": datasourceSchema.StringAttribute{
 				Computed:            true,
 				Description:         "The timestamp when the managed cluster was last updated.",
 				MarkdownDescription: "The date and time when the managed cluster was last modified, in RFC3339 format.",

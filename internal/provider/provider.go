@@ -178,6 +178,7 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewTransformsDataSource,
+		managedcluster.NewManagedClusterDataSource,
 	}
 }
 
