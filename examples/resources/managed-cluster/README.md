@@ -19,7 +19,7 @@ resource "sailpoint_managed_cluster" "example" {
   type        = "idn"
   
   configuration = {
-    gmt_offset = "-05:00"
+    gmt_offset = "-5"
     log_level  = "INFO"
   }
 }
@@ -45,7 +45,7 @@ The `configuration` map supports various key-value pairs for cluster settings. A
 
 Common configuration keys include:
 
-- **gmt_offset** - Timezone offset (e.g., "-05:00")
+- **gmt_offset** - Timezone offset as integer (e.g., "-5" for UTC-5)
 - **region** - AWS/Azure region (e.g., "us-east-1")
 - **log_level** - Logging level (DEBUG, INFO, WARN, ERROR)
 - **log_retention_days** - Log retention period
