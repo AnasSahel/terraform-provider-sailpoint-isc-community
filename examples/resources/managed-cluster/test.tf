@@ -22,7 +22,7 @@ resource "sailpoint_managed_cluster" "test" {
   type        = "idn"
 
   configuration = {
-    gmt_offset  = "-05:00"
+    gmt_offset  = "-5"
     environment = "test"
     log_level   = "DEBUG"
   }
