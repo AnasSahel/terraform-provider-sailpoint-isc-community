@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 )
 
-// ValidateManagedClusterName validates the managed cluster name according to SailPoint requirements
+// ValidateManagedClusterName validates the managed cluster name according to SailPoint requirements.
 func ValidateManagedClusterName(name string) diag.Diagnostics {
 	var diags diag.Diagnostics
 
@@ -42,7 +42,7 @@ func ValidateManagedClusterName(name string) diag.Diagnostics {
 	return diags
 }
 
-// ValidateManagedClusterType validates the managed cluster type
+// ValidateManagedClusterType validates the managed cluster type.
 func ValidateManagedClusterType(clusterType string) diag.Diagnostics {
 	var diags diag.Diagnostics
 
@@ -73,7 +73,7 @@ func ValidateManagedClusterType(clusterType string) diag.Diagnostics {
 	return diags
 }
 
-// ValidateManagedClusterDescription validates the description field
+// ValidateManagedClusterDescription validates the description field.
 func ValidateManagedClusterDescription(description string) diag.Diagnostics {
 	var diags diag.Diagnostics
 
@@ -95,7 +95,7 @@ func ValidateManagedClusterDescription(description string) diag.Diagnostics {
 	return diags
 }
 
-// ValidateManagedClusterConfiguration validates configuration key-value pairs
+// ValidateManagedClusterConfiguration validates configuration key-value pairs.
 func ValidateManagedClusterConfiguration(config map[string]string) diag.Diagnostics {
 	var diags diag.Diagnostics
 
@@ -120,14 +120,14 @@ func ValidateManagedClusterConfiguration(config map[string]string) diag.Diagnost
 	return diags
 }
 
-// isValidConfigKey checks if a configuration key follows snake_case convention
+// isValidConfigKey checks if a configuration key follows snake_case convention.
 func isValidConfigKey(key string) bool {
 	// Check for snake_case pattern: lowercase letters, numbers, and underscores only
 	validKeyRegex := regexp.MustCompile(`^[a-z0-9_]+$`)
 	return validKeyRegex.MatchString(key)
 }
 
-// ValidateRequiredFields performs validation on all required fields
+// ValidateRequiredFields performs validation on all required fields.
 func ValidateRequiredFields(model *ManagedClusterResourceModel) diag.Diagnostics {
 	var diags diag.Diagnostics
 

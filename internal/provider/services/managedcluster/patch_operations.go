@@ -10,19 +10,19 @@ import (
 	"github.com/sailpoint-oss/golang-sdk/v2/api_v2025"
 )
 
-// PatchOperationBuilder helps build JSON Patch operations for managed cluster updates
+// PatchOperationBuilder helps build JSON Patch operations for managed cluster updates.
 type PatchOperationBuilder struct {
 	operations []api_v2025.JsonPatchOperation
 }
 
-// NewPatchOperationBuilder creates a new instance of PatchOperationBuilder
+// NewPatchOperationBuilder creates a new instance of PatchOperationBuilder.
 func NewPatchOperationBuilder() *PatchOperationBuilder {
 	return &PatchOperationBuilder{
 		operations: make([]api_v2025.JsonPatchOperation, 0),
 	}
 }
 
-// AddStringReplace adds a replace operation for a string field
+// AddStringReplace adds a replace operation for a string field.
 func (b *PatchOperationBuilder) AddStringReplace(path string, newValue string) {
 	value := api_v2025.StringAsUpdateMultiHostSourcesRequestInnerValue(&newValue)
 	patchOp := api_v2025.JsonPatchOperation{
@@ -33,7 +33,7 @@ func (b *PatchOperationBuilder) AddStringReplace(path string, newValue string) {
 	b.operations = append(b.operations, patchOp)
 }
 
-// AddStringReplaceOptional adds a replace operation for an optional string field (handles null values)
+// AddStringReplaceOptional adds a replace operation for an optional string field (handles null values).
 func (b *PatchOperationBuilder) AddStringReplaceOptional(path string, newValue *string) {
 	patchOp := api_v2025.JsonPatchOperation{
 		Op:   "replace",
@@ -49,7 +49,7 @@ func (b *PatchOperationBuilder) AddStringReplaceOptional(path string, newValue *
 	b.operations = append(b.operations, patchOp)
 }
 
-// AddMapReplace adds a replace operation for a map field with automatic key conversion
+// AddMapReplace adds a replace operation for a map field with automatic key conversion.
 func (b *PatchOperationBuilder) AddMapReplace(path string, configMap map[string]interface{}) {
 	// Convert snake_case keys to camelCase for SailPoint API
 	sailpointConfig := make(map[string]interface{})
@@ -72,22 +72,22 @@ func (b *PatchOperationBuilder) AddMapReplace(path string, configMap map[string]
 	b.operations = append(b.operations, patchOp)
 }
 
-// Build returns the constructed patch operations
+// Build returns the constructed patch operations.
 func (b *PatchOperationBuilder) Build() []api_v2025.JsonPatchOperation {
 	return b.operations
 }
 
-// HasOperations returns true if there are any patch operations to apply
+// HasOperations returns true if there are any patch operations to apply.
 func (b *PatchOperationBuilder) HasOperations() bool {
 	return len(b.operations) > 0
 }
 
-// Count returns the number of patch operations
+// Count returns the number of patch operations.
 func (b *PatchOperationBuilder) Count() int {
 	return len(b.operations)
 }
 
-// BuildManagedClusterPatches creates JSON Patch operations by comparing state and plan models
+// BuildManagedClusterPatches creates JSON Patch operations by comparing state and plan models.
 func BuildManagedClusterPatches(state, plan *ManagedClusterResourceModel) []api_v2025.JsonPatchOperation {
 	builder := NewPatchOperationBuilder()
 

@@ -14,7 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// GetManagedClusterResourceSchema returns the schema definition for the managed cluster resource
+// GetManagedClusterResourceSchema returns the schema definition for the managed cluster resource.
 func GetManagedClusterResourceSchema() schema.Schema {
 	return schema.Schema{
 		Description:         "Manages a SailPoint Identity Security Cloud (ISC) managed cluster.",
@@ -147,7 +147,7 @@ func GetManagedClusterResourceSchema() schema.Schema {
 	}
 }
 
-// GetManagedClusterDataSourceSchema returns the schema definition for the managed cluster data source
+// GetManagedClusterDataSourceSchema returns the schema definition for the managed cluster data source.
 func GetManagedClusterDataSourceSchema() datasourceSchema.Schema {
 	return datasourceSchema.Schema{
 		Description:         "Fetches information about a SailPoint Identity Security Cloud (ISC) managed cluster.",
