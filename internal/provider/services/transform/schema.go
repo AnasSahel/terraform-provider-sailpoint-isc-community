@@ -5,10 +5,10 @@ package transform
 
 import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	resourceschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
-	resourceschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
 )
 
 // GetTransformResourceSchema returns the schema definition for the transform resource.
