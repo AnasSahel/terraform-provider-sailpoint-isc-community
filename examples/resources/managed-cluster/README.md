@@ -33,7 +33,7 @@ data "sailpoint_managed_cluster" "by_id" {
   id = "2c918085-74f3-4b96-8c31-3c3a7cb8f5e2"
 }
 
-# By name
+# By name (uses optimized server-side filtering when available)
 data "sailpoint_managed_cluster" "by_name" {
   name = "Production Cluster"
 }
@@ -84,6 +84,14 @@ provider "sailpoint" {
 }
 ```
 
+## Performance Optimizations
+
+The managed cluster data source uses intelligent filtering to optimize performance:
+
+- **Server-side filtering**: When looking up clusters by name, the data source first attempts to use SailPoint's server-side filtering (`name eq "cluster-name"`) for faster results
+- **Automatic fallback**: If server-side filtering is not supported for the name field, it automatically falls back to client-side filtering by retrieving all clusters and filtering locally
+- **Logging**: The provider logs when fallback occurs, helping with debugging and API compatibility
+
 ## Best Practices
 
 1. **Use descriptive names** - Cluster names should clearly indicate their purpose
@@ -91,6 +99,7 @@ provider "sailpoint" {
 3. **Prevent accidental deletion** - Use `prevent_destroy = true` for production clusters
 4. **Use variables** - Parameterize common settings for reusability
 5. **Monitor status** - Use the data source to check cluster operational status
+6. **Prefer ID lookups** - When possible, use cluster ID for lookups as they're always more efficient
 
 ## Troubleshooting
 

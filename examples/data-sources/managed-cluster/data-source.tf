@@ -4,6 +4,8 @@ data "sailpoint_managed_cluster" "by_id" {
 }
 
 # Example 2: Look up managed cluster by name
+# Uses server-side filtering for better performance when available,
+# automatically falls back to client-side filtering if not supported
 data "sailpoint_managed_cluster" "by_name" {
   name = "My Test Cluster"
 }
