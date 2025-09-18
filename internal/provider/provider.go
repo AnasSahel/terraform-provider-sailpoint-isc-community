@@ -7,7 +7,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/managed_cluster"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/managedcluster"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -73,12 +73,11 @@ func (p *sailpointProvider) Schema(_ context.Context, _ provider.SchemaRequest, 
 
 // Configure prepares a SailPoint API client for data sources and resources.
 func (p *sailpointProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	tflog.Info(ctx, "Configuring SailPoint client")
-
 	var config sailpointProviderModel
 
-	diags := req.Config.Get(ctx, &config)
-	resp.Diagnostics.Append(diags...)
+	tflog.Info(ctx, "Configuring SailPoint client")
+
+	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
 
 	if resp.Diagnostics.HasError() {
 		return
@@ -167,10 +166,10 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 	os.Setenv("SAIL_CLIENT_SECRET", clientSecret)
 	sailpointConfiguration := sailpoint.NewDefaultConfiguration()
 
-	sailpointClient := sailpoint.NewAPIClient(sailpointConfiguration)
+	sailpointClient := sailpoint.NewAPIClient(sailpointConfiguration).V2025
 
-	resp.DataSourceData = sailpointClient.V2025
-	resp.ResourceData = sailpointClient.V2025
+	resp.DataSourceData = sailpointClient
+	resp.ResourceData = sailpointClient
 
 	tflog.Info(ctx, "SailPoint client configured", map[string]any{"success": true})
 }
@@ -179,7 +178,6 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewTransformsDataSource,
-		managed_cluster.NewManagedClusterDataSource,
 	}
 }
 
@@ -187,5 +185,6 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewTransformResource,
+		managedcluster.NewManagedClusterResource,
 	}
 }
