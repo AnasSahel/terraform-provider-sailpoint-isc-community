@@ -3,6 +3,7 @@ package managedcluster
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -13,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/iancoleman/strcase"
 	"github.com/sailpoint-oss/golang-sdk/v2/api_v2025"
 )
 
@@ -257,6 +259,154 @@ func (r *ManagedClusterResource) Read(ctx context.Context, req resource.ReadRequ
 }
 
 func (r *ManagedClusterResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	tflog.Debug(ctx, "Updating Managed Cluster")
+
+	// Get the current state
+	var state ManagedClusterResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Get the planned changes
+	var plan ManagedClusterResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Create JSON Patch operations for the changes
+	var patchOps []api_v2025.JsonPatchOperation
+
+	// Check if name changed
+	if !plan.Name.Equal(state.Name) {
+		name := plan.Name.ValueString()
+		value := api_v2025.StringAsUpdateMultiHostSourcesRequestInnerValue(&name)
+		patchOp := api_v2025.JsonPatchOperation{
+			Op:    "replace",
+			Path:  "/name",
+			Value: &value,
+		}
+		patchOps = append(patchOps, patchOp)
+	}
+
+	// Check if description changed
+	if !plan.Description.Equal(state.Description) {
+		patchOp := api_v2025.JsonPatchOperation{
+			Op:   "replace",
+			Path: "/description",
+		}
+		if plan.Description.IsNull() {
+			// For null values, we don't set the Value field
+		} else {
+			desc := plan.Description.ValueString()
+			value := api_v2025.StringAsUpdateMultiHostSourcesRequestInnerValue(&desc)
+			patchOp.Value = &value
+		}
+		patchOps = append(patchOps, patchOp)
+	}
+
+	// Check if type changed
+	if !plan.Type.Equal(state.Type) {
+		typeVal := plan.Type.ValueString()
+		value := api_v2025.StringAsUpdateMultiHostSourcesRequestInnerValue(&typeVal)
+		patchOp := api_v2025.JsonPatchOperation{
+			Op:    "replace",
+			Path:  "/type",
+			Value: &value,
+		}
+		patchOps = append(patchOps, patchOp)
+	}
+
+	// Check if configuration changed
+	if !plan.Configuration.Equal(state.Configuration) {
+		// Convert the configuration map to the format expected by the API
+		configMap := make(map[string]interface{})
+		for k, v := range plan.Configuration.Elements() {
+			// Remove quotes from the string value and convert key to camelCase
+			stringVal := strings.Trim(v.String(), `"`)
+			configMap[strcase.ToLowerCamel(k)] = stringVal
+		}
+
+		value := api_v2025.MapmapOfStringAnyAsUpdateMultiHostSourcesRequestInnerValue(&configMap)
+		patchOp := api_v2025.JsonPatchOperation{
+			Op:    "replace",
+			Path:  "/configuration",
+			Value: &value,
+		}
+		patchOps = append(patchOps, patchOp)
+	}
+
+	// If no changes, return early
+	if len(patchOps) == 0 {
+		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+		return
+	}
+
+	// Call the SailPoint API to update the managed cluster
+	managedCluster, httpResponse, err := r.client.ManagedClustersAPI.UpdateManagedCluster(
+		context.Background(),
+		state.Id.ValueString(),
+	).JsonPatchOperation(patchOps).Execute()
+
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error updating managed cluster",
+			fmt.Sprintf("Could not update managed cluster %s: %s\nHTTP Response: %v", state.Id.ValueString(), err, httpResponse),
+		)
+		return
+	}
+
+	// Start with the current state to preserve computed fields
+	newState := state
+
+	// Always update the ID (required field)
+	newState.Id = types.StringValue(managedCluster.GetId())
+
+	// Update fields that were changed and returned by the API
+	if managedCluster.HasName() {
+		newState.Name = types.StringValue(managedCluster.GetName())
+	}
+
+	if managedCluster.HasDescription() {
+		newState.Description = types.StringValue(managedCluster.GetDescription())
+	}
+
+	if managedCluster.HasType() {
+		newState.Type = types.StringValue(string(managedCluster.GetType()))
+	}
+
+	// For configuration, preserve the planned configuration to avoid inconsistency errors
+	if !plan.Configuration.IsNull() {
+		newState.Configuration = plan.Configuration
+	}
+
+	// Update computed fields only if they have meaningful values in the response
+	if managedCluster.HasPod() && managedCluster.GetPod() != "" {
+		newState.Pod = types.StringValue(managedCluster.GetPod())
+	}
+
+	if managedCluster.HasOrg() && managedCluster.GetOrg() != "" {
+		newState.Org = types.StringValue(managedCluster.GetOrg())
+	}
+
+	// ClientType is always present but may be nullable - check if it's valid
+	clientType, ok := managedCluster.GetClientTypeOk()
+	if ok && clientType != nil {
+		newState.ClientType = types.StringValue(string(*clientType))
+	}
+
+	// CcgVersion is required but check if it has meaningful value
+	if managedCluster.GetCcgVersion() != "" && managedCluster.GetCcgVersion() != "Undefined" {
+		newState.CcgVersion = types.StringValue(managedCluster.GetCcgVersion())
+	}
+
+	if managedCluster.HasUpdatedAt() {
+		newState.UpdatedAt = types.StringValue(managedCluster.GetUpdatedAt().String())
+	}
+
+	// Set state
+	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
 func (r *ManagedClusterResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
