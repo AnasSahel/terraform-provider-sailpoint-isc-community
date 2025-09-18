@@ -115,7 +115,7 @@ func (d *ManagedClusterDataSource) Read(ctx context.Context, req datasource.Read
 		nameFilter := fmt.Sprintf("name eq \"%s\"", clusterName)
 
 		var clusters []api_v2025.ManagedCluster
-		clusters, httpResponse, err = d.client.ManagedClustersAPI.GetManagedClusters(
+		clusters, _, err = d.client.ManagedClustersAPI.GetManagedClusters(
 			context.Background(),
 		).Filters(nameFilter).Execute()
 

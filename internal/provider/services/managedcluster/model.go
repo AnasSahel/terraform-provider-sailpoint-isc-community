@@ -13,7 +13,7 @@ import (
 )
 
 // ManagedClusterModel represents the core data structure for a SailPoint managed cluster
-// This model is shared between resource and data source implementations
+// This model is shared between resource and data source implementations.
 type ManagedClusterModel struct {
 	// Core identifiers
 	Id   types.String `tfsdk:"id"`
@@ -53,12 +53,12 @@ type ManagedClusterModel struct {
 	UpdatedAt types.String `tfsdk:"updated_at"`
 }
 
-// ManagedClusterResourceModel extends the base model for resource-specific operations
+// ManagedClusterResourceModel extends the base model for resource-specific operations.
 type ManagedClusterResourceModel struct {
 	ManagedClusterModel
 }
 
-// ToSailPointCreateManagedClusterRequest converts the Terraform model to a SailPoint API create request
+// ToSailPointCreateManagedClusterRequest converts the Terraform model to a SailPoint API create request.
 func (r ManagedClusterResourceModel) ToSailPointCreateManagedClusterRequest(ctx context.Context) (*api_v2025.ManagedClusterRequest, diag.Diagnostics) {
 	var diags diag.Diagnostics
 	managedClusterRequest := api_v2025.NewManagedClusterRequestWithDefaults()
@@ -113,7 +113,7 @@ func (r ManagedClusterResourceModel) ToSailPointCreateManagedClusterRequest(ctx 
 	return managedClusterRequest, diags
 }
 
-// FromSailPointManagedCluster populates the Terraform model from a SailPoint API response
+// FromSailPointManagedCluster populates the Terraform model from a SailPoint API response.
 func (r *ManagedClusterResourceModel) FromSailPointManagedCluster(ctx context.Context, apiModel *api_v2025.ManagedCluster) diag.Diagnostics {
 	var diags diag.Diagnostics
 
@@ -183,7 +183,7 @@ func (r *ManagedClusterResourceModel) FromSailPointManagedCluster(ctx context.Co
 }
 
 // UpdateSelectiveFields updates only the fields that were changed from an API response
-// This method helps prevent inconsistency errors by preserving unchanged computed fields
+// This method helps prevent inconsistency errors by preserving unchanged computed fields.
 func (r *ManagedClusterResourceModel) UpdateSelectiveFields(ctx context.Context, apiModel *api_v2025.ManagedCluster, plan *ManagedClusterResourceModel) diag.Diagnostics {
 	var diags diag.Diagnostics
 
@@ -243,7 +243,7 @@ func (r *ManagedClusterResourceModel) UpdateSelectiveFields(ctx context.Context,
 }
 
 // ManagedClusterDataSourceModel represents the data source model for managed clusters
-// It's identical to ManagedClusterModel but used for data sources specifically
+// It's identical to ManagedClusterModel but used for data sources specifically.
 type ManagedClusterDataSourceModel struct {
 	// Core identifiers
 	Id   types.String `tfsdk:"id"`
@@ -283,7 +283,7 @@ type ManagedClusterDataSourceModel struct {
 	UpdatedAt types.String `tfsdk:"updated_at"`
 }
 
-// FromSailPointManagedClusterDataSource populates the data source model from a SailPoint API ManagedCluster object
+// FromSailPointManagedClusterDataSource populates the data source model from a SailPoint API ManagedCluster object.
 func (r *ManagedClusterDataSourceModel) FromSailPointManagedClusterDataSource(ctx context.Context, apiModel *api_v2025.ManagedCluster) diag.Diagnostics {
 	var diags diag.Diagnostics
 
