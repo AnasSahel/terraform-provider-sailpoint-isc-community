@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package managedcluster
 
 import (
@@ -159,7 +162,7 @@ func (r *ManagedClusterResourceModel) FromSailPointManagedCluster(ctx context.Co
 	r.CcgVersion = types.StringValue(apiModel.GetCcgVersion())
 	r.PinnedConfig = types.BoolValue(apiModel.GetPinnedConfig())
 	r.Operational = types.BoolValue(apiModel.GetOperational())
-	r.Status = types.StringValue(string(apiModel.GetStatus()))
+	r.Status = types.StringValue(apiModel.GetStatus())
 	r.AlertKey = types.StringValue(apiModel.GetAlertKey())
 
 	// Map computed security fields
@@ -169,7 +172,7 @@ func (r *ManagedClusterResourceModel) FromSailPointManagedCluster(ctx context.Co
 
 	// Map computed metrics and relationships
 	r.ClientIds = clientIds
-	r.ServiceCount = types.Int32Value(int32(apiModel.GetServiceCount()))
+	r.ServiceCount = types.Int32Value(apiModel.GetServiceCount())
 	r.CcId = types.StringValue(apiModel.GetCcId())
 
 	// Map computed timestamps
@@ -230,6 +233,166 @@ func (r *ManagedClusterResourceModel) UpdateSelectiveFields(ctx context.Context,
 	// CcgVersion is required but check if it has meaningful value
 	if apiModel.GetCcgVersion() != "" && apiModel.GetCcgVersion() != "Undefined" {
 		r.CcgVersion = types.StringValue(apiModel.GetCcgVersion())
+	}
+
+	if apiModel.HasUpdatedAt() {
+		r.UpdatedAt = types.StringValue(apiModel.GetUpdatedAt().String())
+	}
+
+	return diags
+}
+
+// ManagedClusterDataSourceModel represents the data source model for managed clusters
+// It's identical to ManagedClusterModel but used for data sources specifically
+type ManagedClusterDataSourceModel struct {
+	// Core identifiers
+	Id   types.String `tfsdk:"id"`
+	Name types.String `tfsdk:"name"`
+
+	// Required attributes
+	Type        types.String `tfsdk:"type"`
+	Description types.String `tfsdk:"description"`
+
+	// Configuration
+	Configuration types.Map `tfsdk:"configuration"`
+
+	// Organizational attributes
+	Pod types.String `tfsdk:"pod"`
+	Org types.String `tfsdk:"org"`
+
+	// Cluster information
+	ClientType   types.String `tfsdk:"client_type"`
+	CcgVersion   types.String `tfsdk:"ccg_version"`
+	PinnedConfig types.Bool   `tfsdk:"pinned_config"`
+	Operational  types.Bool   `tfsdk:"operational"`
+	Status       types.String `tfsdk:"status"`
+	AlertKey     types.String `tfsdk:"alert_key"`
+
+	// Metrics and relationships
+	ClientIds    types.List   `tfsdk:"client_ids"`
+	ServiceCount types.Int32  `tfsdk:"service_count"`
+	CcId         types.String `tfsdk:"cc_id"`
+
+	// Security/Key attributes
+	PublicKeyCertificate types.String `tfsdk:"public_key_certificate"`
+	PublicKeyThumbprint  types.String `tfsdk:"public_key_thumbprint"`
+	PublicKey            types.String `tfsdk:"public_key"`
+
+	// Timestamps
+	CreatedAt types.String `tfsdk:"created_at"`
+	UpdatedAt types.String `tfsdk:"updated_at"`
+}
+
+// FromSailPointManagedClusterDataSource populates the data source model from a SailPoint API ManagedCluster object
+func (r *ManagedClusterDataSourceModel) FromSailPointManagedClusterDataSource(ctx context.Context, apiModel *api_v2025.ManagedCluster) diag.Diagnostics {
+	var diags diag.Diagnostics
+
+	// Set core identifiers
+	r.Id = types.StringValue(apiModel.GetId())
+	r.Name = types.StringValue(apiModel.GetName())
+
+	// Set type and description
+	r.Type = types.StringValue(string(apiModel.GetType()))
+
+	if apiModel.HasDescription() {
+		r.Description = types.StringValue(apiModel.GetDescription())
+	}
+
+	// Convert configuration map from camelCase to snake_case
+	if apiModel.HasConfiguration() {
+		configMap := make(map[string]string)
+		for key, value := range apiModel.GetConfiguration() {
+			snakeKey := strcase.ToSnake(key)
+			configMap[snakeKey] = value
+		}
+
+		configValue, configDiags := types.MapValueFrom(ctx, types.StringType, configMap)
+		diags.Append(configDiags...)
+		if !configDiags.HasError() {
+			r.Configuration = configValue
+		}
+	} else {
+		// Create empty map if no configuration
+		configValue, configDiags := types.MapValueFrom(ctx, types.StringType, map[string]string{})
+		diags.Append(configDiags...)
+		if !configDiags.HasError() {
+			r.Configuration = configValue
+		}
+	}
+
+	// Set organizational attributes
+	if apiModel.HasPod() {
+		r.Pod = types.StringValue(apiModel.GetPod())
+	}
+
+	if apiModel.HasOrg() {
+		r.Org = types.StringValue(apiModel.GetOrg())
+	}
+
+	// Set cluster information
+	r.ClientType = types.StringValue(string(apiModel.GetClientType()))
+
+	// CcgVersion is required but check if it has meaningful value
+	if apiModel.GetCcgVersion() != "" && apiModel.GetCcgVersion() != "Undefined" {
+		r.CcgVersion = types.StringValue(apiModel.GetCcgVersion())
+	}
+
+	if apiModel.HasPinnedConfig() {
+		r.PinnedConfig = types.BoolValue(apiModel.GetPinnedConfig())
+	}
+
+	if apiModel.HasOperational() {
+		r.Operational = types.BoolValue(apiModel.GetOperational())
+	}
+
+	if apiModel.HasStatus() {
+		r.Status = types.StringValue(apiModel.GetStatus())
+	}
+
+	if apiModel.HasAlertKey() {
+		r.AlertKey = types.StringValue(apiModel.GetAlertKey())
+	}
+
+	// Set metrics and relationships
+	if apiModel.HasClientIds() {
+		clientIdsValue, clientIdsDiags := types.ListValueFrom(ctx, types.StringType, apiModel.GetClientIds())
+		diags.Append(clientIdsDiags...)
+		if !clientIdsDiags.HasError() {
+			r.ClientIds = clientIdsValue
+		}
+	} else {
+		// Create empty list if no client IDs
+		clientIdsValue, clientIdsDiags := types.ListValueFrom(ctx, types.StringType, []string{})
+		diags.Append(clientIdsDiags...)
+		if !clientIdsDiags.HasError() {
+			r.ClientIds = clientIdsValue
+		}
+	}
+
+	if apiModel.HasServiceCount() {
+		r.ServiceCount = types.Int32Value(apiModel.GetServiceCount())
+	}
+
+	if apiModel.HasCcId() {
+		r.CcId = types.StringValue(apiModel.GetCcId())
+	}
+
+	// Set security/key attributes
+	if apiModel.HasPublicKeyCertificate() {
+		r.PublicKeyCertificate = types.StringValue(apiModel.GetPublicKeyCertificate())
+	}
+
+	if apiModel.HasPublicKeyThumbprint() {
+		r.PublicKeyThumbprint = types.StringValue(apiModel.GetPublicKeyThumbprint())
+	}
+
+	if apiModel.HasPublicKey() {
+		r.PublicKey = types.StringValue(apiModel.GetPublicKey())
+	}
+
+	// Set timestamps
+	if apiModel.HasCreatedAt() {
+		r.CreatedAt = types.StringValue(apiModel.GetCreatedAt().String())
 	}
 
 	if apiModel.HasUpdatedAt() {
