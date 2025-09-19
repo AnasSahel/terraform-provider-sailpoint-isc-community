@@ -136,3 +136,77 @@ func TestAccSailPointManagedClusterResourceUpdate() string {
 		}
 	`
 }
+
+// Source resource test configurations
+func TestAccSailPointSourcesDataSource() string {
+	return ProviderConfig + `
+		data "sailpoint_sources" "test" {}
+	`
+}
+
+func TestAccSailPointSourceDataSource() string {
+	return ProviderConfig + `
+		resource "random_id" "source" {
+			byte_length = 4
+		}
+
+		resource "sailpoint_source" "dependency" {
+			name = "tf-test-dep-${random_id.source.hex}"
+			description = "Dependency source for data source test"
+			connector = "delimited-file"
+			owner = jsonencode({
+				"type" = "IDENTITY"
+				"id" = "2c91808570313110017040b06f344ec9"
+				"name" = "john.doe"
+			})
+			configuration = {
+				"file" = "test.csv"
+			}
+		}
+
+		data "sailpoint_source" "test" {
+			id = sailpoint_source.dependency.id
+		}
+	`
+}
+
+func TestAccSailPointSourceResourceCreate() string {
+	return ProviderConfig + `
+		data "sailpoint_sources" "first" {}
+
+		resource "sailpoint_source" "test" {
+			name = "tf-test-delimited-source"
+			description = "Test delimited source created by Terraform"
+			connector = "delimited-file"
+			owner = jsonencode({
+				"type" = "IDENTITY"
+				"id" = data.sailpoint_sources.first.sources[0].owner.id
+				"name" = data.sailpoint_sources.first.sources[0].owner.name
+			})
+			configuration = {
+				"file" = "users.csv"
+			}
+		}
+	`
+}
+
+func TestAccSailPointSourceResourceUpdate() string {
+	return ProviderConfig + `
+		data "sailpoint_sources" "first" {}
+
+		resource "sailpoint_source" "test" {
+			name = "tf-test-delimited-source"
+			description = "Updated test delimited source"
+			connector = "delimited-file"
+			owner = jsonencode({
+				"type" = "IDENTITY"
+				"id" = data.sailpoint_sources.first.sources[0].owner.id
+				"name" = data.sailpoint_sources.first.sources[0].owner.name
+			})
+			configuration = {
+				"file" = "users.csv"
+				"delimiter" = ";"
+			}
+		}
+	`
+}
