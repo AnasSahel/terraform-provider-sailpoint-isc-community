@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
-// CheckListNotEmpty returns a function that verifies a list attribute is not empty
+// CheckListNotEmpty returns a function that verifies a list attribute is not empty.
 func CheckListNotEmpty(resourceName, listAttribute string) func(*terraform.State) error {
 	return func(state *terraform.State) error {
 		resource, ok := state.RootModule().Resources[resourceName]
