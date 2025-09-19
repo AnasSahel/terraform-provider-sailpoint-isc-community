@@ -5,7 +5,8 @@ This directory contains examples for using the SailPoint managed cluster resourc
 ## Files
 
 - **resource.tf** - Comprehensive examples of the `sailpoint_managed_cluster` resource
-- **import.sh** - Script for importing existing managed clusters into Terraform
+- **import.tf** - Simple import example with step-by-step instructions
+- **import.sh** - Advanced import script with error handling and guidance
 - **../data-sources/managed-cluster/data-source.tf** - Examples of the `sailpoint_managed_cluster` data source
 
 ## Quick Start
@@ -56,7 +57,15 @@ Common configuration keys include:
 
 ## Import Instructions
 
-To import an existing managed cluster:
+### Quick Import (using import.tf)
+
+1. Copy the example from `import.tf`
+2. Replace `"your-cluster-id-here"` with your actual cluster ID
+3. Follow the step-by-step comments in the file
+
+### Advanced Import (using import.sh)
+
+To import an existing managed cluster with full error handling:
 
 1. Find your cluster ID from the SailPoint ISC admin interface
 2. Edit the `import.sh` script with your cluster ID
