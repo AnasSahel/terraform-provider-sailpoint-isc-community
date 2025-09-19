@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/sailpoint-oss/golang-sdk/v2/api_v2025"
@@ -17,8 +18,9 @@ type ManagedClusterResource struct {
 }
 
 var (
-	_ resource.Resource              = &ManagedClusterResource{}
-	_ resource.ResourceWithConfigure = &ManagedClusterResource{}
+	_ resource.Resource                = &ManagedClusterResource{}
+	_ resource.ResourceWithConfigure   = &ManagedClusterResource{}
+	_ resource.ResourceWithImportState = &ManagedClusterResource{}
 )
 
 func NewManagedClusterResource() resource.Resource {
@@ -258,4 +260,10 @@ func (r *ManagedClusterResource) Delete(ctx context.Context, req resource.Delete
 		"id":   clusterID,
 		"name": clusterName,
 	})
+}
+
+// ImportState enables importing existing managed clusters by ID.
+func (r *ManagedClusterResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	// Retrieve import ID and save to id attribute
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }

@@ -31,6 +31,21 @@ func TestAccSailPointManagedClusterResource(t *testing.T) {
 				ExpectNonEmptyPlan: true,
 			},
 			{
+				ResourceName:      "sailpoint_managed_cluster.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateVerifyIgnore: []string{
+					"alert_key",
+					"ccg_version",
+					"client_type",
+					"status",
+					"configuration.%",
+					"configuration.cluster_external_id",
+					"configuration.cluster_type",
+					"configuration.restart_threshold_in_hours",
+				},
+			},
+			{
 				Config: acctest.TestAccSailPointManagedClusterResourceUpdate(),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("sailpoint_managed_cluster.test", "id"),
