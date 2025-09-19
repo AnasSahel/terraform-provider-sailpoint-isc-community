@@ -5,50 +5,11 @@ resource "sailpoint_managed_cluster" "basic_example" {
   type        = "idn"
 
   configuration = {
-    gmt_offset = "-05:00"
-    region     = "us-east-1"
-    log_level  = "INFO"
+    gmt_offset = "-5"
   }
 }
 
-# Example 2: Comprehensive managed cluster with all configuration options
-resource "sailpoint_managed_cluster" "comprehensive_example" {
-  name        = "Production Cluster"
-  description = "Production managed cluster for identity operations"
-  type        = "idn"
-
-  configuration = {
-    # Timezone and regional settings
-    gmt_offset = "-08:00"
-    region     = "us-west-2"
-
-    # Logging configuration
-    log_level          = "DEBUG"
-    log_retention_days = "30"
-
-    # Performance tuning
-    max_connections    = "100"
-    connection_timeout = "30000"
-    request_timeout    = "60000"
-
-    # Security settings
-    ssl_enabled   = "true"
-    tls_version   = "1.2"
-    cipher_suites = "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
-
-    # Cluster-specific settings
-    cluster_mode          = "active"
-    auto_scaling          = "true"
-    health_check_interval = "30"
-
-    # Custom application settings
-    app_name    = "SailPoint-IDN"
-    environment = "production"
-    cost_center = "IT-SEC-001"
-  }
-}
-
-# Example 3: Using variables for flexible configuration
+# Example 2: Using variables for flexible configuration
 variable "cluster_name" {
   description = "Name of the managed cluster"
   type        = string
@@ -64,7 +25,7 @@ variable "environment" {
 variable "timezone_offset" {
   description = "GMT timezone offset"
   type        = string
-  default     = "-05:00"
+  default     = "-5"
 }
 
 resource "sailpoint_managed_cluster" "variable_example" {
@@ -73,13 +34,12 @@ resource "sailpoint_managed_cluster" "variable_example" {
   type        = "idn"
 
   configuration = {
-    gmt_offset  = var.timezone_offset
-    environment = var.environment
-    log_level   = var.environment == "prod" ? "WARN" : "DEBUG"
+    gmt_offset = var.timezone_offset
+    log_level  = var.environment == "prod" ? "WARN" : "DEBUG"
   }
 }
 
-# Example 4: Multiple clusters with for_each
+# Example 3: Multiple clusters with for_each
 variable "clusters" {
   description = "Map of clusters to create"
   type = map(object({
@@ -90,12 +50,12 @@ variable "clusters" {
   default = {
     "dev-cluster" = {
       description = "Development cluster"
-      gmt_offset  = "-05:00"
+      gmt_offset  = "-5"
       log_level   = "DEBUG"
     }
     "staging-cluster" = {
       description = "Staging cluster"
-      gmt_offset  = "-05:00"
+      gmt_offset  = "-5"
       log_level   = "INFO"
     }
   }
@@ -109,13 +69,12 @@ resource "sailpoint_managed_cluster" "multiple_clusters" {
   type        = "idn"
 
   configuration = {
-    gmt_offset  = each.value.gmt_offset
-    log_level   = each.value.log_level
-    environment = substr(each.key, 0, 3) # Extract env from name
+    gmt_offset = each.value.gmt_offset
+    log_level  = each.value.log_level
   }
 }
 
-# Example 5: Output cluster information
+# Example 4: Output cluster information
 output "cluster_ids" {
   description = "IDs of created managed clusters"
   value = {
@@ -142,7 +101,7 @@ output "cluster_info" {
   }
 }
 
-# Example 6: Import existing managed cluster
+# Example 5: Import existing managed cluster
 # To import: terraform import sailpoint_managed_cluster.imported_cluster 2c918085-74f3-4b96-8c31-3c3a7cb8f5e2
 resource "sailpoint_managed_cluster" "imported_cluster" {
   name        = "Existing Cluster"
@@ -150,7 +109,7 @@ resource "sailpoint_managed_cluster" "imported_cluster" {
   type        = "idn"
 
   configuration = {
-    gmt_offset = "-05:00"
+    gmt_offset = "-5"
   }
 
   lifecycle {
