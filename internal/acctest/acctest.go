@@ -53,3 +53,86 @@ func TestAccSailPointTransformResourceUpdate() string {
 		}
 	`
 }
+
+func TestAccSailPointManagedClusterDataSource() string {
+	return `
+		terraform {
+			required_providers {
+				random = {
+					source = "hashicorp/random"
+				}
+			}
+		}
+		provider "sailpoint" {}
+
+		resource "sailpoint_managed_cluster" "dependency" {
+			name = "tf-test-${random_id.cluster.hex}"
+			type = "idn"
+			description = "Dependency cluster for data source test"
+			configuration = {
+				gmt_offset = "-5"
+			}
+		}
+
+		resource "random_id" "cluster" {
+			byte_length = 4
+		}
+
+		data "sailpoint_managed_cluster" "test" {
+			id = sailpoint_managed_cluster.dependency.id
+		}
+	`
+}
+
+func TestAccSailPointManagedClusterResourceCreate() string {
+	return `
+		terraform {
+			required_providers {
+				random = {
+					source = "hashicorp/random"
+				}
+			}
+		}
+		provider "sailpoint" {}
+
+		resource "random_id" "cluster" {
+			byte_length = 4
+		}
+
+		resource "sailpoint_managed_cluster" "test" {
+			name = "tf-test-${random_id.cluster.hex}"
+			type = "idn"
+			description = "Test managed cluster created by Terraform"
+			configuration = {
+				gmt_offset = "-5"
+			}
+		}
+	`
+}
+
+func TestAccSailPointManagedClusterResourceUpdate() string {
+	return `
+		terraform {
+			required_providers {
+				random = {
+					source = "hashicorp/random"
+				}
+			}
+		}
+		provider "sailpoint" {}
+
+		resource "random_id" "cluster" {
+			byte_length = 4
+		}
+
+		resource "sailpoint_managed_cluster" "test" {
+			name = "tf-test-${random_id.cluster.hex}"
+			type = "idn"
+			description = "Updated test managed cluster description"
+			configuration = {
+				gmt_offset = "-5"
+				debug_mode = "true"
+			}
+		}
+	`
+}
