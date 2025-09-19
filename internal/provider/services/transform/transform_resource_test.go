@@ -26,6 +26,11 @@ func TestAccSailPointTransformResource(t *testing.T) {
 				),
 			},
 			{
+				ResourceName:      "sailpoint_transform.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+			{
 				Config: acctest.TestAccSailPointTransformResourceUpdate(),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("sailpoint_transform.test", "id"),
