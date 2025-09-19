@@ -3,12 +3,12 @@
 page_title: "sailpoint_transforms Data Source - sailpoint"
 subcategory: ""
 description: |-
-  
+  SailPoint ISC Transforms data source
 ---
 
 # sailpoint_transforms (Data Source)
 
-
+SailPoint ISC Transforms data source
 
 
 
@@ -17,15 +17,15 @@ description: |-
 
 ### Read-Only
 
-- `transforms` (Attributes List) (see [below for nested schema](#nestedatt--transforms))
+- `transforms` (Attributes List) List of transforms (see [below for nested schema](#nestedatt--transforms))
 
 <a id="nestedatt--transforms"></a>
 ### Nested Schema for `transforms`
 
 Read-Only:
 
-- `attributes` (String)
-- `id` (String)
-- `internal` (Boolean)
-- `name` (String)
-- `type` (String)
+- `attributes` (String) Transform attributes as JSON
+- `id` (String) Transform identifier
+- `internal` (Boolean) Indicates if the transform is internal
+- `name` (String) Transform name
+- `type` (String) Transform type
