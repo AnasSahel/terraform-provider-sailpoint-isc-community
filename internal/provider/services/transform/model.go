@@ -78,8 +78,8 @@ type TransformsDataSourceModel struct {
 	Transforms []TransformModel `tfsdk:"transforms"`
 }
 
-// FromSailPointTransformReads populates the data source model from a list of SailPoint API TransformRead objects.
-func (m *TransformsDataSourceModel) FromSailPointTransformReads(ctx context.Context, transforms []api_v2025.TransformRead) diag.Diagnostics {
+// FromSailPointTransformsRead populates the data source model from a list of SailPoint API TransformRead objects.
+func (m *TransformsDataSourceModel) FromSailPointTransformsRead(ctx context.Context, transforms []api_v2025.TransformRead) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	m.Transforms = make([]TransformModel, len(transforms))

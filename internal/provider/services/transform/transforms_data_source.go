@@ -74,7 +74,7 @@ func (d *TransformsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	}
 
 	// Map response to Terraform model
-	diags := state.FromSailPointTransformReads(ctx, transforms)
+	diags := state.FromSailPointTransformsRead(ctx, transforms)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
