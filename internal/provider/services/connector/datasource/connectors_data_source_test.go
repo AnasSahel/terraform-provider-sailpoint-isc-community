@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package connector_test
+package connector_datasource_test
 
 import (
 	"testing"

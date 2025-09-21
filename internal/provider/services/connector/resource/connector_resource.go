@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package connector
+package connector_resource
 
 import (
 	"context"
@@ -87,6 +87,16 @@ func (r *ConnectorResource) Create(ctx context.Context, req resource.CreateReque
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("Creating custom connector with script name: %s", data.ScriptName.ValueString()))
+	tflog.Debug(ctx, fmt.Sprintf("CreateDTO: Name=%s, ClassName=%s", createDto.GetName(), createDto.GetClassName()))
+	if createDto.HasType() {
+		tflog.Debug(ctx, fmt.Sprintf("CreateDTO Type: %s", createDto.GetType()))
+	}
+	if createDto.HasDirectConnect() {
+		tflog.Debug(ctx, fmt.Sprintf("CreateDTO DirectConnect: %v", createDto.GetDirectConnect()))
+	}
+
+	// Log the full DTO for debugging
+	tflog.Debug(ctx, fmt.Sprintf("Full CreateDTO: %+v", createDto))
 
 	// Create custom connector
 	apiReq := r.client.ConnectorsAPI.CreateCustomConnector(ctx).V3CreateConnectorDto(*createDto)
@@ -202,46 +212,51 @@ func (r *ConnectorResource) Update(ctx context.Context, req resource.UpdateReque
 	// Create JSON patch operations for the changes
 	var patches []api_v2025.JsonPatchOperation
 
-	// Compare current and new values to create patches
-	if !data.Name.Equal(currentState.Name) {
-		nameValue := data.Name.ValueString()
-		patchValue := api_v2025.StringAsUpdateMultiHostSourcesRequestInnerValue(&nameValue)
+	// Only patch fields that are supported by the SailPoint API according to documentation:
+	// https://developer.sailpoint.com/docs/api/v2025/update-connector
+	// Patchable fields: connectorMetadata, applicationXml, correlationConfigXml, sourceConfigXml
+
+	if !data.ConnectorMetadata.Equal(currentState.ConnectorMetadata) && !data.ConnectorMetadata.IsNull() {
+		metadataValue := data.ConnectorMetadata.ValueString()
+		patchValue := api_v2025.StringAsUpdateMultiHostSourcesRequestInnerValue(&metadataValue)
 		patches = append(patches, api_v2025.JsonPatchOperation{
 			Op:    "replace",
-			Path:  "/name",
+			Path:  "/connectorMetadata",
 			Value: &patchValue,
 		})
 	}
 
-	if !data.Type.Equal(currentState.Type) {
-		typeValue := data.Type.ValueString()
-		patchValue := api_v2025.StringAsUpdateMultiHostSourcesRequestInnerValue(&typeValue)
+	if !data.ApplicationXml.Equal(currentState.ApplicationXml) && !data.ApplicationXml.IsNull() {
+		xmlValue := data.ApplicationXml.ValueString()
+		patchValue := api_v2025.StringAsUpdateMultiHostSourcesRequestInnerValue(&xmlValue)
 		patches = append(patches, api_v2025.JsonPatchOperation{
 			Op:    "replace",
-			Path:  "/type",
+			Path:  "/applicationXml",
 			Value: &patchValue,
 		})
 	}
 
-	if !data.ClassName.Equal(currentState.ClassName) && !data.ClassName.IsNull() {
-		classNameValue := data.ClassName.ValueString()
-		patchValue := api_v2025.StringAsUpdateMultiHostSourcesRequestInnerValue(&classNameValue)
+	if !data.CorrelationConfigXml.Equal(currentState.CorrelationConfigXml) && !data.CorrelationConfigXml.IsNull() {
+		xmlValue := data.CorrelationConfigXml.ValueString()
+		patchValue := api_v2025.StringAsUpdateMultiHostSourcesRequestInnerValue(&xmlValue)
 		patches = append(patches, api_v2025.JsonPatchOperation{
 			Op:    "replace",
-			Path:  "/className",
+			Path:  "/correlationConfigXml",
 			Value: &patchValue,
 		})
 	}
 
-	if !data.DirectConnect.Equal(currentState.DirectConnect) && !data.DirectConnect.IsNull() {
-		directConnect := data.DirectConnect.ValueBool()
-		patchValue := api_v2025.BoolAsUpdateMultiHostSourcesRequestInnerValue(&directConnect)
+	if !data.SourceConfigXml.Equal(currentState.SourceConfigXml) && !data.SourceConfigXml.IsNull() {
+		xmlValue := data.SourceConfigXml.ValueString()
+		patchValue := api_v2025.StringAsUpdateMultiHostSourcesRequestInnerValue(&xmlValue)
 		patches = append(patches, api_v2025.JsonPatchOperation{
 			Op:    "replace",
-			Path:  "/directConnect",
+			Path:  "/sourceConfigXml",
 			Value: &patchValue,
 		})
 	}
+
+	// Note: name, type, className, directConnect, and status are create-only fields and require resource replacement
 
 	// Only proceed with update if there are actual changes
 	if len(patches) == 0 {

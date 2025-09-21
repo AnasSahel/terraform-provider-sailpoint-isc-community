@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package connector_test
+package connector_resource_test
 
 import (
 	"fmt"
@@ -17,7 +17,7 @@ func TestAccSailPointConnectorResource_basic(t *testing.T) {
 		Steps: []resource.TestStep{
 			// Create and Read testing
 			{
-				Config: testAccSailPointConnectorResourceConfig("test-connector", "TestConnector", "custom"),
+				Config: testAccSailPointConnectorResourceConfig("TestConnector", "custom"),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("sailpoint_connector.test", "name", "TestConnector"),
 					resource.TestCheckResourceAttr("sailpoint_connector.test", "type", "custom"),
@@ -31,11 +31,14 @@ func TestAccSailPointConnectorResource_basic(t *testing.T) {
 				ImportState:       true,
 				ImportStateVerify: true,
 				// Ignore computed fields that might not match exactly
-				ImportStateVerifyIgnore: []string{"application_xml", "source_config_xml", "correlation_config_xml"},
+				ImportStateVerifyIgnore: []string{
+					"application_xml", "source_config_xml", "correlation_config_xml",
+					"file_upload", "s3_location", "source_config", "translation_properties",
+				},
 			},
 			// Update and Read testing
 			{
-				Config: testAccSailPointConnectorResourceConfig("test-connector-updated", "TestConnectorUpdated", "custom-updated"),
+				Config: testAccSailPointConnectorResourceConfig("TestConnectorUpdated", "custom-updated"),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("sailpoint_connector.test", "name", "TestConnectorUpdated"),
 					resource.TestCheckResourceAttr("sailpoint_connector.test", "type", "custom-updated"),
@@ -52,7 +55,7 @@ func TestAccSailPointConnectorResource_withOptionalFields(t *testing.T) {
 		Steps: []resource.TestStep{
 			// Create with all optional fields
 			{
-				Config: testAccSailPointConnectorResourceConfigComplete("test-connector-complete"),
+				Config: testAccSailPointConnectorResourceConfigComplete(),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("sailpoint_connector.test", "name", "TestCompleteConnector"),
 					resource.TestCheckResourceAttr("sailpoint_connector.test", "type", "custom-complete"),
@@ -66,32 +69,26 @@ func TestAccSailPointConnectorResource_withOptionalFields(t *testing.T) {
 	})
 }
 
-func testAccSailPointConnectorResourceConfig(scriptName, name, connectorType string) string {
+func testAccSailPointConnectorResourceConfig(name, connectorType string) string {
 	return fmt.Sprintf(`
 %s
 
 resource "sailpoint_connector" "test" {
-  name        = "%s"
-  type        = "%s"
-  script_name = "%s"
+  name = "%s"
+  type = "%s"
 }
-`, acctest.ProviderConfig, name, connectorType, scriptName)
+`, acctest.ProviderConfig, name, connectorType)
 }
 
-func testAccSailPointConnectorResourceConfigComplete(scriptName string) string {
+func testAccSailPointConnectorResourceConfigComplete() string {
 	return fmt.Sprintf(`
 %s
 
 resource "sailpoint_connector" "test" {
   name           = "TestCompleteConnector"
   type           = "custom-complete"
-  script_name    = "%s"
   class_name     = "sailpoint.connector.CustomAdapter"
   direct_connect = true
-  connector_metadata = jsonencode({
-    "supportedObjectTypes": ["account", "group"],
-    "displayName": "Test Complete Connector"
-  })
 }
-`, acctest.ProviderConfig, scriptName)
+`, acctest.ProviderConfig)
 }

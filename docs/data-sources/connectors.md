@@ -17,7 +17,7 @@ The `sailpoint_connectors` data source allows you to retrieve a list of availabl
 
 ### Optional
 
-- `filters` (String) Filter results using the standard syntax. Supported filters: `name` (sw, co), `type` (sw, co, eq), `directConnect` (eq), `category` (eq), `features` (ca), `labels` (ca).
+- `filters` (String) Filter results using the standard syntax. Supported filters: `name` (sw, co), `type` (sw, co, eq), `directConnect` (eq), `features` (ca).
 - `include_count` (Boolean) If true, populate the X-Total-Count response header with the total number of results.
 - `limit` (Number) Max number of results to return. Defaults to 250.
 - `locale` (String) The locale to apply to the config. Defaults to 'en' if not specified.
@@ -36,13 +36,11 @@ The `sailpoint_connectors` data source allows you to retrieve a list of availabl
 
 Read-Only:
 
-- `category` (String) The category of the connector (not available in list API).
 - `class_name` (String) The Java class name that implements the connector.
 - `direct_connect` (Boolean) Whether the connector supports direct connection without a VA.
 - `features` (List of String) List of features supported by the connector.
 - `id` (String) The unique identifier of the connector (derived from script name).
-- `labels` (List of String) List of labels associated with the connector (not available in list API).
 - `name` (String) The display name of the connector.
 - `script_name` (String) The script name (unique identifier) of the connector.
-- `status` (String) The status of the connector (e.g., 'RELEASED', 'BETA').
+- `status` (String) The status of the connector. Possible values: `RELEASED`, `DEVELOPMENT`, `DEMO`, `DEPRECATED`.
 - `type` (String) The connector type (e.g., 'active-directory', 'workday').
