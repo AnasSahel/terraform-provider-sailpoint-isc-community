@@ -7,6 +7,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/connector"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/managedcluster"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/transform"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -180,6 +181,7 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 	return []func() datasource.DataSource{
 		transform.NewTransformsDataSource,
 		managedcluster.NewManagedClusterDataSource,
+		connector.NewConnectorsDataSource,
 	}
 }
 
