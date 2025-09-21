@@ -34,10 +34,15 @@ resource "sailpoint_transform" "source_based_transform" {
 output "source_details" {
   description = "Details of the retrieved source"
   value = {
-    id          = data.sailpoint_source.by_id.id
-    name        = data.sailpoint_source.by_id.name
-    connector   = data.sailpoint_source.by_id.connector
-    description = data.sailpoint_source.by_id.description
-    owner_name  = jsondecode(data.sailpoint_source.by_id.owner).name
+    id           = data.sailpoint_source.by_id.id
+    name         = data.sailpoint_source.by_id.name
+    connector    = data.sailpoint_source.by_id.connector
+    description  = data.sailpoint_source.by_id.description
+    owner_name   = data.sailpoint_source.by_id.owner.name
+    owner_id     = data.sailpoint_source.by_id.owner.id
+    owner_type   = data.sailpoint_source.by_id.owner.type
+    cluster_name = data.sailpoint_source.by_id.cluster != null ? data.sailpoint_source.by_id.cluster.name : null
+    cluster_id   = data.sailpoint_source.by_id.cluster != null ? data.sailpoint_source.by_id.cluster.id : null
+    cluster_type = data.sailpoint_source.by_id.cluster != null ? data.sailpoint_source.by_id.cluster.type : null
   }
 }

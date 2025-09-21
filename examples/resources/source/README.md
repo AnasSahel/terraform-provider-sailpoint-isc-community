@@ -13,6 +13,7 @@ The Active Directory example demonstrates how to configure a comprehensive AD so
 - User and group search filters
 - Forest settings for multi-domain environments
 - Service account authentication
+- Provisioning features
 
 ```hcl
 resource "sailpoint_source" "active_directory" {
@@ -26,11 +27,17 @@ resource "sailpoint_source" "active_directory" {
     name = "john.doe"
   })
   
-  configuration = {
+  # Optional core attributes
+  authoritative     = true
+  delete_threshold  = 10
+  features          = ["PROVISIONING", "NO_PERMISSIONS_PROVISIONING", "GROUPS_HAVE_MEMBERS"]
+  
+  # Connector-specific configuration as JSON
+  connector_attributes = jsonencode({
     domain_name           = "corp.example.com"
     domain_controller     = "dc1.corp.example.com"
     # ... additional configuration
-  }
+  })
 }
 ```
 
@@ -49,13 +56,20 @@ resource "sailpoint_source" "employee_csv" {
   description = "CSV file source for bulk employee data import"
   connector   = "delimited-file"
   
-  configuration = {
+  owner = jsonencode({
+    type = "IDENTITY"
+    id   = "2c91808570313110017040b06f344ec9"
+    name = "john.doe"
+  })
+  
+  # Connector-specific configuration as JSON
+  connector_attributes = jsonencode({
     file               = "employees.csv"
     delimiter          = ","
     has_header         = "true"
     column_names       = "username,firstName,lastName,email,department,title,manager"
     identity_attribute = "username"
-  }
+  })
 }
 ```
 
@@ -123,30 +137,50 @@ terraform import sailpoint_source.my_source 2c91808570313110017040b06f344ec9
 
 ### Optional Fields
 
-- `configuration` - Map of connector-specific configuration options
+#### Core Attributes
+- `type` - Type of system being managed (computed)
+- `connector_class` - Java class implementing the connector (computed)
+- `connection_type` - Type of connection (direct or file)
+- `authoritative` - Whether source is authoritative for identities
 - `cluster` - JSON-encoded cluster assignment (for VA sources)
+
+#### Configuration
+- `connector_attributes` - JSON-encoded connector-specific configuration (sensitive)
+- `delete_threshold` - Account deletion threshold (0-100)
+- `features` - List of enabled features (e.g., "PROVISIONING")
+
+#### Management & Correlation
 - `management_workgroup` - JSON-encoded workgroup for source management
-- `schemas` - JSON-encoded array of account schemas
-- `features` - JSON-encoded array of enabled features
+- `account_correlation_config` - JSON-encoded correlation configuration
+- `account_correlation_rule` - JSON-encoded correlation rule
+- `manager_correlation_rule` - JSON-encoded manager correlation rule
+- `manager_correlation_mapping` - JSON-encoded correlation mapping
+
+#### Provisioning
+- `before_provisioning_rule` - JSON-encoded pre-provisioning rule
+- `password_policies` - JSON-encoded password policy list
 
 ### Common Configuration Options
 
-#### Active Directory
+#### Active Directory (`connector_attributes` JSON)
 - `domain_name` - AD domain name
 - `domain_controller` - Primary domain controller
-- `forest_settings` - Multi-domain forest configuration
+- `forest_settings` - Multi-domain forest configuration array
 - `user_search_filter` - LDAP filter for users
 - `group_search_filter` - LDAP filter for groups
-- `authorization_type` - Authentication method
+- `authorization_type` - Authentication method (simple, etc.)
 - `use_tls` - Enable TLS encryption
+- `account_username` - Service account username
+- `account_password` - Service account password (use variables!)
 
-#### Delimited File
+#### Delimited File (`connector_attributes` JSON)
 - `file` - Path to the CSV file
 - `delimiter` - Field delimiter character
 - `has_header` - Whether file has header row
 - `column_names` - Comma-separated column names
 - `identity_attribute` - Primary identity column
 - `group_column_name` - Column containing group memberships
+- `merge_columns` - Object for merging multiple columns
 
 ## Best Practices
 
