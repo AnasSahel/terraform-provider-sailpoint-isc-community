@@ -210,3 +210,9 @@ func TestAccSailPointSourceResourceUpdate() string {
 		}
 	`
 }
+
+func TestAccSailPointConnectorsDataSource() string {
+	return ProviderConfig + `
+		data "sailpoint_connectors" "test" {}
+	`
+}
