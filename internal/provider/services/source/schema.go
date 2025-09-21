@@ -377,3 +377,186 @@ func GetSourceDataSourceSchema() datasourceSchema.Schema {
 		},
 	}
 }
+
+// GetSourcesDataSourceSchema returns the schema definition for the sources (list) data source.
+func GetSourcesDataSourceSchema() datasourceSchema.Schema {
+	return datasourceSchema.Schema{
+		Description:         "Fetches a list of SailPoint Identity Security Cloud (ISC) sources.",
+		MarkdownDescription: "The `sailpoint_sources` data source allows you to retrieve a list of sources in SailPoint ISC with optional filtering and pagination.",
+		Attributes: map[string]datasourceSchema.Attribute{
+			// Identifier for the data source
+			"id": datasourceSchema.StringAttribute{
+				Computed:            true,
+				Description:         "Unique identifier for this data source instance.",
+				MarkdownDescription: "Unique identifier for this data source instance. This is automatically generated.",
+			},
+
+			// Filter parameters
+			"filters": datasourceSchema.StringAttribute{
+				Optional:            true,
+				Description:         "Filter expression to limit the sources returned.",
+				MarkdownDescription: "Filter expression to limit the sources returned. Uses SailPoint's filter syntax (e.g., 'name eq \"MySource\"').",
+			},
+			"sorters": datasourceSchema.StringAttribute{
+				Optional:            true,
+				Description:         "Sort expression to order the sources returned.",
+				MarkdownDescription: "Sort expression to order the sources returned. Uses SailPoint's sort syntax (e.g., 'name ASC').",
+			},
+			"limit": datasourceSchema.Int32Attribute{
+				Optional:            true,
+				Description:         "Maximum number of sources to return.",
+				MarkdownDescription: "Maximum number of sources to return. Default is all sources unless pagination is used.",
+			},
+			"offset": datasourceSchema.Int32Attribute{
+				Optional:            true,
+				Description:         "Number of sources to skip before starting to return results.",
+				MarkdownDescription: "Number of sources to skip before starting to return results. Used for pagination.",
+			},
+			"include_count": datasourceSchema.BoolAttribute{
+				Optional:            true,
+				Description:         "Whether to include total count in the response.",
+				MarkdownDescription: "Whether to include total count in the response. Can be useful for pagination.",
+			},
+
+			// Pagination parameters
+			"paginate_all": datasourceSchema.BoolAttribute{
+				Optional:            true,
+				Description:         "Whether to use SailPoint pagination to fetch all sources.",
+				MarkdownDescription: "When true, uses SailPoint's built-in pagination to automatically fetch all sources across multiple API calls.",
+			},
+			"max_results": datasourceSchema.Int32Attribute{
+				Optional:            true,
+				Description:         "Maximum number of sources to fetch when using pagination.",
+				MarkdownDescription: "Maximum total number of sources to fetch when using pagination. Defaults to 10000.",
+			},
+			"page_size": datasourceSchema.Int32Attribute{
+				Optional:            true,
+				Description:         "Number of sources to fetch per page when using pagination.",
+				MarkdownDescription: "Number of sources to fetch per API call when using pagination. Defaults to 250.",
+			},
+
+			// Results
+			"sources": datasourceSchema.ListNestedAttribute{
+				Computed:            true,
+				Description:         "List of sources matching the filter criteria.",
+				MarkdownDescription: "List of sources matching the filter criteria.",
+				NestedObject: datasourceSchema.NestedAttributeObject{
+					Attributes: map[string]datasourceSchema.Attribute{
+						"id": datasourceSchema.StringAttribute{
+							Computed:            true,
+							Description:         "The unique identifier for the source.",
+							MarkdownDescription: "The unique identifier for the source.",
+						},
+						"name": datasourceSchema.StringAttribute{
+							Computed:            true,
+							Description:         "The name of the source.",
+							MarkdownDescription: "The display name for the source.",
+						},
+						"description": datasourceSchema.StringAttribute{
+							Computed:            true,
+							Description:         "The description of the source.",
+							MarkdownDescription: "A human-readable description of the source and its purpose.",
+						},
+						"owner": datasourceSchema.StringAttribute{
+							Computed:            true,
+							Description:         "The owner of the source as JSON string.",
+							MarkdownDescription: "The owner of the source as a JSON string containing `id`, `type`, and `name` fields.",
+						},
+						"connector": datasourceSchema.StringAttribute{
+							Computed:            true,
+							Description:         "The connector type identifier.",
+							MarkdownDescription: "The connector type identifier (e.g., 'active-directory', 'workday', 'delimited-file').",
+						},
+						"type": datasourceSchema.StringAttribute{
+							Computed:            true,
+							Description:         "The type of system being managed.",
+							MarkdownDescription: "Specifies the type of system being managed (e.g., 'Active Directory', 'Workday', 'DelimitedFile').",
+						},
+						"connector_class": datasourceSchema.StringAttribute{
+							Computed:            true,
+							Description:         "The fully qualified Java class name that implements the connector interface.",
+							MarkdownDescription: "Fully qualified name of the Java class that implements the connector interface.",
+						},
+						"connection_type": datasourceSchema.StringAttribute{
+							Computed:            true,
+							Description:         "The type of connection (direct or file).",
+							MarkdownDescription: "Type of connection used by the source. Typically 'direct' for real-time connections or 'file' for batch processing.",
+						},
+						"authoritative": datasourceSchema.BoolAttribute{
+							Computed:            true,
+							Description:         "Whether the source is authoritative.",
+							MarkdownDescription: "When true, indicates that the source is referenced by an identity profile and is authoritative for identity data.",
+						},
+						"cluster": datasourceSchema.StringAttribute{
+							Computed:            true,
+							Description:         "The associated cluster information as JSON string.",
+							MarkdownDescription: "Associated cluster information as a JSON string containing `id`, `name`, and `type` fields.",
+						},
+						"connector_attributes": datasourceSchema.StringAttribute{
+							Computed:            true,
+							Sensitive:           true,
+							Description:         "Connector-specific configuration as JSON string.",
+							MarkdownDescription: "Connector-specific configuration as a JSON string. This field is marked as sensitive as it may contain credentials.",
+						},
+						"delete_threshold": datasourceSchema.Int64Attribute{
+							Computed:            true,
+							Description:         "The account deletion threshold (0-100).",
+							MarkdownDescription: "Number from 0 to 100 that specifies when to skip the delete phase during aggregation.",
+						},
+						"features": datasourceSchema.ListAttribute{
+							ElementType:         types.StringType,
+							Computed:            true,
+							Description:         "List of enabled features for the source.",
+							MarkdownDescription: "List of features supported by the source (e.g., 'PROVISIONING', 'NO_PERMISSIONS_PROVISIONING', 'GROUPS_HAVE_MEMBERS').",
+						},
+						"healthy": datasourceSchema.BoolAttribute{
+							Computed:            true,
+							Description:         "Whether the source is healthy.",
+							MarkdownDescription: "Boolean flag indicating whether the source is currently healthy and operational.",
+						},
+						"status": datasourceSchema.StringAttribute{
+							Computed:            true,
+							Description:         "The current status of the source.",
+							MarkdownDescription: "Status identifier that gives specific information about why a source is or isn't healthy.",
+						},
+						"since": datasourceSchema.StringAttribute{
+							Computed:            true,
+							Description:         "Timestamp showing when a source health check was last performed.",
+							MarkdownDescription: "Timestamp that shows when a source health check was last performed.",
+						},
+						"created": datasourceSchema.StringAttribute{
+							Computed:            true,
+							Description:         "The timestamp when the source was created.",
+							MarkdownDescription: "Date-time when the source was created, in RFC3339 format.",
+						},
+						"modified": datasourceSchema.StringAttribute{
+							Computed:            true,
+							Description:         "The timestamp when the source was last modified.",
+							MarkdownDescription: "Date-time when the source was last modified, in RFC3339 format.",
+						},
+						"connector_id": datasourceSchema.StringAttribute{
+							Computed:            true,
+							Description:         "The connector ID.",
+							MarkdownDescription: "Connector implementation ID used internally by SailPoint.",
+						},
+						"connector_name": datasourceSchema.StringAttribute{
+							Computed:            true,
+							Description:         "The name of the connector.",
+							MarkdownDescription: "Name of the connector that was chosen during source creation.",
+						},
+						"credential_provider_enabled": datasourceSchema.BoolAttribute{
+							Computed:            true,
+							Description:         "Whether credential provider is enabled for the source.",
+							MarkdownDescription: "Boolean flag indicating whether credential provider is enabled for the source.",
+						},
+						"category": datasourceSchema.StringAttribute{
+							Computed:            true,
+							Description:         "The source category.",
+							MarkdownDescription: "Source category (e.g., null, CredentialProvider).",
+						},
+					},
+				},
+			},
+		},
+	}
+}

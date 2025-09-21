@@ -6,6 +6,7 @@ package source
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -395,6 +396,183 @@ type SourceDataSourceModel struct {
 // FromSailPointSource populates the data source model from a SailPoint API Source object.
 func (r *SourceDataSourceModel) FromSailPointSource(ctx context.Context, apiModel *api_v2025.Source) diag.Diagnostics {
 	return r.FromSailPointSourceDataSource(ctx, apiModel)
+}
+
+// SourcesDataSourceModel represents the data source model for listing sources
+type SourcesDataSourceModel struct {
+	ID types.String `tfsdk:"id"`
+
+	// Filter parameters
+	Filters      types.String `tfsdk:"filters"`
+	Sorters      types.String `tfsdk:"sorters"`
+	Limit        types.Int32  `tfsdk:"limit"`
+	Offset       types.Int32  `tfsdk:"offset"`
+	IncludeCount types.Bool   `tfsdk:"include_count"`
+
+	// Pagination parameters
+	PaginateAll types.Bool  `tfsdk:"paginate_all"`
+	MaxResults  types.Int32 `tfsdk:"max_results"`
+	PageSize    types.Int32 `tfsdk:"page_size"`
+
+	// Results
+	Sources []SourceSummaryModel `tfsdk:"sources"`
+}
+
+// SourceSummaryModel represents a summary of a source for list operations
+type SourceSummaryModel struct {
+	Id                        types.String `tfsdk:"id"`
+	Name                      types.String `tfsdk:"name"`
+	Description               types.String `tfsdk:"description"`
+	Owner                     types.String `tfsdk:"owner"`
+	Connector                 types.String `tfsdk:"connector"`
+	Type                      types.String `tfsdk:"type"`
+	ConnectorClass            types.String `tfsdk:"connector_class"`
+	ConnectionType            types.String `tfsdk:"connection_type"`
+	Authoritative             types.Bool   `tfsdk:"authoritative"`
+	Cluster                   types.String `tfsdk:"cluster"`
+	ConnectorAttributes       types.String `tfsdk:"connector_attributes"`
+	DeleteThreshold           types.Int64  `tfsdk:"delete_threshold"`
+	Features                  types.List   `tfsdk:"features"`
+	Healthy                   types.Bool   `tfsdk:"healthy"`
+	Status                    types.String `tfsdk:"status"`
+	Since                     types.String `tfsdk:"since"`
+	Created                   types.String `tfsdk:"created"`
+	Modified                  types.String `tfsdk:"modified"`
+	ConnectorId               types.String `tfsdk:"connector_id"`
+	ConnectorName             types.String `tfsdk:"connector_name"`
+	CredentialProviderEnabled types.Bool   `tfsdk:"credential_provider_enabled"`
+	Category                  types.String `tfsdk:"category"`
+}
+
+// FromSailPointSource populates the summary model from a SailPoint API Source object.
+func (r *SourceSummaryModel) FromSailPointSource(ctx context.Context, apiModel *api_v2025.Source) error {
+	if apiModel == nil {
+		return fmt.Errorf("received nil source from SailPoint API")
+	}
+
+	// Map required fields
+	r.Id = types.StringValue(apiModel.GetId())
+	r.Name = types.StringValue(apiModel.GetName())
+	r.Connector = types.StringValue(apiModel.GetConnector())
+
+	if apiModel.GetDescription() != "" {
+		r.Description = types.StringValue(apiModel.GetDescription())
+	}
+
+	// Handle owner - convert to JSON
+	owner := apiModel.GetOwner()
+	ownerData := map[string]interface{}{
+		"id":   owner.GetId(),
+		"type": owner.GetType(),
+		"name": owner.GetName(),
+	}
+	ownerJson, err := json.Marshal(ownerData)
+	if err != nil {
+		return fmt.Errorf("failed to encode owner: %v", err)
+	}
+	r.Owner = types.StringValue(string(ownerJson))
+
+	// Map optional fields
+	if apiModel.GetType() != "" {
+		r.Type = types.StringValue(apiModel.GetType())
+	}
+
+	if apiModel.GetConnectorClass() != "" {
+		r.ConnectorClass = types.StringValue(apiModel.GetConnectorClass())
+	}
+
+	if apiModel.GetConnectionType() != "" {
+		r.ConnectionType = types.StringValue(apiModel.GetConnectionType())
+	}
+
+	if apiModel.Authoritative != nil {
+		r.Authoritative = types.BoolValue(*apiModel.Authoritative)
+	}
+
+	// Handle cluster - convert to JSON
+	if apiModel.Cluster.IsSet() {
+		cluster := apiModel.Cluster.Get()
+		if cluster != nil {
+			clusterData := map[string]interface{}{
+				"id":   cluster.GetId(),
+				"name": cluster.GetName(),
+				"type": cluster.GetType(),
+			}
+			clusterJson, err := json.Marshal(clusterData)
+			if err != nil {
+				return fmt.Errorf("failed to encode cluster: %v", err)
+			}
+			r.Cluster = types.StringValue(string(clusterJson))
+		}
+	}
+
+	// Handle connector attributes
+	if len(apiModel.GetConnectorAttributes()) > 0 {
+		connectorAttrs := apiModel.GetConnectorAttributes()
+		attrsJson, err := json.Marshal(connectorAttrs)
+		if err != nil {
+			return fmt.Errorf("failed to encode connector attributes: %v", err)
+		}
+		r.ConnectorAttributes = types.StringValue(string(attrsJson))
+	}
+
+	// Handle delete threshold
+	if apiModel.DeleteThreshold != nil {
+		r.DeleteThreshold = types.Int64Value(int64(*apiModel.DeleteThreshold))
+	}
+
+	// Handle features
+	if len(apiModel.GetFeatures()) > 0 {
+		featuresValue, featuresDiags := types.ListValueFrom(ctx, types.StringType, apiModel.GetFeatures())
+		if featuresDiags.HasError() {
+			return fmt.Errorf("failed to convert features")
+		}
+		r.Features = featuresValue
+	}
+
+	// Handle computed fields
+	if apiModel.Healthy != nil {
+		r.Healthy = types.BoolValue(*apiModel.Healthy)
+	}
+
+	if apiModel.GetStatus() != "" {
+		r.Status = types.StringValue(apiModel.GetStatus())
+	}
+
+	if apiModel.GetSince() != "" {
+		r.Since = types.StringValue(apiModel.GetSince())
+	}
+
+	if apiModel.Created != nil {
+		r.Created = types.StringValue(apiModel.Created.String())
+	}
+
+	if apiModel.Modified != nil {
+		r.Modified = types.StringValue(apiModel.Modified.String())
+	}
+
+	if apiModel.GetConnectorId() != "" {
+		r.ConnectorId = types.StringValue(apiModel.GetConnectorId())
+	}
+
+	if apiModel.GetConnectorName() != "" {
+		r.ConnectorName = types.StringValue(apiModel.GetConnectorName())
+	}
+
+	// Handle credential provider enabled
+	if apiModel.CredentialProviderEnabled != nil {
+		r.CredentialProviderEnabled = types.BoolValue(*apiModel.CredentialProviderEnabled)
+	}
+
+	// Handle category
+	if apiModel.Category.IsSet() {
+		categoryPtr := apiModel.Category.Get()
+		if categoryPtr != nil {
+			r.Category = types.StringValue(*categoryPtr)
+		}
+	}
+
+	return nil
 }
 
 // FromSailPointSourceDataSource populates the data source model from a SailPoint API Source object.

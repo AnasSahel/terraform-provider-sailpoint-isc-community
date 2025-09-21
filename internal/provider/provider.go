@@ -182,6 +182,7 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 		transform.NewTransformsDataSource,
 		managedcluster.NewManagedClusterDataSource,
 		source.NewSourceDataSource,
+		source.NewSourcesDataSource,
 	}
 }
 

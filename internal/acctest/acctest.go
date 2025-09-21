@@ -159,9 +159,9 @@ func TestAccSailPointSourceDataSource() string {
 				"id" = "2c91808570313110017040b06f344ec9"
 				"name" = "john.doe"
 			})
-			configuration = {
+			connector_attributes = jsonencode({
 				"file" = "test.csv"
-			}
+			})
 		}
 
 		data "sailpoint_source" "test" {
@@ -183,9 +183,9 @@ func TestAccSailPointSourceResourceCreate() string {
 				"id" = data.sailpoint_sources.first.sources[0].owner.id
 				"name" = data.sailpoint_sources.first.sources[0].owner.name
 			})
-			configuration = {
+			connector_attributes = jsonencode({
 				"file" = "users.csv"
-			}
+			})
 		}
 	`
 }
@@ -203,10 +203,10 @@ func TestAccSailPointSourceResourceUpdate() string {
 				"id" = data.sailpoint_sources.first.sources[0].owner.id
 				"name" = data.sailpoint_sources.first.sources[0].owner.name
 			})
-			configuration = {
+			connector_attributes = jsonencode({
 				"file" = "users.csv"
 				"delimiter" = ";"
-			}
+			})
 		}
 	`
 }

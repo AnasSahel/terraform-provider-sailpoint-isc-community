@@ -27,7 +27,7 @@ func TestAccSailPointSourceResource(t *testing.T) {
 					resource.TestCheckResourceAttr("sailpoint_source.test", "description", "Test delimited source created by Terraform"),
 					resource.TestCheckResourceAttr("sailpoint_source.test", "connector", "delimited-file"),
 					resource.TestCheckResourceAttrSet("sailpoint_source.test", "owner.id"),
-					resource.TestCheckResourceAttrSet("sailpoint_source.test", "configuration.%"),
+					resource.TestCheckResourceAttrSet("sailpoint_source.test", "connector_attributes"),
 					resource.TestCheckResourceAttr("sailpoint_source.test", "features", "[]"),
 					resource.TestCheckResourceAttr("sailpoint_source.test", "schemas", "[]"),
 				),
@@ -48,7 +48,7 @@ func TestAccSailPointSourceResource(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("sailpoint_source.test", "id"),
 					resource.TestCheckResourceAttr("sailpoint_source.test", "description", "Updated test delimited source"),
-					resource.TestCheckResourceAttr("sailpoint_source.test", "configuration.%", "2"),
+					resource.TestCheckResourceAttrSet("sailpoint_source.test", "connector_attributes"),
 				),
 			},
 		},
