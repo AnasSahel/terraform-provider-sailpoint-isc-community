@@ -14,8 +14,10 @@ import (
 )
 
 // Ensure the implementation satisfies the expected interfaces.
-var _ datasource.DataSource = &TransformsDataSource{}
-var _ datasource.DataSourceWithConfigure = &TransformsDataSource{}
+var (
+	_ datasource.DataSource              = &TransformsDataSource{}
+	_ datasource.DataSourceWithConfigure = &TransformsDataSource{}
+)
 
 // TransformsDataSource is the data source implementation.
 type TransformsDataSource struct {

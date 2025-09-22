@@ -1,7 +1,18 @@
+# SailPoint Transform Resource Examples
+# 
+# IMPORTANT NOTES (Enhanced in v0.2.0):
+# - The 'name' and 'type' fields are IMMUTABLE after creation (RequiresReplace)
+# - The 'type' field is validated against 31 supported transform types
+# - The 'attributes' field must contain valid JSON
+# - Use 'terraform plan' to see if changes will force resource recreation
+#
+# For a complete list of supported transform types, see:
+# https://documentation.sailpoint.com/saas/help/transforms/
+
 # Example 1: Basic Upper Transform - Convert input to uppercase
 resource "sailpoint_transform" "upper_example" {
-  name = "Upper Case Transform"
-  type = "upper"
+  name = "Upper Case Transform" # IMMUTABLE - changing this will recreate the resource
+  type = "upper"                # IMMUTABLE - validated against supported types
 
   attributes = jsonencode({
     input = {
@@ -370,3 +381,100 @@ resource "sailpoint_transform" "imported_transform" {
     prevent_destroy = true
   }
 }
+
+# ============================================================================
+# VALIDATION EXAMPLES (Enhanced in v0.2.0)
+# ============================================================================
+
+# Example 14: Demonstrates validation features
+resource "sailpoint_transform" "validation_example" {
+  # NOTE: Both 'name' and 'type' are IMMUTABLE (RequiresReplace)
+  # Changing either will force Terraform to destroy and recreate the resource
+  name = "Validation Demo Transform"
+
+  # The 'type' field is validated against supported transform types:
+  # accountAttribute, base64Decode, base64Encode, concatenation, conditional,
+  # dateCompare, dateFormat, dateMath, decompose, displayName, e164phone,
+  # firstValid, getReference, getReferenceIdentityAttribute, identityAttribute,
+  # indexOf, iso3166, lastIndexOf, leftPad, lookup, lower, normalizeNames,
+  # randomAlphaNumeric, randomNumeric, replace, replaceAll, rightPad, rule,
+  # split, static, substring, trim, upper, uuid
+  type = "concatenation"
+
+  # The 'attributes' field must contain valid JSON
+  # Invalid JSON will cause a validation error before API calls
+  attributes = jsonencode({
+    values = [
+      {
+        type = "accountAttribute"
+        attributes = {
+          attributeName = "firstName"
+          sourceName    = "HR System"
+        }
+      },
+      " ", # Static space
+      {
+        type = "accountAttribute"
+        attributes = {
+          attributeName = "lastName"
+          sourceName    = "HR System"
+        }
+      }
+    ]
+  })
+}
+
+# Example 15: All supported transform types (for reference)
+locals {
+  supported_transform_types = [
+    "accountAttribute",
+    "base64Decode",
+    "base64Encode",
+    "concatenation",
+    "conditional",
+    "dateCompare",
+    "dateFormat",
+    "dateMath",
+    "decompose",
+    "displayName",
+    "e164phone",
+    "firstValid",
+    "getReference",
+    "getReferenceIdentityAttribute",
+    "identityAttribute",
+    "indexOf",
+    "iso3166",
+    "lastIndexOf",
+    "leftPad",
+    "lookup",
+    "lower",
+    "normalizeNames",
+    "randomAlphaNumeric",
+    "randomNumeric",
+    "replace",
+    "replaceAll",
+    "rightPad",
+    "rule",
+    "split",
+    "static",
+    "substring",
+    "trim",
+    "upper",
+    "uuid"
+  ]
+}
+
+# VALIDATION ERRORS YOU MIGHT ENCOUNTER:
+# 
+# 1. Invalid transform type:
+# Error: Invalid Attribute Value Match
+# │ "invalidType" is not a valid transform type
+# 
+# 2. Invalid JSON in attributes:
+# Error: Invalid Attribute Value Match  
+# │ must be valid JSON object
+#
+# 3. Attempting to change immutable fields:
+# Plan: 1 to add, 0 to change, 1 to destroy.
+# │ # sailpoint_transform.example must be replaced
+# │ # (because name/type cannot be updated in-place)}
