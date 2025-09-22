@@ -64,6 +64,9 @@ func GetSourceResourceSchema() schema.Schema {
 				Required:            true,
 				Description:         "The connector type identifier.",
 				MarkdownDescription: "The connector type identifier (e.g., 'active-directory', 'workday', 'delimited-file').",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 
 			// Core attributes
