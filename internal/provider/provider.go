@@ -7,8 +7,6 @@ import (
 	"context"
 	"os"
 
-	connector_datasource "github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/connector/datasource"
-	connector_resource "github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/connector/resource"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/managedcluster"
 	transform_datasource "github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/transform/datasource"
 	transform_resource "github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/transform/resource"
@@ -184,7 +182,6 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 		transform_datasource.NewTransformsDataSource,
 		transform_datasource.NewTransformDataSource,
 		managedcluster.NewManagedClusterDataSource,
-		connector_datasource.NewConnectorsDataSource,
 	}
 }
 
@@ -193,6 +190,5 @@ func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resou
 	return []func() resource.Resource{
 		transform_resource.NewTransformResource,
 		managedcluster.NewManagedClusterResource,
-		connector_resource.NewConnectorResource,
 	}
 }
