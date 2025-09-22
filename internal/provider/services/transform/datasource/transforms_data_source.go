@@ -1,19 +1,23 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package transform
+package datasource
 
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/sailpoint-oss/golang-sdk/v2/api_v2025"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
-var _ datasource.DataSource = &TransformsDataSource{}
-var _ datasource.DataSourceWithConfigure = &TransformsDataSource{}
+var (
+	_ datasource.DataSource              = &TransformsDataSource{}
+	_ datasource.DataSourceWithConfigure = &TransformsDataSource{}
+)
 
 // TransformsDataSource is the data source implementation.
 type TransformsDataSource struct {
@@ -61,15 +65,44 @@ func (d *TransformsDataSource) Schema(_ context.Context, _ datasource.SchemaRequ
 func (d *TransformsDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var state TransformsDataSourceModel
 
-	transforms, response, err := d.client.TransformsAPI.ListTransforms(context.Background()).Execute()
+	// Read Terraform configuration data into the model
+	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Set up API request with optional filtering
+	apiReq := d.client.TransformsAPI.ListTransforms(context.Background())
+
+	// Apply filters if specified
+	if !state.Filters.IsNull() && !state.Filters.IsUnknown() && state.Filters.ValueString() != "" {
+		apiReq = apiReq.Filters(state.Filters.ValueString())
+	}
+
+	// Execute API request
+	transforms, response, err := apiReq.Execute()
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Unable to Read SailPoint Transforms",
-			fmt.Sprintf("SailPoint API error while reading transforms: %s\nHTTP Response: %v",
-				err.Error(),
-				response,
-			),
-		)
+		errorMsg := "Failed to retrieve transforms"
+		detailMsg := fmt.Sprintf("SailPoint API error: %s", err.Error())
+
+		// Add specific handling for common error scenarios
+		if response != nil {
+			switch response.StatusCode {
+			case 400:
+				detailMsg = fmt.Sprintf("Bad Request - Invalid filter syntax. Please check the 'filters' parameter. API error: %s", err.Error())
+			case 401:
+				detailMsg = "Unauthorized - Please check your SailPoint credentials and API access."
+			case 403:
+				detailMsg = "Forbidden - Insufficient permissions to read transforms. Please check your user permissions in SailPoint."
+			case 429:
+				detailMsg = "Rate Limit Exceeded - Too many API requests. Please retry after a few moments."
+			default:
+				detailMsg = fmt.Sprintf("HTTP %d - %s", response.StatusCode, err.Error())
+			}
+			detailMsg += fmt.Sprintf("\nHTTP Response: %v", response)
+		}
+
+		resp.Diagnostics.AddError(errorMsg, detailMsg)
 		return
 	}
 
@@ -79,6 +112,9 @@ func (d *TransformsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	// Set ID for the data source
+	state.Id = types.StringValue(fmt.Sprintf("transforms-%d", time.Now().Unix()))
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)

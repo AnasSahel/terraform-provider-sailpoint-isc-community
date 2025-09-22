@@ -2,6 +2,20 @@
 
 This directory contains comprehensive examples for using the `sailpoint_transform` resource. Transforms are used in SailPoint Identity Security Cloud to manipulate data during identity processing, such as during account aggregation or provisioning.
 
+## 🆕 What's New in v0.2.0
+
+**Enhanced Validation & Error Handling:**
+- ✅ **Immutable Fields**: `name` and `type` fields now correctly trigger resource recreation (RequiresReplace)
+- ✅ **Type Validation**: `type` field validates against 31 supported transform types
+- ✅ **JSON Validation**: `attributes` field must contain valid JSON
+- ✅ **Better Error Messages**: Clear, actionable error messages with SailPoint-specific guidance
+- ✅ **New Data Sources**: Added filtering support and single transform lookup
+- ✅ **Improved Organization**: Cleaner code structure with separate resource/datasource folders
+
+**Breaking Changes:**
+- Changing `name` or `type` will now destroy and recreate the resource (as required by SailPoint API)
+- Invalid transform types will now be caught during `terraform plan` instead of during `apply`
+
 ## Overview
 
 The `sailpoint_transform` resource allows you to create and manage data transformation rules that can:
@@ -13,9 +27,11 @@ The `sailpoint_transform` resource allows you to create and manage data transfor
 
 ## Files
 
-- **resource.tf** - Comprehensive transform examples (13 different examples)
-- **import.sh** - Simple command for importing existing transforms
-- **../data-sources/transform/data-source.tf** - Examples of the `sailpoint_transforms` data source
+- **resource.tf** - Comprehensive transform examples (15 examples + validation demos)
+- **import.sh** - Simple command for importing existing transforms  
+- **../data-sources/transform/data-source.tf** - Examples of both data sources:
+  - `sailpoint_transforms` (plural) - List transforms with filtering
+  - `sailpoint_transform` (singular) - Get single transform by ID/name
 
 ## Example Categories
 
@@ -321,31 +337,144 @@ provider "sailpoint" {
 }
 ```
 
-## Data Source Usage
+## ✨ Enhanced Data Source Usage
 
-The `sailpoint_transforms` data source retrieves all transforms in your SailPoint tenant:
+### Multiple Transforms with Filtering
+
+The `sailpoint_transforms` data source now supports server-side filtering:
 
 ```terraform
+# Get all transforms
 data "sailpoint_transforms" "all" {}
 
-# Filter transforms in Terraform (client-side)
-locals {
-  upper_transforms = [
-    for transform in data.sailpoint_transforms.all.transforms :
-    transform if transform.type == "upper"
-  ]
+# Server-side filtering (more efficient)
+data "sailpoint_transforms" "user_transforms" {
+  filters = "name sw \"User\""  # Names starting with "User"
+}
+
+data "sailpoint_transforms" "upper_transforms" {
+  filters = "type eq \"upper\""  # Only upper transforms
+}
+
+data "sailpoint_transforms" "custom_transforms" {
+  filters = "internal eq false"  # Non-internal transforms only
+}
+
+# Complex filtering
+data "sailpoint_transforms" "custom_upper_transforms" {
+  filters = "type eq \"upper\" and internal eq false"
+}
+```
+
+### Single Transform Lookup
+
+The new `sailpoint_transform` data source retrieves individual transforms:
+
+```terraform
+# Get transform by ID
+data "sailpoint_transform" "by_id" {
+  id = "transform-12345-abcde"
+}
+
+# Get transform by name
+data "sailpoint_transform" "by_name" {
+  name = "My Custom Transform"
 }
 
 # Use in other resources
-resource "local_file" "transform_report" {
-  filename = "transforms.json"
+resource "local_file" "transform_backup" {
+  filename = "transform-backup.json"
   content = jsonencode({
-    total_count    = length(data.sailpoint_transforms.all.transforms)
-    upper_count    = length(local.upper_transforms)
-    transform_list = data.sailpoint_transforms.all.transforms
+    id         = data.sailpoint_transform.by_name.id
+    name       = data.sailpoint_transform.by_name.name
+    type       = data.sailpoint_transform.by_name.type
+    attributes = data.sailpoint_transform.by_name.attributes
   })
 }
 ```
+
+### Client-Side Processing
+
+You can still do client-side filtering for complex logic:
+
+```terraform
+locals {
+  # Complex client-side filtering
+  upper_transforms = [
+    for transform in data.sailpoint_transforms.all.transforms :
+    transform if transform.type == "upper" && length(transform.name) > 10
+  ]
+  
+  # Group by type
+  transforms_by_type = {
+    for transform in data.sailpoint_transforms.all.transforms :
+    transform.type => transform...
+  }
+}
+```
+
+## 🛡️ Validation & Error Handling
+
+### Immutable Fields (RequiresReplace)
+
+The `name` and `type` fields cannot be changed after creation. Attempting to modify them will trigger resource recreation:
+
+```terraform
+resource "sailpoint_transform" "example" {
+  name = "Original Name"  # ⚠️ IMMUTABLE - changing this destroys/recreates resource
+  type = "upper"          # ⚠️ IMMUTABLE - changing this destroys/recreates resource
+  # ... attributes can be updated in-place
+}
+```
+
+### Transform Type Validation
+
+The `type` field is validated against 31 supported transform types:
+
+```terraform
+resource "sailpoint_transform" "valid_example" {
+  name = "Valid Transform"
+  type = "upper"  # ✅ Valid - will pass validation
+  # ...
+}
+
+resource "sailpoint_transform" "invalid_example" {
+  name = "Invalid Transform"  
+  type = "invalidType"  # ❌ Invalid - will fail during terraform plan
+  # ...
+}
+```
+
+**Supported types:** `accountAttribute`, `base64Decode`, `base64Encode`, `concatenation`, `conditional`, `dateCompare`, `dateFormat`, `dateMath`, `decompose`, `displayName`, `e164phone`, `firstValid`, `getReference`, `getReferenceIdentityAttribute`, `identityAttribute`, `indexOf`, `iso3166`, `lastIndexOf`, `leftPad`, `lookup`, `lower`, `normalizeNames`, `randomAlphaNumeric`, `randomNumeric`, `replace`, `replaceAll`, `rightPad`, `rule`, `split`, `static`, `substring`, `trim`, `upper`, `uuid`
+
+### JSON Validation
+
+The `attributes` field must contain valid JSON:
+
+```terraform
+resource "sailpoint_transform" "valid_json" {
+  name = "Valid JSON Example"
+  type = "upper"
+  
+  attributes = jsonencode({  # ✅ Valid JSON
+    input = "fieldName"
+  })
+}
+
+resource "sailpoint_transform" "invalid_json" {
+  name = "Invalid JSON Example"
+  type = "upper"
+  
+  attributes = "{ invalid json }"  # ❌ Invalid - will fail validation
+}
+```
+
+### Common Error Messages
+
+- **Invalid Type**: `"invalidType" is not a valid transform type`
+- **Invalid JSON**: `must be valid JSON object`
+- **Immutable Change**: `must be replaced (because name/type cannot be updated in-place)`
+- **API Errors**: Clear messages for 400/401/403/404/429 HTTP status codes
 
 ## Testing
 

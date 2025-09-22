@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package transform
+package resource
 
 import (
 	"context"
@@ -81,14 +81,29 @@ func (r *TransformResource) Create(ctx context.Context, req resource.CreateReque
 	// Call SailPoint API to create the transform
 	transformResponse, response, err := r.client.TransformsAPI.CreateTransform(context.Background()).Transform(*transform).Execute()
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Failed to Create Transform",
-			fmt.Sprintf("SailPoint API error while creating transform '%s': %s\nHTTP Response: %v",
-				plan.Name.ValueString(),
-				err.Error(),
-				response,
-			),
-		)
+		errorMsg := fmt.Sprintf("Failed to create transform '%s'", plan.Name.ValueString())
+		detailMsg := fmt.Sprintf("SailPoint API error: %s", err.Error())
+
+		// Add specific handling for common error scenarios
+		if response != nil {
+			switch response.StatusCode {
+			case 400:
+				detailMsg = fmt.Sprintf("Bad Request - The transform configuration is invalid. Please check the 'type' and 'attributes' fields. API error: %s", err.Error())
+			case 401:
+				detailMsg = "Unauthorized - Please check your SailPoint credentials and API access."
+			case 403:
+				detailMsg = "Forbidden - Insufficient permissions to create transforms. Please check your user permissions in SailPoint."
+			case 409:
+				detailMsg = fmt.Sprintf("Conflict - A transform with name '%s' already exists. Choose a different name.", plan.Name.ValueString())
+			case 429:
+				detailMsg = "Rate Limit Exceeded - Too many API requests. Please retry after a few moments."
+			default:
+				detailMsg = fmt.Sprintf("HTTP %d - %s", response.StatusCode, err.Error())
+			}
+			detailMsg += fmt.Sprintf("\nHTTP Response: %v", response)
+		}
+
+		resp.Diagnostics.AddError(errorMsg, detailMsg)
 		return
 	}
 
@@ -119,14 +134,27 @@ func (r *TransformResource) Read(ctx context.Context, req resource.ReadRequest, 
 
 	transform, response, err := r.client.TransformsAPI.GetTransform(context.Background(), state.Id.ValueString()).Execute()
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Failed to Read Transform",
-			fmt.Sprintf("SailPoint API error while reading transform with ID '%s': %s\nHTTP Response: %v",
-				state.Id.ValueString(),
-				err.Error(),
-				response,
-			),
-		)
+		errorMsg := fmt.Sprintf("Failed to read transform with ID '%s'", state.Id.ValueString())
+		detailMsg := fmt.Sprintf("SailPoint API error: %s", err.Error())
+
+		// Add specific handling for common error scenarios
+		if response != nil {
+			switch response.StatusCode {
+			case 401:
+				detailMsg = "Unauthorized - Please check your SailPoint credentials and API access."
+			case 403:
+				detailMsg = "Forbidden - Insufficient permissions to read transforms. Please check your user permissions in SailPoint."
+			case 404:
+				detailMsg = fmt.Sprintf("Transform with ID '%s' not found. It may have been deleted outside of Terraform.", state.Id.ValueString())
+			case 429:
+				detailMsg = "Rate Limit Exceeded - Too many API requests. Please retry after a few moments."
+			default:
+				detailMsg = fmt.Sprintf("HTTP %d - %s", response.StatusCode, err.Error())
+			}
+			detailMsg += fmt.Sprintf("\nHTTP Response: %v", response)
+		}
+
+		resp.Diagnostics.AddError(errorMsg, detailMsg)
 		return
 	}
 
@@ -163,15 +191,29 @@ func (r *TransformResource) Update(ctx context.Context, req resource.UpdateReque
 
 	transformResponse, httpResponse, err := r.client.TransformsAPI.UpdateTransform(context.Background(), plan.Id.ValueString()).Transform(*transform).Execute()
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Failed to Update Transform",
-			fmt.Sprintf("SailPoint API error while updating transform '%s' (ID: %s): %s\nHTTP Response: %v",
-				plan.Name.ValueString(),
-				plan.Id.ValueString(),
-				err.Error(),
-				httpResponse,
-			),
-		)
+		errorMsg := fmt.Sprintf("Failed to update transform '%s'", plan.Name.ValueString())
+		detailMsg := fmt.Sprintf("SailPoint API error: %s", err.Error())
+
+		// Add specific handling for common error scenarios
+		if httpResponse != nil {
+			switch httpResponse.StatusCode {
+			case 400:
+				detailMsg = fmt.Sprintf("Bad Request - The transform configuration is invalid. Please check the 'attributes' field. Note that 'name' and 'type' cannot be changed after creation. API error: %s", err.Error())
+			case 401:
+				detailMsg = "Unauthorized - Please check your SailPoint credentials and API access."
+			case 403:
+				detailMsg = "Forbidden - Insufficient permissions to update transforms. Please check your user permissions in SailPoint."
+			case 404:
+				detailMsg = fmt.Sprintf("Transform with ID '%s' not found. It may have been deleted outside of Terraform.", plan.Id.ValueString())
+			case 429:
+				detailMsg = "Rate Limit Exceeded - Too many API requests. Please retry after a few moments."
+			default:
+				detailMsg = fmt.Sprintf("HTTP %d - %s", httpResponse.StatusCode, err.Error())
+			}
+			detailMsg += fmt.Sprintf("\nHTTP Response: %v", httpResponse)
+		}
+
+		resp.Diagnostics.AddError(errorMsg, detailMsg)
 		return
 	}
 
@@ -202,15 +244,32 @@ func (r *TransformResource) Delete(ctx context.Context, req resource.DeleteReque
 	// Delete the transform via SailPoint API
 	httpResponse, err := r.client.TransformsAPI.DeleteTransform(context.Background(), state.Id.ValueString()).Execute()
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Failed to Delete Transform",
-			fmt.Sprintf("SailPoint API error while deleting transform '%s' (ID: %s): %s\nHTTP Response: %v",
-				state.Name.ValueString(),
-				state.Id.ValueString(),
-				err.Error(),
-				httpResponse,
-			),
-		)
+		errorMsg := fmt.Sprintf("Failed to delete transform '%s'", state.Name.ValueString())
+		detailMsg := fmt.Sprintf("SailPoint API error: %s", err.Error())
+
+		// Add specific handling for common error scenarios
+		if httpResponse != nil {
+			switch httpResponse.StatusCode {
+			case 401:
+				detailMsg = "Unauthorized - Please check your SailPoint credentials and API access."
+			case 403:
+				detailMsg = "Forbidden - Insufficient permissions to delete transforms. Please check your user permissions in SailPoint."
+			case 404:
+				// 404 on delete is not necessarily an error - the resource may already be deleted
+				detailMsg = fmt.Sprintf("Transform with ID '%s' not found. It may have already been deleted.", state.Id.ValueString())
+				resp.Diagnostics.AddWarning(errorMsg, detailMsg)
+				return // Don't treat 404 as error for delete operations
+			case 409:
+				detailMsg = fmt.Sprintf("Conflict - Transform '%s' is still in use and cannot be deleted. Remove references before deleting.", state.Name.ValueString())
+			case 429:
+				detailMsg = "Rate Limit Exceeded - Too many API requests. Please retry after a few moments."
+			default:
+				detailMsg = fmt.Sprintf("HTTP %d - %s", httpResponse.StatusCode, err.Error())
+			}
+			detailMsg += fmt.Sprintf("\nHTTP Response: %v", httpResponse)
+		}
+
+		resp.Diagnostics.AddError(errorMsg, detailMsg)
 		return
 	}
 }

@@ -10,7 +10,8 @@ import (
 	connector_datasource "github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/connector/datasource"
 	connector_resource "github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/connector/resource"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/managedcluster"
-	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/transform"
+	transform_datasource "github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/transform/datasource"
+	transform_resource "github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/transform/resource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -180,7 +181,8 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 // DataSources defines the data sources implemented in the provider.
 func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		transform.NewTransformsDataSource,
+		transform_datasource.NewTransformsDataSource,
+		transform_datasource.NewTransformDataSource,
 		managedcluster.NewManagedClusterDataSource,
 		connector_datasource.NewConnectorsDataSource,
 	}
@@ -189,7 +191,7 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 // Resources defines the resources implemented in the provider.
 func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		transform.NewTransformResource,
+		transform_resource.NewTransformResource,
 		managedcluster.NewManagedClusterResource,
 		connector_resource.NewConnectorResource,
 	}
