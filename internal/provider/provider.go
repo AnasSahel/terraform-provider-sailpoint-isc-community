@@ -88,24 +88,24 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 	if config.BaseUrl.IsUnknown() {
 		resp.Diagnostics.AddAttributeError(
 			path.Root("base_url"),
-			"Missing or invalid Base URL",
-			"Ensure the Base URL attribute is set in the configuration.",
+			"Invalid Base URL",
+			"Base URL must be configured.",
 		)
 	}
 
 	if config.ClientId.IsUnknown() {
 		resp.Diagnostics.AddAttributeError(
 			path.Root("client_id"),
-			"Missing or invalid Client ID",
-			"Ensure the Client ID attribute is set in the configuration.",
+			"Invalid Client ID",
+			"Client ID must be configured.",
 		)
 	}
 
 	if config.ClientSecret.IsUnknown() {
 		resp.Diagnostics.AddAttributeError(
 			path.Root("client_secret"),
-			"Missing or invalid Client Secret",
-			"Ensure the Client Secret attribute is set in the configuration.",
+			"Invalid Client Secret",
+			"Client Secret must be configured.",
 		)
 	}
 
@@ -131,8 +131,7 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 		resp.Diagnostics.AddAttributeError(
 			path.Root("baseUrl"),
 			"Missing Base URL",
-			"The provider cannot create the API client as there is a missing value for the Base URL. "+
-				"Set the Base URL attribute in the configuration or use the SAILPOINT_BASE_URL environment variable.",
+			"Set base_url in config or SAILPOINT_BASE_URL environment variable.",
 		)
 	}
 
@@ -140,8 +139,7 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 		resp.Diagnostics.AddAttributeError(
 			path.Root("clientId"),
 			"Missing Client ID",
-			"The provider cannot create the API client as there is a missing value for the Client ID. "+
-				"Set the Client ID attribute in the configuration or use the SAILPOINT_CLIENT_ID environment variable.",
+			"Set client_id in config or SAILPOINT_CLIENT_ID environment variable.",
 		)
 	}
 
@@ -149,8 +147,7 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 		resp.Diagnostics.AddAttributeError(
 			path.Root("clientSecret"),
 			"Missing Client Secret",
-			"The provider cannot create the API client as there is a missing value for the Client Secret. "+
-				"Set the Client Secret attribute in the configuration or use the SAILPOINT_CLIENT_SECRET environment variable.",
+			"Set client_secret in config or SAILPOINT_CLIENT_SECRET environment variable.",
 		)
 	}
 
@@ -173,7 +170,7 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 	resp.DataSourceData = sailpointClient
 	resp.ResourceData = sailpointClient
 
-	tflog.Info(ctx, "SailPoint client configured", map[string]any{"success": true})
+	tflog.Info(ctx, "SailPoint client ready")
 }
 
 // DataSources defines the data sources implemented in the provider.
