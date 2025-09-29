@@ -7,6 +7,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/lifecycle_state"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/managedcluster"
 	transform_datasource "github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/transform/datasource"
 	transform_resource "github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/transform/resource"
@@ -165,7 +166,7 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 	os.Setenv("SAIL_CLIENT_SECRET", clientSecret)
 	sailpointConfiguration := sailpoint.NewDefaultConfiguration()
 
-	sailpointClient := sailpoint.NewAPIClient(sailpointConfiguration).V2025
+	sailpointClient := sailpoint.NewAPIClient(sailpointConfiguration)
 
 	resp.DataSourceData = sailpointClient
 	resp.ResourceData = sailpointClient
@@ -179,6 +180,9 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 		transform_datasource.NewTransformsDataSource,
 		transform_datasource.NewTransformDataSource,
 		managedcluster.NewManagedClusterDataSource,
+		// Lifecycle State Data Sources
+		lifecycle_state.NewLifecycleStateListDataSource,
+		lifecycle_state.NewLifecycleStateDataSource,
 	}
 }
 
@@ -187,5 +191,6 @@ func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resou
 	return []func() resource.Resource{
 		transform_resource.NewTransformResource,
 		managedcluster.NewManagedClusterResource,
+		lifecycle_state.NewLifecycleStateResource,
 	}
 }

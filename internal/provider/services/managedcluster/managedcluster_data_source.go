@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	sailpoint "github.com/sailpoint-oss/golang-sdk/v2"
 	"github.com/sailpoint-oss/golang-sdk/v2/api_v2025"
 )
 
@@ -20,7 +21,7 @@ var (
 
 // ManagedClusterDataSource defines the data source implementation.
 type ManagedClusterDataSource struct {
-	client *api_v2025.APIClient
+	client *sailpoint.APIClient
 }
 
 // NewManagedClusterDataSource creates a new managed cluster data source.
@@ -48,11 +49,11 @@ func (d *ManagedClusterDataSource) Configure(ctx context.Context, req datasource
 		return
 	}
 
-	client, ok := req.ProviderData.(*api_v2025.APIClient)
+	client, ok := req.ProviderData.(*sailpoint.APIClient)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected DataSource Configure Type",
-			fmt.Sprintf("Expected *api_v2025.APIClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+			fmt.Sprintf("Expected *sailpoint.APIClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
 		)
 		return
 	}
@@ -91,7 +92,7 @@ func (d *ManagedClusterDataSource) Read(ctx context.Context, req datasource.Read
 			"id": clusterID,
 		})
 
-		managedCluster, httpResponse, err = d.client.ManagedClustersAPI.GetManagedCluster(
+		managedCluster, httpResponse, err = d.client.V2025.ManagedClustersAPI.GetManagedCluster(
 			context.Background(),
 			clusterID,
 		).Execute()
@@ -115,7 +116,7 @@ func (d *ManagedClusterDataSource) Read(ctx context.Context, req datasource.Read
 		nameFilter := fmt.Sprintf("name eq \"%s\"", clusterName)
 
 		var clusters []api_v2025.ManagedCluster
-		clusters, _, err = d.client.ManagedClustersAPI.GetManagedClusters(
+		clusters, _, err = d.client.V2025.ManagedClustersAPI.GetManagedClusters(
 			context.Background(),
 		).Filters(nameFilter).Execute()
 
@@ -126,7 +127,7 @@ func (d *ManagedClusterDataSource) Read(ctx context.Context, req datasource.Read
 				"error": err.Error(),
 			})
 
-			clusters, httpResponse, err = d.client.ManagedClustersAPI.GetManagedClusters(
+			clusters, httpResponse, err = d.client.V2025.ManagedClustersAPI.GetManagedClusters(
 				context.Background(),
 			).Execute()
 

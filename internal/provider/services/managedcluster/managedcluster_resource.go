@@ -10,11 +10,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/sailpoint-oss/golang-sdk/v2/api_v2025"
+	sailpoint "github.com/sailpoint-oss/golang-sdk/v2"
 )
 
 type ManagedClusterResource struct {
-	client *api_v2025.APIClient
+	client *sailpoint.APIClient
 }
 
 var (
@@ -35,12 +35,12 @@ func (r *ManagedClusterResource) Configure(ctx context.Context, req resource.Con
 		return
 	}
 
-	client, ok := req.ProviderData.(*api_v2025.APIClient)
+	client, ok := req.ProviderData.(*sailpoint.APIClient)
 
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *api_v2025.APIClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+			fmt.Sprintf("Expected *sailpoint.APIClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
 		)
 		return
 	}
@@ -87,7 +87,7 @@ func (r *ManagedClusterResource) Create(ctx context.Context, req resource.Create
 	})
 
 	// Create the managed cluster via SailPoint API
-	managedCluster, httpResponse, err := r.client.ManagedClustersAPI.CreateManagedCluster(
+	managedCluster, httpResponse, err := r.client.V2025.ManagedClustersAPI.CreateManagedCluster(
 		context.Background(),
 	).ManagedClusterRequest(*managedClusterRequest).Execute()
 
@@ -138,7 +138,7 @@ func (r *ManagedClusterResource) Read(ctx context.Context, req resource.ReadRequ
 	})
 
 	// Fetch the managed cluster from SailPoint API
-	managedCluster, httpResponse, err := r.client.ManagedClustersAPI.GetManagedCluster(
+	managedCluster, httpResponse, err := r.client.V2025.ManagedClustersAPI.GetManagedCluster(
 		context.Background(),
 		clusterID,
 	).Execute()
@@ -199,7 +199,7 @@ func (r *ManagedClusterResource) Update(ctx context.Context, req resource.Update
 	tflog.Debug(ctx, fmt.Sprintf("Applying %d patch operations to managed cluster %s", len(patchOps), state.Id.ValueString()))
 
 	// Call the SailPoint API to update the managed cluster
-	managedCluster, httpResponse, err := r.client.ManagedClustersAPI.UpdateManagedCluster(
+	managedCluster, httpResponse, err := r.client.V2025.ManagedClustersAPI.UpdateManagedCluster(
 		context.Background(),
 		state.Id.ValueString(),
 	).JsonPatchOperation(patchOps).Execute()
@@ -242,7 +242,7 @@ func (r *ManagedClusterResource) Delete(ctx context.Context, req resource.Delete
 	})
 
 	// Delete the managed cluster via SailPoint API
-	httpResponse, err := r.client.ManagedClustersAPI.DeleteManagedCluster(
+	httpResponse, err := r.client.V2025.ManagedClustersAPI.DeleteManagedCluster(
 		context.Background(),
 		clusterID,
 	).Execute()

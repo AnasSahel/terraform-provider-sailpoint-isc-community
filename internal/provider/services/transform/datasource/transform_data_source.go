@@ -8,7 +8,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/sailpoint-oss/golang-sdk/v2/api_v2025"
+	sailpoint "github.com/sailpoint-oss/golang-sdk/v2"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -17,7 +17,7 @@ var _ datasource.DataSourceWithConfigure = &TransformDataSource{}
 
 // TransformDataSource is the data source implementation.
 type TransformDataSource struct {
-	client *api_v2025.APIClient
+	client *sailpoint.APIClient
 }
 
 // NewTransformDataSource is a helper function to simplify the provider implementation.
@@ -33,12 +33,12 @@ func (d *TransformDataSource) Configure(_ context.Context, req datasource.Config
 		return
 	}
 
-	client, ok := req.ProviderData.(*api_v2025.APIClient)
+	client, ok := req.ProviderData.(*sailpoint.APIClient)
 
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Data Source Configure Type",
-			fmt.Sprintf("Expected *api_v2025.APIClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+			fmt.Sprintf("Expected *sailpoint.APIClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
 		)
 
 		return
@@ -84,7 +84,7 @@ func (d *TransformDataSource) Read(ctx context.Context, req datasource.ReadReque
 	} else {
 		// If only name is provided, search for the transform by name
 		filterQuery := fmt.Sprintf("name eq \"%s\"", state.Name.ValueString())
-		transforms, response, err := d.client.TransformsAPI.ListTransforms(context.Background()).
+		transforms, response, err := d.client.V2025.TransformsAPI.ListTransforms(context.Background()).
 			Filters(filterQuery).Execute()
 		if err != nil {
 			errorMsg := fmt.Sprintf("Failed to search for transform by name '%s'", state.Name.ValueString())
@@ -131,7 +131,7 @@ func (d *TransformDataSource) Read(ctx context.Context, req datasource.ReadReque
 	}
 
 	// Fetch the transform by ID
-	transform, response, err := d.client.TransformsAPI.GetTransform(context.Background(), transformId).Execute()
+	transform, response, err := d.client.V2025.TransformsAPI.GetTransform(context.Background(), transformId).Execute()
 	if err != nil {
 		errorMsg := fmt.Sprintf("Failed to retrieve transform with ID '%s'", transformId)
 		detailMsg := fmt.Sprintf("SailPoint API error: %s", err.Error())

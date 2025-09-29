@@ -1,0 +1,11 @@
+# Example terraform.tfvars file
+# Copy this file to terraform.tfvars and update with your actual values
+
+# Required: Your SailPoint Identity Profile ID
+identity_profile_id = "your-identity-profile-id-here"
+
+# Optional: Access Profile IDs to associate with the lifecycle state
+access_profile_ids = [
+  "access-profile-id-1",
+  "access-profile-id-2"
+]

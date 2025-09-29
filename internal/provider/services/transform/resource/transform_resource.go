@@ -9,7 +9,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/sailpoint-oss/golang-sdk/v2/api_v2025"
+	sailpoint "github.com/sailpoint-oss/golang-sdk/v2"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -21,7 +21,7 @@ var (
 
 // TransformResource is the resource implementation.
 type TransformResource struct {
-	client *api_v2025.APIClient
+	client *sailpoint.APIClient
 }
 
 // NewTransformResource is a helper function to simplify the provider implementation.
@@ -37,12 +37,12 @@ func (r *TransformResource) Configure(_ context.Context, req resource.ConfigureR
 		return
 	}
 
-	client, ok := req.ProviderData.(*api_v2025.APIClient)
+	client, ok := req.ProviderData.(*sailpoint.APIClient)
 
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *api_v2025.APIClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+			fmt.Sprintf("Expected *sailpoint.APIClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
 		)
 
 		return
@@ -79,7 +79,7 @@ func (r *TransformResource) Create(ctx context.Context, req resource.CreateReque
 	}
 
 	// Call SailPoint API to create the transform
-	transformResponse, response, err := r.client.TransformsAPI.CreateTransform(context.Background()).Transform(*transform).Execute()
+	transformResponse, response, err := r.client.V2025.TransformsAPI.CreateTransform(context.Background()).Transform(*transform).Execute()
 	if err != nil {
 		errorMsg := fmt.Sprintf("Failed to create transform '%s'", plan.Name.ValueString())
 		detailMsg := fmt.Sprintf("SailPoint API error: %s", err.Error())
@@ -132,7 +132,7 @@ func (r *TransformResource) Read(ctx context.Context, req resource.ReadRequest, 
 		return
 	}
 
-	transform, response, err := r.client.TransformsAPI.GetTransform(context.Background(), state.Id.ValueString()).Execute()
+	transform, response, err := r.client.V2025.TransformsAPI.GetTransform(context.Background(), state.Id.ValueString()).Execute()
 	if err != nil {
 		errorMsg := fmt.Sprintf("Failed to read transform with ID '%s'", state.Id.ValueString())
 		detailMsg := fmt.Sprintf("SailPoint API error: %s", err.Error())
@@ -189,7 +189,7 @@ func (r *TransformResource) Update(ctx context.Context, req resource.UpdateReque
 		return
 	}
 
-	transformResponse, httpResponse, err := r.client.TransformsAPI.UpdateTransform(context.Background(), plan.Id.ValueString()).Transform(*transform).Execute()
+	transformResponse, httpResponse, err := r.client.V2025.TransformsAPI.UpdateTransform(context.Background(), plan.Id.ValueString()).Transform(*transform).Execute()
 	if err != nil {
 		errorMsg := fmt.Sprintf("Failed to update transform '%s'", plan.Name.ValueString())
 		detailMsg := fmt.Sprintf("SailPoint API error: %s", err.Error())
@@ -242,7 +242,7 @@ func (r *TransformResource) Delete(ctx context.Context, req resource.DeleteReque
 	}
 
 	// Delete the transform via SailPoint API
-	httpResponse, err := r.client.TransformsAPI.DeleteTransform(context.Background(), state.Id.ValueString()).Execute()
+	httpResponse, err := r.client.V2025.TransformsAPI.DeleteTransform(context.Background(), state.Id.ValueString()).Execute()
 	if err != nil {
 		errorMsg := fmt.Sprintf("Failed to delete transform '%s'", state.Name.ValueString())
 		detailMsg := fmt.Sprintf("SailPoint API error: %s", err.Error())

@@ -10,7 +10,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/sailpoint-oss/golang-sdk/v2/api_v2025"
+	sailpoint "github.com/sailpoint-oss/golang-sdk/v2"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -21,7 +21,7 @@ var (
 
 // TransformsDataSource is the data source implementation.
 type TransformsDataSource struct {
-	client *api_v2025.APIClient
+	client *sailpoint.APIClient
 }
 
 // NewTransformsDataSource is a helper function to simplify the provider implementation.
@@ -37,12 +37,12 @@ func (d *TransformsDataSource) Configure(_ context.Context, req datasource.Confi
 		return
 	}
 
-	client, ok := req.ProviderData.(*api_v2025.APIClient)
+	client, ok := req.ProviderData.(*sailpoint.APIClient)
 
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Data Source Configure Type",
-			fmt.Sprintf("Expected *api_v2025.APIClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+			fmt.Sprintf("Expected *sailpoint.APIClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
 		)
 
 		return
@@ -72,7 +72,7 @@ func (d *TransformsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	}
 
 	// Set up API request with optional filtering
-	apiReq := d.client.TransformsAPI.ListTransforms(context.Background())
+	apiReq := d.client.V2025.TransformsAPI.ListTransforms(context.Background())
 
 	// Apply filters if specified
 	if !state.Filters.IsNull() && !state.Filters.IsUnknown() && state.Filters.ValueString() != "" {
