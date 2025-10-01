@@ -19,4 +19,6 @@ const (
 	ErrResourceCreateMsg   = "Could not create identity attribute %q: %v\n\nFull HTTP response: %v"
 	ErrResourceReadTitle   = "Error Reading Identity Attribute"
 	ErrResourceReadMsg     = "Could not read identity attribute %q: %v\n\nFull HTTP response: %v"
+	ErrResourceUpdateTitle = "Error Updating Identity Attribute"
+	ErrResourceUpdateMsg   = "Could not update identity attribute %q: %v\n\nFull HTTP response: %v"
 )

@@ -4,14 +4,16 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	sailpoint "github.com/sailpoint-oss/golang-sdk/v2"
 )
 
 var (
-	_ resource.Resource              = &identityAttributeResource{}
-	_ resource.ResourceWithConfigure = &identityAttributeResource{}
+	_ resource.Resource                = &identityAttributeResource{}
+	_ resource.ResourceWithConfigure   = &identityAttributeResource{}
+	_ resource.ResourceWithImportState = &identityAttributeResource{}
 )
 
 type identityAttributeResource struct {
@@ -120,6 +122,68 @@ func (r *identityAttributeResource) Read(ctx context.Context, req resource.ReadR
 }
 
 func (r *identityAttributeResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan IdentityAttributeResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	var state IdentityAttributeResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if !plan.DisplayName.IsNull() {
+		state.DisplayName = plan.DisplayName
+	}
+	if !plan.Multi.IsNull() {
+		state.Multi = plan.Multi
+	}
+	if !plan.Type.IsNull() {
+		state.Type = plan.Type
+	}
+	if !plan.Searchable.IsNull() {
+		state.Searchable = plan.Searchable
+	}
+	if !plan.Standard.IsNull() {
+		state.Standard = plan.Standard
+	}
+	if !plan.System.IsNull() {
+		state.System = plan.System
+	}
+	if len(plan.Sources) > 0 {
+		state.Sources = plan.Sources
+	}
+
+	identityAttribute, httpResponse, err := r.client.V2025.IdentityAttributesAPI.
+		PutIdentityAttribute(ctx, state.Name.ValueString()).
+		IdentityAttribute(MapTerraformResourceToIdentityAttribute(state)).
+		Execute()
+	if err != nil {
+		resp.Diagnostics.AddError(
+			ErrResourceUpdateTitle,
+			fmt.Sprintf(ErrResourceUpdateMsg, state.Name.ValueString(), err, httpResponse),
+		)
+		return
+	}
+
+	updatedState := MapIdentityAttributeToResourceModel(*identityAttribute)
+	if state.Sources != nil {
+		updatedState.Sources = make([]Source1, len(state.Sources))
+		for i, source := range identityAttribute.Sources {
+			// sourceJson, _ := source.MarshalJSON()
+			updatedState.Sources[i] = Source1{
+				Type:       types.StringValue(source.GetType()),
+				Properties: types.StringValue("string(sourceJson)"),
+			}
+		}
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &updatedState)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 func (r *identityAttributeResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -139,4 +203,8 @@ func (r *identityAttributeResource) Delete(ctx context.Context, req resource.Del
 		)
 		return
 	}
+}
+
+func (r *identityAttributeResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
 }
