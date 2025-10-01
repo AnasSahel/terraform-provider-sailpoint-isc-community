@@ -7,6 +7,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/identity_attribute"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/lifecycle_state"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/managedcluster"
 	transform_datasource "github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/transform/datasource"
@@ -183,6 +184,9 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 		// Lifecycle State Data Sources
 		lifecycle_state.NewLifecycleStateListDataSource,
 		lifecycle_state.NewLifecycleStateDataSource,
+
+		identity_attribute.NewIdentityAttributeDataSource,
+		identity_attribute.NewIdentityAttributeDataSourceList,
 	}
 }
 
@@ -192,5 +196,6 @@ func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resou
 		transform_resource.NewTransformResource,
 		managedcluster.NewManagedClusterResource,
 		lifecycle_state.NewLifecycleStateResource,
+		identity_attribute.NewIdentityAttributeResource,
 	}
 }

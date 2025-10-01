@@ -12,7 +12,9 @@ import (
 )
 
 type LifecycleStateDataSource struct {
-	client *sailpoint.APIClient
+	client       *sailpoint.APIClient
+	validator    *Validator
+	errorHandler *ErrorHandler
 }
 
 var (
@@ -21,7 +23,10 @@ var (
 )
 
 func NewLifecycleStateDataSource() datasource.DataSource {
-	return &LifecycleStateDataSource{}
+	return &LifecycleStateDataSource{
+		validator:    NewValidator(),
+		errorHandler: NewErrorHandler(),
+	}
 }
 
 func (d *LifecycleStateDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
@@ -33,10 +38,10 @@ func (d *LifecycleStateDataSource) Configure(ctx context.Context, req datasource
 	client, ok := req.ProviderData.(*sailpoint.APIClient)
 
 	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Data Source Configure Type",
-			"Expected *sailpoint.APIClient. Please report this issue to the provider developers.",
-		)
+		resp.Diagnostics.Append(d.errorHandler.HandleConfigurationError(
+			ErrUnexpectedConfigureType,
+			MsgExpectedAPIClient,
+		)...)
 		return
 	}
 
@@ -66,15 +71,15 @@ func (d *LifecycleStateDataSource) Read(ctx context.Context, req datasource.Read
 		Execute()
 
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Reading Lifecycle State",
-			fmt.Sprintf("Could not read lifecycle state (profile ID: '%s', state ID: '%s'): %s\n\nHTTP Response: %v",
+		resp.Diagnostics.Append(d.errorHandler.HandleAPIError(
+			"Reading",
+			err,
+			httpResponse,
+			fmt.Sprintf("profile ID: %s, state ID: %s",
 				config.IdentityProfileId.ValueString(),
 				config.Id.ValueString(),
-				err.Error(),
-				httpResponse,
 			),
-		)
+		)...)
 		return
 	}
 

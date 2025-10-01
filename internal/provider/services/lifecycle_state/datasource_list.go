@@ -12,7 +12,9 @@ import (
 )
 
 type LifecycleStateListDataSource struct {
-	client *sailpoint.APIClient
+	client       *sailpoint.APIClient
+	validator    *Validator
+	errorHandler *ErrorHandler
 }
 
 var (
@@ -21,7 +23,10 @@ var (
 )
 
 func NewLifecycleStateListDataSource() datasource.DataSource {
-	return &LifecycleStateListDataSource{}
+	return &LifecycleStateListDataSource{
+		validator:    NewValidator(),
+		errorHandler: NewErrorHandler(),
+	}
 }
 
 func (d *LifecycleStateListDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
@@ -33,10 +38,10 @@ func (d *LifecycleStateListDataSource) Configure(ctx context.Context, req dataso
 	client, ok := req.ProviderData.(*sailpoint.APIClient)
 
 	if !ok {
-		resp.Diagnostics.AddError(
+		resp.Diagnostics.Append(d.errorHandler.HandleConfigurationError(
 			"Unexpected Data Source Configure Type",
 			"Expected *sailpoint.APIClient. Please report this issue to the provider developers.",
-		)
+		)...)
 		return
 	}
 
@@ -62,10 +67,11 @@ func (d *LifecycleStateListDataSource) Read(ctx context.Context, req datasource.
 
 	// Validate required fields
 	if config.IdentityProfileId.IsNull() || config.IdentityProfileId.IsUnknown() {
-		resp.Diagnostics.AddError(
-			"Missing Identity Profile ID",
-			"The identity profile ID must be specified.",
-		)
+		resp.Diagnostics.Append(d.errorHandler.HandleValidationError(
+			"Identity Profile ID",
+			"<null>",
+			"The identity profile ID must be specified",
+		)...)
 		return
 	}
 
@@ -75,14 +81,12 @@ func (d *LifecycleStateListDataSource) Read(ctx context.Context, req datasource.
 		config.IdentityProfileId.ValueString(),
 	).Execute()
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Reading Lifecycle States",
-			fmt.Sprintf("Could not read lifecycle states for identity profile ID '%s': %s\n\nHTTP Response: %v",
-				config.IdentityProfileId.ValueString(),
-				err.Error(),
-				httpResponse,
-			),
-		)
+		resp.Diagnostics.Append(d.errorHandler.HandleAPIError(
+			"Reading",
+			err,
+			httpResponse,
+			fmt.Sprintf("identity profile ID: %s", config.IdentityProfileId.ValueString()),
+		)...)
 		return
 	}
 

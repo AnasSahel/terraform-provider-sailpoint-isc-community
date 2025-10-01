@@ -133,6 +133,7 @@ func ToTerraformResource(ctx context.Context, plan *LifecycleStateResourceModel,
 	return newState
 }
 
+// Datasource part
 func ToTerraformDataSource(ctx context.Context, lifecycleState api_v2025.LifecycleState) LifecycleStateModel {
 	accessProfileIds, _ := types.ListValueFrom(ctx, types.StringType, lifecycleState.GetAccessProfileIds())
 
