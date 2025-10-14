@@ -98,9 +98,11 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 	}
 
 	// Use environment variables as fallback if config not set
-	baseUrl := os.Getenv("SAILPOINT_BASE_URL")
-	clientId := os.Getenv("SAILPOINT_CLIENT_ID")
-	clientSecret := os.Getenv("SAILPOINT_CLIENT_SECRET")
+	var (
+		baseUrl      = os.Getenv("SAILPOINT_BASE_URL")
+		clientId     = os.Getenv("SAILPOINT_CLIENT_ID")
+		clientSecret = os.Getenv("SAILPOINT_CLIENT_SECRET")
+	)
 
 	if !config.BaseUrl.IsNull() {
 		baseUrl = config.BaseUrl.ValueString()
@@ -133,6 +135,7 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 	ctx = tflog.SetField(ctx, "sailpoint_client_secret", clientSecret)
 	ctx = tflog.MaskFieldValuesWithFieldKeys(ctx, "sailpoint_client_secret")
 
+	// TODO: as we are not using the golang SDK but the REST API directly, we do not need to set these env vars
 	os.Setenv("SAIL_BASE_URL", baseUrl)
 	os.Setenv("SAIL_CLIENT_ID", clientId)
 	os.Setenv("SAIL_CLIENT_SECRET", clientSecret)
