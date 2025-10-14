@@ -7,11 +7,6 @@ import (
 	"context"
 	"os"
 
-	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/identity_attribute"
-	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/lifecycle_state"
-	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/managedcluster"
-	transform_datasource "github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/transform/datasource"
-	transform_resource "github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/services/transform/resource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -27,6 +22,14 @@ var (
 	_ provider.Provider = &sailpointProvider{}
 )
 
+// sailpointProvider is the provider implementation.
+type sailpointProvider struct {
+	// version is set to the provider version on release, "dev" when the
+	// provider is built and ran locally, and "test" when running acceptance
+	// testing.
+	version string
+}
+
 // sailpointProviderModel maps provider schema data to a Go type.
 type sailpointProviderModel struct {
 	BaseUrl      types.String `tfsdk:"base_url"`
@@ -41,14 +44,6 @@ func New(version string) func() provider.Provider {
 			version: version,
 		}
 	}
-}
-
-// sailpointProvider is the provider implementation.
-type sailpointProvider struct {
-	// version is set to the provider version on release, "dev" when the
-	// provider is built and ran locally, and "test" when running acceptance
-	// testing.
-	version string
 }
 
 // Metadata returns the provider type name.
@@ -81,40 +76,28 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 
 	tflog.Info(ctx, "Configuring SailPoint client")
 
-	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
-
+	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...) // Get the config data
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	if config.BaseUrl.IsUnknown() {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("base_url"),
-			"Invalid Base URL",
-			"Base URL must be configured.",
-		)
+		resp.Diagnostics.AddAttributeError(path.Root("base_url"), "Invalid Base URL", "Base URL must be configured.")
 	}
 
 	if config.ClientId.IsUnknown() {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("client_id"),
-			"Invalid Client ID",
-			"Client ID must be configured.",
-		)
+		resp.Diagnostics.AddAttributeError(path.Root("client_id"), "Invalid Client ID", "Client ID must be configured.")
 	}
 
 	if config.ClientSecret.IsUnknown() {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("client_secret"),
-			"Invalid Client Secret",
-			"Client Secret must be configured.",
-		)
+		resp.Diagnostics.AddAttributeError(path.Root("client_secret"), "Invalid Client Secret", "Client Secret must be configured.")
 	}
 
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
+	// Use environment variables as fallback if config not set
 	baseUrl := os.Getenv("SAILPOINT_BASE_URL")
 	clientId := os.Getenv("SAILPOINT_CLIENT_ID")
 	clientSecret := os.Getenv("SAILPOINT_CLIENT_SECRET")
@@ -130,27 +113,15 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 	}
 
 	if baseUrl == "" {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("baseUrl"),
-			"Missing Base URL",
-			"Set base_url in config or SAILPOINT_BASE_URL environment variable.",
-		)
+		resp.Diagnostics.AddAttributeError(path.Root("baseUrl"), "Missing Base URL", "Set base_url in config or SAILPOINT_BASE_URL environment variable.")
 	}
 
 	if clientId == "" {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("clientId"),
-			"Missing Client ID",
-			"Set client_id in config or SAILPOINT_CLIENT_ID environment variable.",
-		)
+		resp.Diagnostics.AddAttributeError(path.Root("clientId"), "Missing Client ID", "Set client_id in config or SAILPOINT_CLIENT_ID environment variable.")
 	}
 
 	if clientSecret == "" {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("clientSecret"),
-			"Missing Client Secret",
-			"Set client_secret in config or SAILPOINT_CLIENT_SECRET environment variable.",
-		)
+		resp.Diagnostics.AddAttributeError(path.Root("clientSecret"), "Missing Client Secret", "Set client_secret in config or SAILPOINT_CLIENT_SECRET environment variable.")
 	}
 
 	if resp.Diagnostics.HasError() {
@@ -177,25 +148,10 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 
 // DataSources defines the data sources implemented in the provider.
 func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.DataSource {
-	return []func() datasource.DataSource{
-		transform_datasource.NewTransformsDataSource,
-		transform_datasource.NewTransformDataSource,
-		managedcluster.NewManagedClusterDataSource,
-		// Lifecycle State Data Sources
-		lifecycle_state.NewLifecycleStateListDataSource,
-		lifecycle_state.NewLifecycleStateDataSource,
-
-		identity_attribute.NewIdentityAttributeDataSource,
-		identity_attribute.NewIdentityAttributeDataSourceList,
-	}
+	return []func() datasource.DataSource{}
 }
 
 // Resources defines the resources implemented in the provider.
 func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resource {
-	return []func() resource.Resource{
-		transform_resource.NewTransformResource,
-		managedcluster.NewManagedClusterResource,
-		lifecycle_state.NewLifecycleStateResource,
-		identity_attribute.NewIdentityAttributeResource,
-	}
+	return []func() resource.Resource{}
 }
