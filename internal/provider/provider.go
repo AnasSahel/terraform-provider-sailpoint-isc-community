@@ -7,6 +7,8 @@ import (
 	"context"
 	"os"
 
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/datasources"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/sailpoint_sdk"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -14,7 +16,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	sailpoint "github.com/sailpoint-oss/golang-sdk/v2"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -135,14 +136,7 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 	ctx = tflog.SetField(ctx, "sailpoint_client_secret", clientSecret)
 	ctx = tflog.MaskFieldValuesWithFieldKeys(ctx, "sailpoint_client_secret")
 
-	// TODO: as we are not using the golang SDK but the REST API directly, we do not need to set these env vars
-	os.Setenv("SAIL_BASE_URL", baseUrl)
-	os.Setenv("SAIL_CLIENT_ID", clientId)
-	os.Setenv("SAIL_CLIENT_SECRET", clientSecret)
-	sailpointConfiguration := sailpoint.NewDefaultConfiguration()
-
-	sailpointClient := sailpoint.NewAPIClient(sailpointConfiguration)
-
+	sailpointClient := sailpoint_sdk.NewClient(baseUrl, clientId, clientSecret)
 	resp.DataSourceData = sailpointClient
 	resp.ResourceData = sailpointClient
 
@@ -151,7 +145,9 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 
 // DataSources defines the data sources implemented in the provider.
 func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.DataSource {
-	return []func() datasource.DataSource{}
+	return []func() datasource.DataSource{
+		datasources.NewFormDefinitionDataSource,
+	}
 }
 
 // Resources defines the resources implemented in the provider.

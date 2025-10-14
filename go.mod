@@ -79,4 +79,5 @@ require (
 	google.golang.org/protobuf v1.36.9 // indirect
 	gopkg.in/validator.v2 v2.0.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	resty.dev/v3 v3.0.0-beta.3 // indirect
 )
