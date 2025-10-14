@@ -1,6 +1,9 @@
 package sailpoint_sdk
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 const (
 	FORM_DEFINITIONS_ENDPOINT = "/v2025/form-definitions"
@@ -16,13 +19,33 @@ func NewFormDefinitionApi(client *Client) *FormDefinitionApi {
 	}
 }
 
-func (fdapi *FormDefinitionApi) GetFormDefinitionById(id string) (FormDefinition, error) {
-	fd := FormDefinition{}
+func (fdapi *FormDefinitionApi) GetFormDefinitionById(ctx context.Context, id string) (map[string]interface{}, error) {
+	fd := map[string]interface{}{}
 
 	_, err := fdapi.api.client.R().
+		SetContext(ctx).
 		SetPathParam("id", id).
 		SetResult(&fd).
 		Get(fmt.Sprintf("%s/{id}", FORM_DEFINITIONS_ENDPOINT))
-
 	return fd, err
+
+}
+
+func (fdapi *FormDefinitionApi) CreateFormDefinition(ctx context.Context, formDef map[string]interface{}) (map[string]interface{}, error) {
+	fd := map[string]interface{}{}
+
+	_, err := fdapi.api.client.R().
+		SetContext(ctx).
+		SetBody(formDef).
+		SetResult(&fd).
+		Post(FORM_DEFINITIONS_ENDPOINT)
+	return fd, err
+}
+
+func (fdapi *FormDefinitionApi) DeleteFormDefinition(ctx context.Context, id string) error {
+	_, err := fdapi.api.client.R().
+		SetContext(ctx).
+		SetPathParam("id", id).
+		Delete(fmt.Sprintf("%s/{id}", FORM_DEFINITIONS_ENDPOINT))
+	return err
 }

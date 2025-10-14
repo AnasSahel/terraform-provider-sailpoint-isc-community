@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/datasources"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/resources"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/sailpoint_sdk"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -152,5 +153,7 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 
 // Resources defines the resources implemented in the provider.
 func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resource {
-	return []func() resource.Resource{}
+	return []func() resource.Resource{
+		resources.NewFormDefinitionResource,
+	}
 }

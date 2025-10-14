@@ -8,7 +8,6 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/sailpoint_sdk"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -95,7 +94,7 @@ func (d *formDefinitionDataSource) Read(ctx context.Context, req datasource.Read
 		return
 	}
 
-	fd, err := d.client.FormDefinitionApi.GetFormDefinitionById(data.Id.ValueString())
+	fd, err := d.client.FormDefinitionApi.GetFormDefinitionById(ctx, data.Id.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to retrieve form definition",
@@ -105,18 +104,8 @@ func (d *formDefinitionDataSource) Read(ctx context.Context, req datasource.Read
 	}
 
 	// Set the retrieved data into the response
-	resp.Diagnostics.Append(resp.State.Set(ctx, &models.FormDefinitionModel{
-		Id:          types.StringValue(fd.Id),
-		Name:        types.StringValue(fd.Name),
-		Description: types.StringValue(fd.Description),
-		Created:     types.StringValue(fd.Created),
-		Modified:    types.StringValue(fd.Modified),
-		Owner: &models.FormOwner{
-			Type: types.StringValue(fd.Owner.Type),
-			Id:   types.StringValue(fd.Owner.Id),
-			Name: types.StringValue(fd.Owner.Name),
-		},
-	})...)
+	data.FromApiModel(fd)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
