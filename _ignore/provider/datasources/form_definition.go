@@ -29,6 +29,7 @@ func (d *formDefinitionDataSource) Metadata(_ context.Context, req datasource.Me
 }
 
 func (d *formDefinitionDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	tflog.Info(ctx, "Configuring form definition datasource")
 	if req.ProviderData == nil {
 		return
 	}
@@ -43,11 +44,53 @@ func (d *formDefinitionDataSource) Configure(ctx context.Context, req datasource
 	}
 
 	d.client = client
-	tflog.Info(ctx, "Configured form definition datasource")
+	tflog.Info(ctx, "Configured form definition datasource", map[string]any{"success": true})
 }
 
 func (d *formDefinitionDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
+	resp.Schema = formDefinitionSchema()
+}
+
+func (d *formDefinitionDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	tflog.Info(ctx, "Reading form definition datasource")
+	var data models.FormDefinitionModel
+
+	// Read the configuration data into the model
+	diags := req.Config.Get(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	tflog.Debug(ctx, "Form definition datasource config data", map[string]any{"id": data.Id.ValueString()})
+
+	tflog.Debug(ctx, "Fetching form definition by ID", map[string]any{"id": data.Id.ValueString()})
+	fd, err := d.client.FormDefinitionApi.GetFormDefinitionById(ctx, data.Id.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Unable to retrieve form definition",
+			fmt.Sprintf("Failed to retrieve form definition with ID %q: %v", data.Id.ValueString(), err),
+		)
+		return
+	}
+	tflog.Debug(ctx, "Successfully fetched form definition", map[string]any{
+		"id":              data.Id.ValueString(),
+		"form_definition": fd,
+	})
+
+	diags = data.FromSailPointModel(ctx, fd, models.ConversionOptions[models.FormDefinitionModel]{Plan: nil})
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+func formDefinitionSchema() schema.Schema {
+	return schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Required:            true,
@@ -78,40 +121,29 @@ func (d *formDefinitionDataSource) Schema(_ context.Context, _ datasource.Schema
 				Computed:            true,
 				Description:         "The owner of the form definition.",
 				MarkdownDescription: "The owner of the form definition.",
-				Attributes:          formOwnerSchema(),
+				Attributes:          resourceRefSchema(),
 			},
+			"used_by": schema.ListNestedAttribute{
+				Computed:            true,
+				Description:         "List of entities using this form definition.",
+				MarkdownDescription: "List of entities using this form definition.",
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: resourceRefSchema(),
+				},
+			},
+			// "form_input": schema.ListNestedAttribute{
+			// 	Computed:            true,
+			// 	Description:         "List of form inputs in this form definition.",
+			// 	MarkdownDescription: "List of form inputs in this form definition.",
+			// 	NestedObject: schema.NestedAttributeObject{
+			// 		Attributes: formInputSchema(),
+			// 	},
+			// },
 		},
 	}
 }
 
-func (d *formDefinitionDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var data models.FormDefinitionModel
-
-	// Read the configuration data into the model
-	diags := req.Config.Get(ctx, &data)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	fd, err := d.client.FormDefinitionApi.GetFormDefinitionById(ctx, data.Id.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Unable to retrieve form definition",
-			fmt.Sprintf("Failed to retrieve form definition with ID %q: %v", data.Id.ValueString(), err),
-		)
-		return
-	}
-
-	// Set the retrieved data into the response
-	data.FromApiModel(fd)
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-}
-
-func formOwnerSchema() map[string]schema.Attribute {
+func resourceRefSchema() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"type": schema.StringAttribute{
 			Computed:            true,
@@ -127,6 +159,31 @@ func formOwnerSchema() map[string]schema.Attribute {
 			Computed:            true,
 			Description:         "The name of the owner.",
 			MarkdownDescription: "The name of the owner.",
+		},
+	}
+}
+
+func formInputSchema() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"id": schema.StringAttribute{
+			Computed:            true,
+			Description:         "The ID of the form input.",
+			MarkdownDescription: "The ID of the form input.",
+		},
+		"type": schema.StringAttribute{
+			Computed:            true,
+			Description:         "The type of the form input.",
+			MarkdownDescription: "The type of the form input.",
+		},
+		"label": schema.StringAttribute{
+			Computed:            true,
+			Description:         "The label of the form input.",
+			MarkdownDescription: "The label of the form input.",
+		},
+		"description": schema.StringAttribute{
+			Computed:            true,
+			Description:         "The description of the form input.",
+			MarkdownDescription: "The description of the form input.",
 		},
 	}
 }

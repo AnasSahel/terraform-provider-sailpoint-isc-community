@@ -42,6 +42,18 @@ func (fdapi *FormDefinitionApi) CreateFormDefinition(ctx context.Context, formDe
 	return fd, err
 }
 
+func (fdapi *FormDefinitionApi) PatchFormDefinition(ctx context.Context, id string, patches []map[string]interface{}) (map[string]interface{}, error) {
+	fd := map[string]interface{}{}
+
+	_, err := fdapi.api.client.R().
+		SetContext(ctx).
+		SetPathParam("id", id).
+		SetBody(patches).
+		SetResult(&fd).
+		Patch(fmt.Sprintf("%s/{id}", FORM_DEFINITIONS_ENDPOINT))
+	return fd, err
+}
+
 func (fdapi *FormDefinitionApi) DeleteFormDefinition(ctx context.Context, id string) error {
 	_, err := fdapi.api.client.R().
 		SetContext(ctx).

@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 var (
@@ -87,13 +88,30 @@ func (r *formDefinitionResource) Schema(_ context.Context, _ resource.SchemaRequ
 				Required:            true,
 				Description:         "The owner of the form definition.",
 				MarkdownDescription: "The owner of the form definition.",
-				Attributes:          formOwnerSchema(),
+				Attributes:          resourceRefSchema(),
 			},
+			"used_by": schema.ListNestedAttribute{
+				Optional:            true,
+				Description:         "List of entities using this form definition.",
+				MarkdownDescription: "List of entities using this form definition.",
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: resourceRefSchema(),
+				},
+			},
+			// "form_input": schema.ListNestedAttribute{
+			// 	Optional:            true,
+			// 	Description:         "List of form inputs in this form definition.",
+			// 	MarkdownDescription: "List of form inputs in this form definition.",
+			// 	NestedObject: schema.NestedAttributeObject{
+			// 		Attributes: formInputSchema(),
+			// 	},
+			// },
 		},
 	}
 }
 
 func (r *formDefinitionResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	tflog.Debug(ctx, "Create Form Definition")
 	var plan models.FormDefinitionModel
 
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
@@ -101,7 +119,20 @@ func (r *formDefinitionResource) Create(ctx context.Context, req resource.Create
 		return
 	}
 
-	fd, err := r.client.FormDefinitionApi.CreateFormDefinition(ctx, plan.ToCreateApiModel())
+	tflog.Debug(ctx, "Form Definition create plan", map[string]interface{}{
+		"plan": plan,
+	})
+
+	createReq, diags := plan.ToSailPointCreateRequest(ctx)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	tflog.Debug(ctx, "Form Definition create request", map[string]interface{}{
+		"createReq": createReq,
+	})
+
+	fd, err := r.client.FormDefinitionApi.CreateFormDefinition(ctx, createReq.(map[string]interface{}))
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to Create Form Definition",
@@ -109,8 +140,14 @@ func (r *formDefinitionResource) Create(ctx context.Context, req resource.Create
 		)
 		return
 	}
+	tflog.Debug(ctx, "Form Definition created", map[string]interface{}{
+		"fd": fd,
+	})
 
-	plan.FromApiModel(fd)
+	resp.Diagnostics.Append(plan.FromSailPointModel(ctx, fd, models.ConversionOptions[models.FormDefinitionModel]{Plan: &plan})...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 	if resp.Diagnostics.HasError() {
@@ -135,15 +172,72 @@ func (r *formDefinitionResource) Read(ctx context.Context, req resource.ReadRequ
 		return
 	}
 
-	state.FromApiModel(fd)
+	resp.Diagnostics.Append(state.FromSailPointModel(ctx, fd, models.ConversionOptions[models.FormDefinitionModel]{Plan: &state})...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 }
 
 func (r *formDefinitionResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	// var plan models.FormDefinitionModel
+	// var state models.FormDefinitionModel
+
+	// resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	// if resp.Diagnostics.HasError() {
+	// 	return
+	// }
+
+	// resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	// if resp.Diagnostics.HasError() {
+	// 	return
+	// }
+
+	// var patches []map[string]interface{}
+
+	// if !plan.Name.Equal(state.Name) {
+	// 	patches = append(patches, map[string]interface{}{
+	// 		"op":    "replace",
+	// 		"path":  "/name",
+	// 		"value": plan.Name.ValueString(),
+	// 	})
+	// }
+
+	// if !plan.Description.Equal(state.Description) {
+	// 	patches = append(patches, map[string]interface{}{
+	// 		"op":    "replace",
+	// 		"path":  "/description",
+	// 		"value": plan.Description.ValueString(),
+	// 	})
+	// }
+
+	// if !plan.Owner.Id.Equal(state.Owner.Id) || !plan.Owner.Type.Equal(state.Owner.Type) || !plan.Owner.Name.Equal(state.Owner.Name) {
+	// 	patches = append(patches, map[string]interface{}{
+	// 		"op":    "replace",
+	// 		"path":  "/owner",
+	// 		"value": plan.Owner.ToSailPoint(),
+	// 	})
+	// }
+
+	// fd, err := r.client.FormDefinitionApi.PatchFormDefinition(ctx, state.Id.ValueString(), patches)
+	// if err != nil {
+	// 	resp.Diagnostics.AddError(
+	// 		"Failed to Update Form Definition",
+	// 		fmt.Sprintf("Failed to update form definition with ID %s: %v", state.Id.ValueString(), err),
+	// 	)
+	// 	return
+	// }
+
+	// plan.FromSailPoint(ctx, fd)
+
+	// resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+	// if resp.Diagnostics.HasError() {
+	// 	return
+	// }
 }
 
 func (r *formDefinitionResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -164,7 +258,7 @@ func (r *formDefinitionResource) Delete(ctx context.Context, req resource.Delete
 	}
 }
 
-func formOwnerSchema() map[string]schema.Attribute {
+func resourceRefSchema() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"type": schema.StringAttribute{
 			Required:            true,
@@ -180,6 +274,31 @@ func formOwnerSchema() map[string]schema.Attribute {
 			Optional:            true,
 			Description:         "The name of the owner.",
 			MarkdownDescription: "The name of the owner.",
+		},
+	}
+}
+
+func formInputSchema() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"id": schema.StringAttribute{
+			Required:            true,
+			Description:         "The ID of the form input.",
+			MarkdownDescription: "The ID of the form input.",
+		},
+		"type": schema.StringAttribute{
+			Required:            true,
+			Description:         "The type of the form input.",
+			MarkdownDescription: "The type of the form input.",
+		},
+		"label": schema.StringAttribute{
+			Optional:            true,
+			Description:         "The label of the form input.",
+			MarkdownDescription: "The label of the form input.",
+		},
+		"description": schema.StringAttribute{
+			Optional:            true,
+			Description:         "The description of the form input.",
+			MarkdownDescription: "The description of the form input.",
 		},
 	}
 }
