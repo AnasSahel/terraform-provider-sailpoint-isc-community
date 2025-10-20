@@ -14,96 +14,33 @@ var (
 )
 
 type Source struct {
-	ID                        string                           `json:"id,omitempty"`
-	Name                      string                           `json:"name"`
-	Description               string                           `json:"description,omitempty"`
-	Owner                     *SourceOwner                     `json:"owner"`
-	Cluster                   *SourceCluster                   `json:"cluster,omitempty"`
-	AccountCorrelationConfig  *SourceAccountCorrelationConfig  `json:"accountCorrelationConfig,omitempty"`
-	AccountCorrelationRule    *SourceAccountCorrelationRule    `json:"accountCorrelationRule,omitempty"`
-	ManagerCorrelationMapping *SourceManagerCorrelationMapping `json:"managerCorrelationMapping,omitempty"`
-	ManagerCorrelationRule    *SourceManagerCorrelationRule    `json:"managerCorrelationRule,omitempty"`
-	BeforeProvisioningRule    *SourceProvisioningRule          `json:"beforeProvisioningRule,omitempty"`
-	Schemas                   []SourceSchema                   `json:"schemas,omitempty"`
-	PasswordPolicies          []SourcePasswordPolicy           `json:"passwordPolicies,omitempty"`
-	Features                  []string                         `json:"features,omitempty"`
-	Type                      string                           `json:"type,omitempty"`
-	Connector                 string                           `json:"connector"`
-	ConnectorClass            string                           `json:"connectorClass,omitempty"`
-	ConnectorAttributes       map[string]interface{}           `json:"connectorAttributes,omitempty"`
-	DeleteThreshold           int32                            `json:"deleteThreshold,omitempty"`
-	Authoritative             bool                             `json:"authoritative,omitempty"`
-	ManagementWorkgroup       *SourceManagementWorkgroup       `json:"managementWorkgroup,omitempty"`
-	Healthy                   bool                             `json:"healthy,omitempty"`
-	Status                    string                           `json:"status,omitempty"`
-	Since                     string                           `json:"since,omitempty"`
-	ConnectorID               string                           `json:"connectorId,omitempty"`
-	ConnectorName             string                           `json:"connectorName,omitempty"`
-	ConnectorType             string                           `json:"connectorType,omitempty"`
-	ConnectorImplementationID string                           `json:"connectorImplementationId,omitempty"`
-	Created                   string                           `json:"created,omitempty"`
-	Modified                  string                           `json:"modified,omitempty"`
-	CredentialProviderEnabled bool                             `json:"credentialProviderEnabled,omitempty"`
-	Category                  string                           `json:"category,omitempty"`
-}
-
-type SourceOwner struct {
-	Type string `json:"type"`
-	ID   string `json:"id"`
-	Name string `json:"name,omitempty"`
-}
-
-type SourceCluster struct {
-	Type string `json:"type"`
-	ID   string `json:"id"`
-	Name string `json:"name"`
-}
-
-type SourceAccountCorrelationConfig struct {
-	Type string `json:"type,omitempty"`
-	ID   string `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
-}
-
-type SourceAccountCorrelationRule struct {
-	Type string `json:"type,omitempty"`
-	ID   string `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
-}
-
-type SourceManagerCorrelationMapping struct {
-	AccountAttributeName  string `json:"accountAttributeName,omitempty"`
-	IdentityAttributeName string `json:"identityAttributeName,omitempty"`
-}
-
-type SourceManagerCorrelationRule struct {
-	Type string `json:"type,omitempty"`
-	ID   string `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
-}
-
-type SourceProvisioningRule struct {
-	Type string `json:"type,omitempty"`
-	ID   string `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
-}
-
-type SourceSchema struct {
-	Type string `json:"type,omitempty"`
-	ID   string `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
-}
-
-type SourcePasswordPolicy struct {
-	Type string `json:"type,omitempty"`
-	ID   string `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
-}
-
-type SourceManagementWorkgroup struct {
-	Type string `json:"type,omitempty"`
-	ID   string `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
+	ID                        string     `json:"id,omitempty"`
+	Name                      string     `json:"name"`
+	Description               string     `json:"description,omitempty"`
+	Owner                     *ObjectRef `json:"owner"`
+	Cluster                   *ObjectRef `json:"cluster,omitempty"`
+	AccountCorrelationConfig  *ObjectRef `json:"accountCorrelationConfig,omitempty"`
+	AccountCorrelationRule    *ObjectRef `json:"accountCorrelationRule,omitempty"`
+	ManagerCorrelationRule    *ObjectRef `json:"managerCorrelationRule,omitempty"`
+	BeforeProvisioningRule    *ObjectRef `json:"beforeProvisioningRule,omitempty"`
+	Features                  []string   `json:"features,omitempty"`
+	Type                      string     `json:"type,omitempty"`
+	Connector                 string     `json:"connector"`
+	ConnectorClass            string     `json:"connectorClass,omitempty"`
+	DeleteThreshold           int32      `json:"deleteThreshold,omitempty"`
+	Authoritative             bool       `json:"authoritative,omitempty"`
+	ManagementWorkgroup       *ObjectRef `json:"managementWorkgroup,omitempty"`
+	Healthy                   bool       `json:"healthy,omitempty"`
+	Status                    string     `json:"status,omitempty"`
+	Since                     string     `json:"since,omitempty"`
+	ConnectorID               string     `json:"connectorId,omitempty"`
+	ConnectorName             string     `json:"connectorName,omitempty"`
+	ConnectorType             string     `json:"connectorType,omitempty"`
+	ConnectorImplementationID string     `json:"connectorImplementationId,omitempty"`
+	Created                   string     `json:"created,omitempty"`
+	Modified                  string     `json:"modified,omitempty"`
+	CredentialProviderEnabled bool       `json:"credentialProviderEnabled,omitempty"`
+	Category                  string     `json:"category,omitempty"`
 }
 
 func (c *Client) GetSource(ctx context.Context, id string) (*Source, error) {
