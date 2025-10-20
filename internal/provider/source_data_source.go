@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/client"
@@ -85,6 +86,23 @@ func (d *sourceDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 				MarkdownDescription: "The account correlation rule associated with this source.",
 				Attributes:          models.ObjectRefDataSourceSchema(),
 			},
+			"manager_correlation_mapping": schema.SingleNestedAttribute{
+				Computed:            true,
+				Description:         "The manager correlation mapping for the source.",
+				MarkdownDescription: "The manager correlation mapping associated with this source.",
+				Attributes: map[string]schema.Attribute{
+					"account_attribute_name": schema.StringAttribute{
+						Computed:            true,
+						Description:         "The account attribute name used for manager correlation.",
+						MarkdownDescription: "The name of the account attribute used in the manager correlation mapping.",
+					},
+					"identity_attribute_name": schema.StringAttribute{
+						Computed:            true,
+						Description:         "The identity attribute name used for manager correlation.",
+						MarkdownDescription: "The name of the identity attribute used in the manager correlation mapping.",
+					},
+				},
+			},
 			"manager_correlation_rule": schema.SingleNestedAttribute{
 				Computed:            true,
 				Description:         "The manager correlation rule for the source.",
@@ -96,6 +114,22 @@ func (d *sourceDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 				Description:         "The before provisioning rule for the source.",
 				MarkdownDescription: "The before provisioning rule associated with this source.",
 				Attributes:          models.ObjectRefDataSourceSchema(),
+			},
+			"schemas": schema.ListNestedAttribute{
+				Computed:            true,
+				Description:         "The schemas associated with the source.",
+				MarkdownDescription: "A list of schemas that define the structure of data for this source.",
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: models.ObjectRefDataSourceSchema(),
+				},
+			},
+			"password_policies": schema.ListNestedAttribute{
+				Computed:            true,
+				Description:         "The password policies associated with the source.",
+				MarkdownDescription: "A list of password policies that apply to this source.",
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: models.ObjectRefDataSourceSchema(),
+				},
 			},
 			"features": schema.ListAttribute{
 				ElementType:         types.StringType,
@@ -117,6 +151,11 @@ func (d *sourceDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 				Computed:            true,
 				Description:         "The class of the connector used by the source.",
 				MarkdownDescription: "The specific class name of the connector implementation for this source.",
+			},
+			"connector_attributes": schema.StringAttribute{
+				Computed:            true,
+				Description:         "The attributes of the connector used by the source.",
+				MarkdownDescription: "A map of attributes and their values for the connector associated with this source.",
 			},
 			"delete_threshold": schema.Int32Attribute{
 				Computed:            true,
@@ -236,11 +275,44 @@ func (d *sourceDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 	resp.Diagnostics.Append(diags...)
 	state.Features = features
 
+	// Map list of objects
+	if source.Schemas != nil {
+		state.Schemas = make([]models.ObjectRef, len(source.Schemas))
+		for i, schemaRef := range source.Schemas {
+			state.Schemas[i] = *models.NewObjectRefFromAPI(&schemaRef)
+		}
+	}
+	if source.PasswordPolicies != nil {
+		state.PasswordPolicies = make([]models.ObjectRef, len(source.PasswordPolicies))
+		for i, policyRef := range source.PasswordPolicies {
+			state.PasswordPolicies[i] = *models.NewObjectRefFromAPI(&policyRef)
+		}
+	}
+
+	// Map connector attributes
+	if source.ConnectorAttributes != nil {
+		jsonData, err := json.Marshal(source.ConnectorAttributes)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Marshalling Connector Attributes",
+				fmt.Sprintf("Failed to marshal connector attributes for source ID %q: %v", state.ID.ValueString(), err),
+			)
+			return
+		}
+		state.ConnectorAttributes = types.StringValue(string(jsonData))
+	}
+
 	// Map Object fields
 	state.Owner = models.NewObjectRefFromAPI(source.Owner)
 	state.Cluster = models.NewObjectRefFromAPI(source.Cluster)
 	state.AccountCorrelationConfig = models.NewObjectRefFromAPI(source.AccountCorrelationConfig)
 	state.AccountCorrelationRule = models.NewObjectRefFromAPI(source.AccountCorrelationRule)
+	if source.ManagerCorrelationMapping != nil {
+		state.ManagerCorrelationMapping = &models.SourceManagerCorrelationMapping{
+			AccountAttributeName:  types.StringValue(source.ManagerCorrelationMapping.AccountAttributeName),
+			IdentityAttributeName: types.StringValue(source.ManagerCorrelationMapping.IdentityAttributeName),
+		}
+	}
 	state.ManagerCorrelationRule = models.NewObjectRefFromAPI(source.ManagerCorrelationRule)
 	state.BeforeProvisioningRule = models.NewObjectRefFromAPI(source.BeforeProvisioningRule)
 	state.ManagementWorkgroup = models.NewObjectRefFromAPI(source.ManagementWorkgroup)

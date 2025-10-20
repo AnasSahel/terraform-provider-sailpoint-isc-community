@@ -14,33 +14,42 @@ var (
 )
 
 type Source struct {
-	ID                        string     `json:"id,omitempty"`
-	Name                      string     `json:"name"`
-	Description               string     `json:"description,omitempty"`
-	Owner                     *ObjectRef `json:"owner"`
-	Cluster                   *ObjectRef `json:"cluster,omitempty"`
-	AccountCorrelationConfig  *ObjectRef `json:"accountCorrelationConfig,omitempty"`
-	AccountCorrelationRule    *ObjectRef `json:"accountCorrelationRule,omitempty"`
-	ManagerCorrelationRule    *ObjectRef `json:"managerCorrelationRule,omitempty"`
-	BeforeProvisioningRule    *ObjectRef `json:"beforeProvisioningRule,omitempty"`
-	Features                  []string   `json:"features,omitempty"`
-	Type                      string     `json:"type,omitempty"`
-	Connector                 string     `json:"connector"`
-	ConnectorClass            string     `json:"connectorClass,omitempty"`
-	DeleteThreshold           int32      `json:"deleteThreshold,omitempty"`
-	Authoritative             bool       `json:"authoritative,omitempty"`
-	ManagementWorkgroup       *ObjectRef `json:"managementWorkgroup,omitempty"`
-	Healthy                   bool       `json:"healthy,omitempty"`
-	Status                    string     `json:"status,omitempty"`
-	Since                     string     `json:"since,omitempty"`
-	ConnectorID               string     `json:"connectorId,omitempty"`
-	ConnectorName             string     `json:"connectorName,omitempty"`
-	ConnectorType             string     `json:"connectorType,omitempty"`
-	ConnectorImplementationID string     `json:"connectorImplementationId,omitempty"`
-	Created                   string     `json:"created,omitempty"`
-	Modified                  string     `json:"modified,omitempty"`
-	CredentialProviderEnabled bool       `json:"credentialProviderEnabled,omitempty"`
-	Category                  string     `json:"category,omitempty"`
+	ID                        string                           `json:"id,omitempty"`
+	Name                      string                           `json:"name"`
+	Description               string                           `json:"description,omitempty"`
+	Owner                     *ObjectRef                       `json:"owner"`
+	Cluster                   *ObjectRef                       `json:"cluster,omitempty"`
+	AccountCorrelationConfig  *ObjectRef                       `json:"accountCorrelationConfig,omitempty"`
+	AccountCorrelationRule    *ObjectRef                       `json:"accountCorrelationRule,omitempty"`
+	ManagerCorrelationMapping *SourceManagerCorrelationMapping `json:"managerCorrelationMapping,omitempty"`
+	ManagerCorrelationRule    *ObjectRef                       `json:"managerCorrelationRule,omitempty"`
+	BeforeProvisioningRule    *ObjectRef                       `json:"beforeProvisioningRule,omitempty"`
+	Schemas                   []ObjectRef                      `json:"schemas,omitempty"`
+	PasswordPolicies          []ObjectRef                      `json:"passwordPolicies,omitempty"`
+	Features                  []string                         `json:"features,omitempty"`
+	Type                      string                           `json:"type,omitempty"`
+	Connector                 string                           `json:"connector"`
+	ConnectorClass            string                           `json:"connectorClass,omitempty"`
+	ConnectorAttributes       map[string]interface{}           `json:"connectorAttributes,omitempty"`
+	DeleteThreshold           int32                            `json:"deleteThreshold,omitempty"`
+	Authoritative             bool                             `json:"authoritative,omitempty"`
+	ManagementWorkgroup       *ObjectRef                       `json:"managementWorkgroup,omitempty"`
+	Healthy                   bool                             `json:"healthy,omitempty"`
+	Status                    string                           `json:"status,omitempty"`
+	Since                     string                           `json:"since,omitempty"`
+	ConnectorID               string                           `json:"connectorId,omitempty"`
+	ConnectorName             string                           `json:"connectorName,omitempty"`
+	ConnectorType             string                           `json:"connectorType,omitempty"`
+	ConnectorImplementationID string                           `json:"connectorImplementationId,omitempty"`
+	Created                   string                           `json:"created,omitempty"`
+	Modified                  string                           `json:"modified,omitempty"`
+	CredentialProviderEnabled bool                             `json:"credentialProviderEnabled,omitempty"`
+	Category                  string                           `json:"category,omitempty"`
+}
+
+type SourceManagerCorrelationMapping struct {
+	AccountAttributeName  string `json:"accountAttributeName"`
+	IdentityAttributeName string `json:"identityAttributeName"`
 }
 
 func (c *Client) GetSource(ctx context.Context, id string) (*Source, error) {
