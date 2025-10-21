@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/models"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -164,6 +166,19 @@ func (d *sourceDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 				Sensitive:           true,
 				CustomType:          jsontypes.NormalizedType{},
 			},
+			"connector_encrypted_keys": schema.SetAttribute{
+				Description:         "The encrypted keys for the connector used by the source.",
+				MarkdownDescription: "A set of encrypted keys associated with the connector for this source.",
+				Computed:            true,
+				ElementType:         types.StringType,
+			},
+			"connector_encrypted_attributes": schema.MapAttribute{
+				Description:         "The encrypted attributes of the connector used by the source.",
+				MarkdownDescription: "A map of encrypted attributes and their values for the connector associated with this source.",
+				Computed:            true,
+				Sensitive:           true,
+				ElementType:         types.StringType,
+			},
 			"delete_threshold": schema.Int32Attribute{
 				Description:         "The delete threshold for the source.",
 				MarkdownDescription: "The threshold value that determines when accounts are deleted from the source.",
@@ -308,6 +323,23 @@ func (d *sourceDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 			return
 		}
 		state.ConnectorAttributes = jsontypes.NewNormalizedValue(string(jsonBytes))
+	}
+
+	// Map encrypted set fields
+	if encrypted, ok := source.ConnectorAttributes["encrypted"]; ok {
+		encryptedSet := strings.Split(encrypted.(string), ",")
+
+		connectorKeys, diags := types.SetValueFrom(ctx, types.StringType, encryptedSet)
+		resp.Diagnostics.Append(diags...)
+		state.ConnectorEncryptedKeys = connectorKeys
+
+		encryptedAttrs := make(map[string]attr.Value, len(encryptedSet))
+		for _, key := range encryptedSet {
+			if _, exists := source.ConnectorAttributes[key]; exists && source.ConnectorAttributes[key] != nil {
+				encryptedAttrs[key] = types.StringValue(source.ConnectorAttributes[key].(string))
+			}
+		}
+		state.ConnectorEncryptedAttributes = types.MapValueMust(types.StringType, encryptedAttrs)
 	}
 
 	// Map Object fields
