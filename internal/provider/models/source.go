@@ -1,6 +1,9 @@
 package models
 
-import "github.com/hashicorp/terraform-plugin-framework/types"
+import (
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+)
 
 type Source struct {
 	ID                        types.String                     `tfsdk:"id"`
@@ -19,7 +22,7 @@ type Source struct {
 	Type                      types.String                     `tfsdk:"type"`
 	Connector                 types.String                     `tfsdk:"connector"`
 	ConnectorClass            types.String                     `tfsdk:"connector_class"`
-	ConnectorAttributes       types.String                     `tfsdk:"connector_attributes"`
+	ConnectorAttributes       jsontypes.Normalized             `tfsdk:"connector_attributes"`
 	DeleteThreshold           types.Int32                      `tfsdk:"delete_threshold"`
 	Authoritative             types.Bool                       `tfsdk:"authoritative"`
 	ManagementWorkgroup       *ObjectRef                       `tfsdk:"management_workgroup"`

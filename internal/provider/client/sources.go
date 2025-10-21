@@ -6,13 +6,6 @@ import (
 	"net/http"
 )
 
-var (
-// ErrResourceNotFound = errors.New("resource not found")
-// ErrUnauthorized     = errors.New("unauthorized")
-// ErrForbidden        = errors.New("forbidden")
-// ErrBadRequest       = errors.New("bad request")
-)
-
 type Source struct {
 	ID                        string                           `json:"id,omitempty"`
 	Name                      string                           `json:"name"`
@@ -58,14 +51,50 @@ func (c *Client) GetSource(ctx context.Context, id string) (*Source, error) {
 	resp, err := c.HTTPClient.R().
 		SetContext(ctx).
 		SetResult(&result).
-		Get(fmt.Sprintf("/v3/sources/%s", id))
+		Get(fmt.Sprintf("/v2025/sources/%s", id))
 
 	if err != nil {
-		return nil, fmt.Errorf("getting source: %w", err)
+		return nil, fmt.Errorf("getting source with ID %q: %v", id, err)
 	}
 
 	if resp.StatusCode() == http.StatusNotFound {
 		return nil, fmt.Errorf("source with ID %q not found", id)
+	}
+
+	if resp.IsError() {
+		return nil, fmt.Errorf("API request failed with status %d", resp.StatusCode())
+	}
+
+	return &result, nil
+}
+
+func (c *Client) CreateSource(ctx context.Context, source *Source) (*Source, error) {
+	var result Source
+
+	resp, err := c.HTTPClient.R().
+		SetContext(ctx).
+		SetBody(source).
+		SetResult(&result).
+		Post("/v2025/sources")
+
+	if err != nil {
+		return nil, fmt.Errorf("creating source: %w", err)
+	}
+
+	if resp.StatusCode() == http.StatusBadRequest {
+		return nil, fmt.Errorf("bad request when creating source")
+	}
+
+	if resp.StatusCode() == http.StatusUnauthorized {
+		return nil, fmt.Errorf("unauthorized when creating source")
+	}
+
+	if resp.StatusCode() == http.StatusForbidden {
+		return nil, fmt.Errorf("forbidden when creating source")
+	}
+
+	if resp.StatusCode() == http.StatusInternalServerError {
+		return nil, fmt.Errorf("internal server error when creating source")
 	}
 
 	if resp.IsError() {
@@ -91,28 +120,6 @@ func (c *Client) GetSource(ctx context.Context, id string) (*Source, error) {
 // 	Locale string `json:"locale"`
 // 	Text   string `json:"text"`
 // 	Key    string `json:"key"`
-// }
-
-// func (c *Client) CreateSource(ctx context.Context, source *Source) (*Source, error) {
-// 	var result Source
-// 	var errResp ErrorResponse
-
-// 	resp, err := c.HTTPClient.R().
-// 		SetContext(ctx).
-// 		SetBody(source).
-// 		SetResult(&result).
-// 		SetError(&errResp).
-// 		Post("/v3/sources")
-
-// 	if err != nil {
-// 		return nil, fmt.Errorf("creating source: %w", err)
-// 	}
-
-// 	if resp.IsError() {
-// 		return nil, c.handleErrorResponse(resp.StatusCode(), &errResp)
-// 	}
-
-// 	return &result, nil
 // }
 
 // func (c *Client) UpdateSource(ctx context.Context, id string, source *Source) (*Source, error) {

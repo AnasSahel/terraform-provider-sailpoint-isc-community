@@ -7,10 +7,15 @@ import (
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/models"
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+)
+
+var (
+	_ datasource.DataSource = &sourceDataSource{}
 )
 
 type sourceDataSource struct {
@@ -66,25 +71,25 @@ func (d *sourceDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 				Computed:            true,
 				Description:         "The owner of the source.",
 				MarkdownDescription: "The owner of the source.",
-				Attributes:          models.ObjectRefDataSourceSchema(),
+				Attributes:          ObjectRefDataSourceSchema(),
 			},
 			"cluster": schema.SingleNestedAttribute{
 				Computed:            true,
 				Description:         "The cluster associated with the source.",
 				MarkdownDescription: "The cluster to which this source belongs.",
-				Attributes:          models.ObjectRefDataSourceSchema(),
+				Attributes:          ObjectRefDataSourceSchema(),
 			},
 			"account_correlation_config": schema.SingleNestedAttribute{
 				Computed:            true,
 				Description:         "The account correlation configuration for the source.",
 				MarkdownDescription: "The account correlation configuration associated with this source.",
-				Attributes:          models.ObjectRefDataSourceSchema(),
+				Attributes:          ObjectRefDataSourceSchema(),
 			},
 			"account_correlation_rule": schema.SingleNestedAttribute{
 				Computed:            true,
 				Description:         "The account correlation rule for the source.",
 				MarkdownDescription: "The account correlation rule associated with this source.",
-				Attributes:          models.ObjectRefDataSourceSchema(),
+				Attributes:          ObjectRefDataSourceSchema(),
 			},
 			"manager_correlation_mapping": schema.SingleNestedAttribute{
 				Computed:            true,
@@ -107,20 +112,20 @@ func (d *sourceDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 				Computed:            true,
 				Description:         "The manager correlation rule for the source.",
 				MarkdownDescription: "The manager correlation rule associated with this source.",
-				Attributes:          models.ObjectRefDataSourceSchema(),
+				Attributes:          ObjectRefDataSourceSchema(),
 			},
 			"before_provisioning_rule": schema.SingleNestedAttribute{
 				Computed:            true,
 				Description:         "The before provisioning rule for the source.",
 				MarkdownDescription: "The before provisioning rule associated with this source.",
-				Attributes:          models.ObjectRefDataSourceSchema(),
+				Attributes:          ObjectRefDataSourceSchema(),
 			},
 			"schemas": schema.ListNestedAttribute{
 				Computed:            true,
 				Description:         "The schemas associated with the source.",
 				MarkdownDescription: "A list of schemas that define the structure of data for this source.",
 				NestedObject: schema.NestedAttributeObject{
-					Attributes: models.ObjectRefDataSourceSchema(),
+					Attributes: ObjectRefDataSourceSchema(),
 				},
 			},
 			"password_policies": schema.ListNestedAttribute{
@@ -128,7 +133,7 @@ func (d *sourceDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 				Description:         "The password policies associated with the source.",
 				MarkdownDescription: "A list of password policies that apply to this source.",
 				NestedObject: schema.NestedAttributeObject{
-					Attributes: models.ObjectRefDataSourceSchema(),
+					Attributes: ObjectRefDataSourceSchema(),
 				},
 			},
 			"features": schema.ListAttribute{
@@ -154,6 +159,8 @@ func (d *sourceDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 			},
 			"connector_attributes": schema.StringAttribute{
 				Computed:            true,
+				Sensitive:           true,
+				CustomType:          jsontypes.NormalizedType{},
 				Description:         "The attributes of the connector used by the source.",
 				MarkdownDescription: "A map of attributes and their values for the connector associated with this source.",
 			},
@@ -171,7 +178,7 @@ func (d *sourceDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 				Computed:            true,
 				Description:         "The management workgroup for the source.",
 				MarkdownDescription: "The workgroup responsible for managing this source.",
-				Attributes:          models.ObjectRefDataSourceSchema(),
+				Attributes:          ObjectRefDataSourceSchema(),
 			},
 			"healthy": schema.BoolAttribute{
 				Computed:            true,
@@ -290,16 +297,17 @@ func (d *sourceDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 	}
 
 	// Map connector attributes
+	state.ConnectorAttributes = jsontypes.NewNormalizedNull()
 	if source.ConnectorAttributes != nil {
-		jsonData, err := json.Marshal(source.ConnectorAttributes)
+		jsonBytes, err := json.Marshal(source.ConnectorAttributes)
 		if err != nil {
 			resp.Diagnostics.AddError(
-				"Error Marshalling Connector Attributes",
-				fmt.Sprintf("Failed to marshal connector attributes for source ID %q: %v", state.ID.ValueString(), err),
+				"Unable to Marshal Connector Attributes",
+				fmt.Sprintf("Failed to marshal connector attributes for source with ID %q: %v", state.ID.ValueString(), err),
 			)
 			return
 		}
-		state.ConnectorAttributes = types.StringValue(string(jsonData))
+		state.ConnectorAttributes = jsontypes.NewNormalizedValue(string(jsonBytes))
 	}
 
 	// Map Object fields
