@@ -6,16 +6,20 @@ import (
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/models"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int32planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 var (
-	_ resource.Resource              = &sourceResource{}
-	_ resource.ResourceWithConfigure = &sourceResource{}
+	_ resource.Resource                = &sourceResource{}
+	_ resource.ResourceWithConfigure   = &sourceResource{}
+	_ resource.ResourceWithImportState = &sourceResource{}
 )
 
 type sourceResource struct {
@@ -85,6 +89,12 @@ func (r *sourceResource) Schema(ctx context.Context, req resource.SchemaRequest,
 				MarkdownDescription: "The cluster to which this source belongs.",
 				Optional:            true,
 				Attributes:          ObjectRefResourceSchema(),
+			},
+			"features": schema.SetAttribute{
+				Description:         "A list of features enabled for the source.",
+				MarkdownDescription: "An array of features that are enabled or supported by this source.",
+				Optional:            true,
+				ElementType:         types.StringType,
 			},
 			"type": schema.StringAttribute{
 				Description:         "The type of the source (e.g., 'Application', 'Database').",
@@ -191,12 +201,6 @@ func (r *sourceResource) Schema(ctx context.Context, req resource.SchemaRequest,
 			// 		Attributes: ObjectRefResourceSchema(),
 			// 	},
 			// },
-			// "features": schema.ListAttribute{
-			// 	Description:         "A list of features enabled for the source.",
-			// 	MarkdownDescription: "An array of features that are enabled or supported by this source.",
-			// 	Optional:            true,
-			// 	ElementType:         types.StringType,
-			// },
 
 			// "connector_attributes": schema.StringAttribute{
 			// 	Description:         "The attributes of the connector used by the source.",
@@ -268,13 +272,21 @@ func (r *sourceResource) Schema(ctx context.Context, req resource.SchemaRequest,
 }
 
 func (r *sourceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	tflog.Info(ctx, "Creating Source resource")
 	var plan models.Source
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
+	tflog.Debug(ctx, "Source create plan:", map[string]interface{}{
+		"plan": plan,
+	})
+
 	source := plan.ConvertToCreateRequestPtr(ctx)
+	tflog.Debug(ctx, "Converted Source create request:", map[string]interface{}{
+		"source": source,
+	})
 
 	createdSource, err := r.client.CreateSource(ctx, source)
 	if err != nil {
@@ -286,15 +298,15 @@ func (r *sourceResource) Create(ctx context.Context, req resource.CreateRequest,
 	}
 
 	plan.ConvertFromSailPointForResource(ctx, createdSource)
-
-	if plan.Cluster != nil {
-		plan.Cluster = models.NewObjectRefFromSailPoint(createdSource.Cluster)
-	}
+	tflog.Debug(ctx, fmt.Sprintf("Converted Source state: %+v", plan))
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	tflog.Info(ctx, "Source resource created successfully", map[string]interface{}{
+		"source_id": plan.ID.ValueString(),
+	})
 }
 
 func (r *sourceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -345,14 +357,6 @@ func (r *sourceResource) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 
-	// Map Simple fields back to state
-	// plan.Name = types.StringValue(updatedSource.Name)
-	// plan.Description = types.StringValue(updatedSource.Description)
-	// plan.Owner = models.NewObjectRefFromSailPoint(updatedSource.Owner)
-	// plan.ConnectorClass = types.StringValue(updatedSource.ConnectorClass)
-	// plan.DeleteThreshold = types.Int32Value(updatedSource.DeleteThreshold)
-	// plan.Modified = types.StringValue(updatedSource.Modified)
-
 	plan.ConvertFromSailPointForResource(ctx, updatedSource)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
@@ -376,4 +380,8 @@ func (r *sourceResource) Delete(ctx context.Context, req resource.DeleteRequest,
 		)
 		return
 	}
+}
+
+func (r *sourceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }

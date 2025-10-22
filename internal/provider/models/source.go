@@ -24,6 +24,7 @@ type Source struct {
 	Description     types.String `tfsdk:"description"`
 	Owner           *ObjectRef   `tfsdk:"owner"`
 	Cluster         *ObjectRef   `tfsdk:"cluster"`
+	Features        types.Set    `tfsdk:"features"`
 	Type            types.String `tfsdk:"type"`
 	Connector       types.String `tfsdk:"connector"`
 	ConnectorClass  types.String `tfsdk:"connector_class"`
@@ -40,7 +41,6 @@ type Source struct {
 	// BeforeProvisioningRule    *ObjectRef                       `tfsdk:"before_provisioning_rule"`
 	// Schemas                   []ObjectRef                      `tfsdk:"schemas"`
 	// PasswordPolicies          []ObjectRef                      `tfsdk:"password_policies"`
-	// Features                  types.List                       `tfsdk:"features"`
 	// ConnectorAttributes       jsontypes.Normalized             `tfsdk:"connector_attributes"`
 	// Authoritative             types.Bool                       `tfsdk:"authoritative"`
 	// ManagementWorkgroup       *ObjectRef                       `tfsdk:"management_workgroup"`
@@ -54,20 +54,21 @@ type Source struct {
 	// Category                  types.String                     `tfsdk:"category"`
 }
 
-func (s *Source) ConvertToSailPoint(_ context.Context) client.Source {
+func (s *Source) ConvertToSailPoint(ctx context.Context) client.Source {
 	if s == nil {
 		return client.Source{}
 	}
 
 	source := client.Source{
 		Name:            s.Name.ValueString(),
-		Description:     NewGoTypeValueIf[types.String, string](s.Description, !IsTerraformValueNullOrUnknown(s.Description)),
+		Description:     NewGoTypeValueIf[types.String, string](ctx, s.Description, !IsTerraformValueNullOrUnknown(s.Description)),
 		Owner:           NewObjectRefFromTerraform(s.Owner),
 		Cluster:         NewObjectRefFromTerraform(s.Cluster),
+		Features:        NewGoTypeValueIf[types.Set, []string](ctx, s.Features, !IsTerraformValueNullOrUnknown(s.Features)),
 		Type:            s.Type.ValueString(),
 		Connector:       s.Connector.ValueString(),
-		ConnectorClass:  NewGoTypeValueIf[types.String, string](s.ConnectorClass, !IsTerraformValueNullOrUnknown(s.ConnectorClass)),
-		DeleteThreshold: NewGoTypeValueIf[types.Int32, int32](s.DeleteThreshold, !IsTerraformValueNullOrUnknown(s.DeleteThreshold)),
+		ConnectorClass:  NewGoTypeValueIf[types.String, string](ctx, s.ConnectorClass, !IsTerraformValueNullOrUnknown(s.ConnectorClass)),
+		DeleteThreshold: NewGoTypeValueIf[types.Int32, int32](ctx, s.DeleteThreshold, !IsTerraformValueNullOrUnknown(s.DeleteThreshold)),
 	}
 
 	return source
@@ -78,7 +79,7 @@ func (s *Source) ConvertToCreateRequestPtr(_ context.Context) *client.Source {
 	return &source
 }
 
-func (s *Source) ConvertFromSailPoint(_ context.Context, source *client.Source, includeNull bool) {
+func (s *Source) ConvertFromSailPoint(ctx context.Context, source *client.Source, includeNull bool) {
 	if s == nil || source == nil {
 		return
 	}
@@ -92,9 +93,10 @@ func (s *Source) ConvertFromSailPoint(_ context.Context, source *client.Source, 
 	s.Created = types.StringValue(source.Created)
 	s.Modified = types.StringValue(source.Modified)
 
-	s.Type = NewTerraformTypeValueIf[types.String](source.Type, includeNull || !IsTerraformValueNullOrUnknown(s.Type))
-	s.ConnectorClass = NewTerraformTypeValueIf[types.String](source.ConnectorClass, includeNull || !IsTerraformValueNullOrUnknown(s.ConnectorClass))
-	s.DeleteThreshold = NewTerraformTypeValueIf[types.Int32](source.DeleteThreshold, includeNull || !IsTerraformValueNullOrUnknown(s.DeleteThreshold))
+	s.Features = NewTerraformTypeValueIf[types.Set](ctx, source.Features, includeNull || !IsTerraformValueNullOrUnknown(s.Features))
+	s.Type = NewTerraformTypeValueIf[types.String](ctx, source.Type, includeNull || !IsTerraformValueNullOrUnknown(s.Type))
+	s.ConnectorClass = NewTerraformTypeValueIf[types.String](ctx, source.ConnectorClass, includeNull || !IsTerraformValueNullOrUnknown(s.ConnectorClass))
+	s.DeleteThreshold = NewTerraformTypeValueIf[types.Int32](ctx, source.DeleteThreshold, includeNull || !IsTerraformValueNullOrUnknown(s.DeleteThreshold))
 }
 
 func (s *Source) ConvertFromSailPointForResource(ctx context.Context, source *client.Source) {
@@ -126,6 +128,14 @@ func (s *Source) BuildPatchOptions(ctx context.Context, desired *Source) []clien
 
 	if !s.Cluster.Equals(desired.Cluster) {
 		ops = append(ops, client.NewReplaceJSONPatchOperation("/cluster", desired.Cluster.ConvertToSailPoint(ctx)))
+	}
+
+	if s.ConnectorClass.ValueString() != desired.ConnectorClass.ValueString() {
+		ops = append(ops, client.NewReplaceJSONPatchOperation("/connectorClass", desired.ConnectorClass.ValueString()))
+	}
+
+	if s.DeleteThreshold.ValueInt32() != desired.DeleteThreshold.ValueInt32() {
+		ops = append(ops, client.NewReplaceJSONPatchOperation("/deleteThreshold", desired.DeleteThreshold.ValueInt32()))
 	}
 
 	return ops

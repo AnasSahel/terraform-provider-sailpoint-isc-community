@@ -28,11 +28,11 @@ func (c *Client) refreshToken(ctx context.Context) error {
 		Post(fmt.Sprintf("%s/oauth/token", c.BaseURL))
 
 	if err != nil {
-		return fmt.Errorf("Token request failed: %w", err)
+		return fmt.Errorf("token request failed: %w", err)
 	}
 
 	if resp.IsError() {
-		return fmt.Errorf("Token request returned %d: %s", resp.Status(), resp.String())
+		return fmt.Errorf("token request returned %s: %s", resp.Status(), resp.String())
 	}
 
 	c.tokenMutex.Lock()

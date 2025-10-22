@@ -8,6 +8,7 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/models"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -75,6 +76,12 @@ func (d *sourceDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 				MarkdownDescription: "The cluster to which this source belongs.",
 				Computed:            true,
 				Attributes:          ObjectRefDataSourceSchema(),
+			},
+			"features": schema.SetAttribute{
+				Description:         "A list of features enabled for the source.",
+				MarkdownDescription: "An array of features that are enabled or supported by this source.",
+				Computed:            true,
+				ElementType:         types.StringType,
 			},
 			"type": schema.StringAttribute{
 				Description:         "The type of the source (e.g., 'Application', 'Database').",
@@ -163,12 +170,6 @@ func (d *sourceDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 			// 	NestedObject: schema.NestedAttributeObject{
 			// 		Attributes: ObjectRefDataSourceSchema(),
 			// 	},
-			// },
-			// "features": schema.ListAttribute{
-			// 	Description:         "A list of features enabled for the source.",
-			// 	MarkdownDescription: "An array of features that are enabled or supported by this source.",
-			// 	Computed:            true,
-			// 	ElementType:         types.StringType,
 			// },
 
 			// "connector_attributes": schema.StringAttribute{
