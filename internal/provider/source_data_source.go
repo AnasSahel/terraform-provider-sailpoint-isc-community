@@ -2,17 +2,12 @@ package provider
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/models"
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -81,69 +76,6 @@ func (d *sourceDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 				Computed:            true,
 				Attributes:          ObjectRefDataSourceSchema(),
 			},
-			"account_correlation_config": schema.SingleNestedAttribute{
-				Description:         "The account correlation configuration for the source.",
-				MarkdownDescription: "The account correlation configuration associated with this source.",
-				Computed:            true,
-				Attributes:          ObjectRefDataSourceSchema(),
-			},
-			"account_correlation_rule": schema.SingleNestedAttribute{
-				Description:         "The account correlation rule for the source.",
-				MarkdownDescription: "The account correlation rule associated with this source.",
-				Computed:            true,
-				Attributes:          ObjectRefDataSourceSchema(),
-			},
-			"manager_correlation_mapping": schema.SingleNestedAttribute{
-				Description:         "The manager correlation mapping for the source.",
-				MarkdownDescription: "The manager correlation mapping associated with this source.",
-				Computed:            true,
-				Attributes: map[string]schema.Attribute{
-					"account_attribute_name": schema.StringAttribute{
-						Description:         "The account attribute name used for manager correlation.",
-						MarkdownDescription: "The name of the account attribute used in the manager correlation mapping.",
-						Computed:            true,
-					},
-					"identity_attribute_name": schema.StringAttribute{
-						Description:         "The identity attribute name used for manager correlation.",
-						MarkdownDescription: "The name of the identity attribute used in the manager correlation mapping.",
-						Computed:            true,
-					},
-				},
-			},
-			"manager_correlation_rule": schema.SingleNestedAttribute{
-				Description:         "The manager correlation rule for the source.",
-				MarkdownDescription: "The manager correlation rule associated with this source.",
-				Computed:            true,
-				Attributes:          ObjectRefDataSourceSchema(),
-			},
-			"before_provisioning_rule": schema.SingleNestedAttribute{
-				Description:         "The before provisioning rule for the source.",
-				MarkdownDescription: "The before provisioning rule associated with this source.",
-				Computed:            true,
-				Attributes:          ObjectRefDataSourceSchema(),
-			},
-			"schemas": schema.ListNestedAttribute{
-				Description:         "The schemas associated with the source.",
-				MarkdownDescription: "A list of schemas that define the structure of data for this source.",
-				Computed:            true,
-				NestedObject: schema.NestedAttributeObject{
-					Attributes: ObjectRefDataSourceSchema(),
-				},
-			},
-			"password_policies": schema.ListNestedAttribute{
-				Description:         "The password policies associated with the source.",
-				MarkdownDescription: "A list of password policies that apply to this source.",
-				Computed:            true,
-				NestedObject: schema.NestedAttributeObject{
-					Attributes: ObjectRefDataSourceSchema(),
-				},
-			},
-			"features": schema.ListAttribute{
-				Description:         "A list of features enabled for the source.",
-				MarkdownDescription: "An array of features that are enabled or supported by this source.",
-				Computed:            true,
-				ElementType:         types.StringType,
-			},
 			"type": schema.StringAttribute{
 				Description:         "The type of the source (e.g., 'Application', 'Database').",
 				MarkdownDescription: "The category or type of the source within SailPoint ISC.",
@@ -159,75 +91,9 @@ func (d *sourceDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 				MarkdownDescription: "The specific class name of the connector implementation for this source.",
 				Computed:            true,
 			},
-			"connector_attributes": schema.StringAttribute{
-				Description:         "The attributes of the connector used by the source.",
-				MarkdownDescription: "A map of attributes and their values for the connector associated with this source.",
-				Computed:            true,
-				Sensitive:           true,
-				CustomType:          jsontypes.NormalizedType{},
-			},
-			"connector_encrypted_keys": schema.SetAttribute{
-				Description:         "The encrypted keys for the connector used by the source.",
-				MarkdownDescription: "A set of encrypted keys associated with the connector for this source.",
-				Computed:            true,
-				ElementType:         types.StringType,
-			},
-			"connector_encrypted_attributes": schema.MapAttribute{
-				Description:         "The encrypted attributes of the connector used by the source.",
-				MarkdownDescription: "A map of encrypted attributes and their values for the connector associated with this source.",
-				Computed:            true,
-				Sensitive:           true,
-				ElementType:         types.StringType,
-			},
 			"delete_threshold": schema.Int32Attribute{
 				Description:         "The delete threshold for the source.",
 				MarkdownDescription: "The threshold value that determines when accounts are deleted from the source.",
-				Computed:            true,
-			},
-			"authoritative": schema.BoolAttribute{
-				Description:         "Indicates if the source is authoritative.",
-				MarkdownDescription: "A boolean flag indicating whether this source is considered authoritative for its data.",
-				Computed:            true,
-			},
-			"management_workgroup": schema.SingleNestedAttribute{
-				Description:         "The management workgroup for the source.",
-				MarkdownDescription: "The workgroup responsible for managing this source.",
-				Computed:            true,
-				Attributes:          ObjectRefDataSourceSchema(),
-			},
-			"healthy": schema.BoolAttribute{
-				Description:         "Indicates if the source is healthy.",
-				MarkdownDescription: "A boolean flag indicating the health status of the source.",
-				Computed:            true,
-			},
-			"status": schema.StringAttribute{
-				Description:         "The current status of the source.",
-				MarkdownDescription: "The operational status of the source within SailPoint ISC.",
-				Computed:            true,
-			},
-			"since": schema.StringAttribute{
-				Description:         "The timestamp since when the source has been active.",
-				MarkdownDescription: "The date and time indicating when the source became active in ISO 8601 format.",
-				Computed:            true,
-			},
-			"connector_id": schema.StringAttribute{
-				Description:         "The unique identifier of the connector used by the source.",
-				MarkdownDescription: "The UUID of the connector associated with this source.",
-				Computed:            true,
-			},
-			"connector_name": schema.StringAttribute{
-				Description:         "The name of the connector used by the source.",
-				MarkdownDescription: "The human-readable name of the connector associated with this source.",
-				Computed:            true,
-			},
-			"connector_type": schema.StringAttribute{
-				Description:         "The type of the connector used by the source.",
-				MarkdownDescription: "The category or type of connector used for this source.",
-				Computed:            true,
-			},
-			"connector_implementation_id": schema.StringAttribute{
-				Description:         "The implementation ID of the connector used by the source.",
-				MarkdownDescription: "The specific implementation identifier of the connector for this source.",
 				Computed:            true,
 			},
 			"created": schema.StringAttribute{
@@ -240,16 +106,135 @@ func (d *sourceDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 				MarkdownDescription: "The date and time when the source was last updated in ISO 8601 format.",
 				Computed:            true,
 			},
-			"credential_provider_enabled": schema.BoolAttribute{
-				Description:         "Indicates if the credential provider is enabled for the source.",
-				MarkdownDescription: "A boolean flag indicating whether the credential provider feature is enabled for this source.",
-				Computed:            true,
-			},
-			"category": schema.StringAttribute{
-				Description:         "The category of the source.",
-				MarkdownDescription: "The classification or category assigned to this source.",
-				Computed:            true,
-			},
+
+			// "account_correlation_config": schema.SingleNestedAttribute{
+			// 	Description:         "The account correlation configuration for the source.",
+			// 	MarkdownDescription: "The account correlation configuration associated with this source.",
+			// 	Computed:            true,
+			// 	Attributes:          ObjectRefDataSourceSchema(),
+			// },
+			// "account_correlation_rule": schema.SingleNestedAttribute{
+			// 	Description:         "The account correlation rule for the source.",
+			// 	MarkdownDescription: "The account correlation rule associated with this source.",
+			// 	Computed:            true,
+			// 	Attributes:          ObjectRefDataSourceSchema(),
+			// },
+			// "manager_correlation_mapping": schema.SingleNestedAttribute{
+			// 	Description:         "The manager correlation mapping for the source.",
+			// 	MarkdownDescription: "The manager correlation mapping associated with this source.",
+			// 	Computed:            true,
+			// 	Attributes: map[string]schema.Attribute{
+			// 		"account_attribute_name": schema.StringAttribute{
+			// 			Description:         "The account attribute name used for manager correlation.",
+			// 			MarkdownDescription: "The name of the account attribute used in the manager correlation mapping.",
+			// 			Computed:            true,
+			// 		},
+			// 		"identity_attribute_name": schema.StringAttribute{
+			// 			Description:         "The identity attribute name used for manager correlation.",
+			// 			MarkdownDescription: "The name of the identity attribute used in the manager correlation mapping.",
+			// 			Computed:            true,
+			// 		},
+			// 	},
+			// },
+			// "manager_correlation_rule": schema.SingleNestedAttribute{
+			// 	Description:         "The manager correlation rule for the source.",
+			// 	MarkdownDescription: "The manager correlation rule associated with this source.",
+			// 	Computed:            true,
+			// 	Attributes:          ObjectRefDataSourceSchema(),
+			// },
+			// "before_provisioning_rule": schema.SingleNestedAttribute{
+			// 	Description:         "The before provisioning rule for the source.",
+			// 	MarkdownDescription: "The before provisioning rule associated with this source.",
+			// 	Computed:            true,
+			// 	Attributes:          ObjectRefDataSourceSchema(),
+			// },
+			// "schemas": schema.ListNestedAttribute{
+			// 	Description:         "The schemas associated with the source.",
+			// 	MarkdownDescription: "A list of schemas that define the structure of data for this source.",
+			// 	Computed:            true,
+			// 	NestedObject: schema.NestedAttributeObject{
+			// 		Attributes: ObjectRefDataSourceSchema(),
+			// 	},
+			// },
+			// "password_policies": schema.ListNestedAttribute{
+			// 	Description:         "The password policies associated with the source.",
+			// 	MarkdownDescription: "A list of password policies that apply to this source.",
+			// 	Computed:            true,
+			// 	NestedObject: schema.NestedAttributeObject{
+			// 		Attributes: ObjectRefDataSourceSchema(),
+			// 	},
+			// },
+			// "features": schema.ListAttribute{
+			// 	Description:         "A list of features enabled for the source.",
+			// 	MarkdownDescription: "An array of features that are enabled or supported by this source.",
+			// 	Computed:            true,
+			// 	ElementType:         types.StringType,
+			// },
+
+			// "connector_attributes": schema.StringAttribute{
+			// 	Description:         "The attributes of the connector used by the source.",
+			// 	MarkdownDescription: "A map of attributes and their values for the connector associated with this source.",
+			// 	Computed:            true,
+			// 	Sensitive:           true,
+			// 	CustomType:          jsontypes.NormalizedType{},
+			// },
+
+			// "authoritative": schema.BoolAttribute{
+			// 	Description:         "Indicates if the source is authoritative.",
+			// 	MarkdownDescription: "A boolean flag indicating whether this source is considered authoritative for its data.",
+			// 	Computed:            true,
+			// },
+			// "management_workgroup": schema.SingleNestedAttribute{
+			// 	Description:         "The management workgroup for the source.",
+			// 	MarkdownDescription: "The workgroup responsible for managing this source.",
+			// 	Computed:            true,
+			// 	Attributes:          ObjectRefDataSourceSchema(),
+			// },
+			// "healthy": schema.BoolAttribute{
+			// 	Description:         "Indicates if the source is healthy.",
+			// 	MarkdownDescription: "A boolean flag indicating the health status of the source.",
+			// 	Computed:            true,
+			// },
+			// "status": schema.StringAttribute{
+			// 	Description:         "The current status of the source.",
+			// 	MarkdownDescription: "The operational status of the source within SailPoint ISC.",
+			// 	Computed:            true,
+			// },
+			// "since": schema.StringAttribute{
+			// 	Description:         "The timestamp since when the source has been active.",
+			// 	MarkdownDescription: "The date and time indicating when the source became active in ISO 8601 format.",
+			// 	Computed:            true,
+			// },
+			// "connector_id": schema.StringAttribute{
+			// 	Description:         "The unique identifier of the connector used by the source.",
+			// 	MarkdownDescription: "The UUID of the connector associated with this source.",
+			// 	Computed:            true,
+			// },
+			// "connector_name": schema.StringAttribute{
+			// 	Description:         "The name of the connector used by the source.",
+			// 	MarkdownDescription: "The human-readable name of the connector associated with this source.",
+			// 	Computed:            true,
+			// },
+			// "connector_type": schema.StringAttribute{
+			// 	Description:         "The type of the connector used by the source.",
+			// 	MarkdownDescription: "The category or type of connector used for this source.",
+			// 	Computed:            true,
+			// },
+			// "connector_implementation_id": schema.StringAttribute{
+			// 	Description:         "The implementation ID of the connector used by the source.",
+			// 	MarkdownDescription: "The specific implementation identifier of the connector for this source.",
+			// 	Computed:            true,
+			// },
+			// "credential_provider_enabled": schema.BoolAttribute{
+			// 	Description:         "Indicates if the credential provider is enabled for the source.",
+			// 	MarkdownDescription: "A boolean flag indicating whether the credential provider feature is enabled for this source.",
+			// 	Computed:            true,
+			// },
+			// "category": schema.StringAttribute{
+			// 	Description:         "The category of the source.",
+			// 	MarkdownDescription: "The classification or category assigned to this source.",
+			// 	Computed:            true,
+			// },
 		},
 	}
 }
@@ -272,93 +257,13 @@ func (d *sourceDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 		return
 	}
 
-	// Map simple string fields
-	state.Name = types.StringValue(source.Name)
-	state.Description = types.StringValue(source.Description)
-	state.Type = types.StringValue(source.Type)
-	state.Connector = types.StringValue(source.Connector)
-	state.ConnectorClass = types.StringValue(source.ConnectorClass)
-	state.DeleteThreshold = types.Int32Value(source.DeleteThreshold)
-	state.Created = types.StringValue(source.Created)
-	state.Modified = types.StringValue(source.Modified)
-	state.Authoritative = types.BoolValue(source.Authoritative)
-	state.Healthy = types.BoolValue(source.Healthy)
-	state.Status = types.StringValue(source.Status)
-	state.Since = types.StringValue(source.Since)
-	state.ConnectorID = types.StringValue(source.ConnectorID)
-	state.ConnectorName = types.StringValue(source.ConnectorName)
-	state.ConnectorType = types.StringValue(source.ConnectorType)
-	state.ConnectorImplementationID = types.StringValue(source.ConnectorImplementationID)
-	state.CredentialProviderEnabled = types.BoolValue(source.CredentialProviderEnabled)
-	state.Category = types.StringValue(source.Category)
-
-	// Map simple list fields
-	features, diags := types.ListValueFrom(ctx, types.StringType, source.Features)
-	resp.Diagnostics.Append(diags...)
-	state.Features = features
-
-	// Map list of objects
-	if source.Schemas != nil {
-		state.Schemas = make([]models.ObjectRef, len(source.Schemas))
-		for i, schemaRef := range source.Schemas {
-			state.Schemas[i] = *models.NewObjectRefFromAPI(&schemaRef)
-		}
-	}
-	if source.PasswordPolicies != nil {
-		state.PasswordPolicies = make([]models.ObjectRef, len(source.PasswordPolicies))
-		for i, policyRef := range source.PasswordPolicies {
-			state.PasswordPolicies[i] = *models.NewObjectRefFromAPI(&policyRef)
-		}
-	}
-
-	// Map connector attributes
-	state.ConnectorAttributes = jsontypes.NewNormalizedNull()
-	if source.ConnectorAttributes != nil {
-		jsonBytes, err := json.Marshal(source.ConnectorAttributes)
-		if err != nil {
-			resp.Diagnostics.AddError(
-				"Unable to Marshal Connector Attributes",
-				fmt.Sprintf("Failed to marshal connector attributes for source with ID %q: %v", state.ID.ValueString(), err),
-			)
-			return
-		}
-		state.ConnectorAttributes = jsontypes.NewNormalizedValue(string(jsonBytes))
-	}
-
-	// Map encrypted set fields
-	if encrypted, ok := source.ConnectorAttributes["encrypted"]; ok {
-		encryptedSet := strings.Split(encrypted.(string), ",")
-
-		connectorKeys, diags := types.SetValueFrom(ctx, types.StringType, encryptedSet)
-		resp.Diagnostics.Append(diags...)
-		state.ConnectorEncryptedKeys = connectorKeys
-
-		encryptedAttrs := make(map[string]attr.Value, len(encryptedSet))
-		for _, key := range encryptedSet {
-			if _, exists := source.ConnectorAttributes[key]; exists && source.ConnectorAttributes[key] != nil {
-				encryptedAttrs[key] = types.StringValue(source.ConnectorAttributes[key].(string))
-			}
-		}
-		state.ConnectorEncryptedAttributes = types.MapValueMust(types.StringType, encryptedAttrs)
-	}
-
-	// Map Object fields
-	state.Owner = models.NewObjectRefFromAPI(source.Owner)
-	state.Cluster = models.NewObjectRefFromAPI(source.Cluster)
-	state.AccountCorrelationConfig = models.NewObjectRefFromAPI(source.AccountCorrelationConfig)
-	state.AccountCorrelationRule = models.NewObjectRefFromAPI(source.AccountCorrelationRule)
-	if source.ManagerCorrelationMapping != nil {
-		state.ManagerCorrelationMapping = &models.SourceManagerCorrelationMapping{
-			AccountAttributeName:  types.StringValue(source.ManagerCorrelationMapping.AccountAttributeName),
-			IdentityAttributeName: types.StringValue(source.ManagerCorrelationMapping.IdentityAttributeName),
-		}
-	}
-	state.ManagerCorrelationRule = models.NewObjectRefFromAPI(source.ManagerCorrelationRule)
-	state.BeforeProvisioningRule = models.NewObjectRefFromAPI(source.BeforeProvisioningRule)
-	state.ManagementWorkgroup = models.NewObjectRefFromAPI(source.ManagementWorkgroup)
-
+	state.ConvertFromSailPointForDataSource(ctx, source)
 	tflog.Debug(ctx, "Successfully fetched source", map[string]any{"source_id": source.ID})
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 // Helper functions

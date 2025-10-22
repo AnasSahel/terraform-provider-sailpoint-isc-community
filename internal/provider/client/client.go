@@ -45,8 +45,10 @@ func NewClient(baseURL, clientID, clientSecret string) (*Client, error) {
 			}
 			req.
 				SetHeader("Authorization", fmt.Sprintf("Bearer %s", token)).
-				SetHeader("Content-Type", "application/json").
 				SetHeader("Accept", "application/json")
+			if req.Header.Get("Content-Type") == "" {
+				req.SetHeader("Content-Type", "application/json")
+			}
 
 			return nil
 		}).
@@ -62,7 +64,7 @@ func NewClient(baseURL, clientID, clientSecret string) (*Client, error) {
 
 	// Initial authentication
 	if err := client.refreshToken(client.HTTPClient.Context()); err != nil {
-		return nil, fmt.Errorf("Initial authentication failed: %w", err)
+		return nil, fmt.Errorf("initial authentication failed: %w", err)
 	}
 
 	return client, nil
