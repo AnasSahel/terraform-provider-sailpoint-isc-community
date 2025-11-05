@@ -3,12 +3,12 @@
 page_title: "sailpoint_transform Resource - sailpoint"
 subcategory: ""
 description: |-
-  SailPoint ISC Transform resource
+  Manages a SailPoint Transform. Transforms are configurable objects that manipulate attribute data during aggregation or provisioning. See Transform Documentation https://developer.sailpoint.com/docs/extensibility/transforms/ for more information.
 ---
 
 # sailpoint_transform (Resource)
 
-SailPoint ISC Transform resource
+Manages a SailPoint Transform. Transforms are configurable objects that manipulate attribute data during aggregation or provisioning. See [Transform Documentation](https://developer.sailpoint.com/docs/extensibility/transforms/) for more information.
 
 
 
@@ -17,11 +17,11 @@ SailPoint ISC Transform resource
 
 ### Required
 
-- `attributes` (String) Transform attributes as JSON
-- `name` (String) Transform name
-- `type` (String) Transform type
+- `attributes` (String) Configuration attributes for the transform as a JSON string. The structure varies by transform type. This is the only field that can be updated after creation.
+- `name` (String) Name of the transform as it appears in the UI. This field is immutable after creation.
+- `type` (String) Type of the transform operation (e.g., `lower`, `upper`, `lookup`, `static`). This field is immutable after creation. See [Transform Operations](https://developer.sailpoint.com/docs/extensibility/transforms/operations) for available types.
 
 ### Read-Only
 
-- `id` (String) Transform identifier
-- `internal` (Boolean) Indicates if the transform is internal
+- `id` (String) Unique identifier (UUID) of the transform.
+- `internal` (Boolean) Indicates whether this is an internal SailPoint transform (true) or a custom transform (false). Only SailPoint employees can create internal transforms.
