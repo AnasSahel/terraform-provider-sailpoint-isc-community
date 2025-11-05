@@ -6,6 +6,37 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Terraform provider for SailPoint Identity Security Cloud (ISC) built using the **Terraform Plugin Framework** (not the legacy SDK). The provider uses a custom REST client built with Resty v3 to interact with SailPoint's APIs.
 
+## Git Workflow
+
+**IMPORTANT**: Always follow the Git workflow documented in `.claude/workflow.md`:
+
+1. **Create a feature branch** before making any changes:
+   ```bash
+   git checkout -b feat/<feature-name>
+   # or: refactor/<desc>, fix/<desc>, docs/<desc>, chore/<desc>
+   ```
+
+2. **Make all changes** on the feature branch
+
+3. **Commit once** when changes are complete and tested:
+   ```bash
+   git add -A
+   git commit -m "<type>: <description>"
+   ```
+
+4. **Merge to main** with a merge commit:
+   ```bash
+   git checkout main
+   git merge <branch-name> --no-ff
+   ```
+
+5. **Clean up** the feature branch (optional):
+   ```bash
+   git branch -d <branch-name>
+   ```
+
+**Never commit directly to main** - always use feature branches.
+
 ## Development Commands
 
 ### Building and Installing
