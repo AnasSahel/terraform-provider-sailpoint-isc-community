@@ -29,6 +29,7 @@ type Source struct {
 	Connector       types.String `tfsdk:"connector"`
 	ConnectorClass  types.String `tfsdk:"connector_class"`
 	DeleteThreshold types.Int32  `tfsdk:"delete_threshold"`
+	Authoritative   types.Bool   `tfsdk:"authoritative"`
 	Created         types.String `tfsdk:"created"`
 	Modified        types.String `tfsdk:"modified"`
 
@@ -42,7 +43,6 @@ type Source struct {
 	// Schemas                   []ObjectRef                      `tfsdk:"schemas"`
 	// PasswordPolicies          []ObjectRef                      `tfsdk:"password_policies"`
 	// ConnectorAttributes       jsontypes.Normalized             `tfsdk:"connector_attributes"`
-	// Authoritative             types.Bool                       `tfsdk:"authoritative"`
 	// ManagementWorkgroup       *ObjectRef                       `tfsdk:"management_workgroup"`
 	// Healthy                   types.Bool                       `tfsdk:"healthy"`
 	// Status                    types.String                     `tfsdk:"status"`
@@ -60,13 +60,16 @@ func (s *Source) ConvertToSailPoint(ctx context.Context) client.Source {
 	}
 
 	source := client.Source{
-		Name:            s.Name.ValueString(),
+		Name:      s.Name.ValueString(),
+		Type:      s.Type.ValueString(),
+		Connector: s.Connector.ValueString(),
+		// Authoritative: s.Authoritative.ValueBool(),
+
+		Owner:   NewObjectRefFromTerraform(s.Owner),
+		Cluster: NewObjectRefFromTerraform(s.Cluster),
+
 		Description:     NewGoTypeValueIf[types.String, string](ctx, s.Description, !IsTerraformValueNullOrUnknown(s.Description)),
-		Owner:           NewObjectRefFromTerraform(s.Owner),
-		Cluster:         NewObjectRefFromTerraform(s.Cluster),
 		Features:        NewGoTypeValueIf[types.Set, []string](ctx, s.Features, !IsTerraformValueNullOrUnknown(s.Features)),
-		Type:            s.Type.ValueString(),
-		Connector:       s.Connector.ValueString(),
 		ConnectorClass:  NewGoTypeValueIf[types.String, string](ctx, s.ConnectorClass, !IsTerraformValueNullOrUnknown(s.ConnectorClass)),
 		DeleteThreshold: NewGoTypeValueIf[types.Int32, int32](ctx, s.DeleteThreshold, !IsTerraformValueNullOrUnknown(s.DeleteThreshold)),
 	}
@@ -87,16 +90,18 @@ func (s *Source) ConvertFromSailPoint(ctx context.Context, source *client.Source
 	s.ID = types.StringValue(source.ID)
 	s.Name = types.StringValue(source.Name)
 	s.Description = types.StringValue(source.Description)
-	s.Owner = NewObjectRefFromSailPoint(source.Owner)
-	s.Cluster = NewObjectRefFromSailPoint(source.Cluster)
 	s.Connector = types.StringValue(source.Connector)
 	s.Created = types.StringValue(source.Created)
 	s.Modified = types.StringValue(source.Modified)
+
+	s.Owner = NewObjectRefFromSailPoint(source.Owner)
+	s.Cluster = NewObjectRefFromSailPoint(source.Cluster)
 
 	s.Features = NewTerraformTypeValueIf[types.Set](ctx, source.Features, includeNull || !IsTerraformValueNullOrUnknown(s.Features))
 	s.Type = NewTerraformTypeValueIf[types.String](ctx, source.Type, includeNull || !IsTerraformValueNullOrUnknown(s.Type))
 	s.ConnectorClass = NewTerraformTypeValueIf[types.String](ctx, source.ConnectorClass, includeNull || !IsTerraformValueNullOrUnknown(s.ConnectorClass))
 	s.DeleteThreshold = NewTerraformTypeValueIf[types.Int32](ctx, source.DeleteThreshold, includeNull || !IsTerraformValueNullOrUnknown(s.DeleteThreshold))
+	s.Authoritative = NewTerraformTypeValueIf[types.Bool](ctx, source.Authoritative, includeNull || !IsTerraformValueNullOrUnknown(s.Authoritative))
 }
 
 func (s *Source) ConvertFromSailPointForResource(ctx context.Context, source *client.Source) {
