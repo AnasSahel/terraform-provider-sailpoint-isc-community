@@ -94,9 +94,9 @@ func (c *Client) CreateTransform(ctx context.Context, transform *Transform) (*Tr
 	}, nil, resp.StatusCode())
 }
 
-// UpdateTransform updates an existing transform.
-// Note: Only the 'attributes' field can be updated. Attempting to change
-// 'name' or 'type' will result in an error.
+// UpdateTransform updates an existing transform by replacing it with the provided transform.
+// Note: Only the 'attributes' field can be updated. The 'name' and 'type' fields must match
+// the existing transform, otherwise the API will return an error.
 func (c *Client) UpdateTransform(ctx context.Context, id string, transform *Transform) (*Transform, error) {
 	var result Transform
 

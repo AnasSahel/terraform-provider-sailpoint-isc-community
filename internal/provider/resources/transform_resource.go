@@ -146,7 +146,8 @@ func (r *transformResource) Update(ctx context.Context, req resource.UpdateReque
 		return
 	}
 
-	// Convert Terraform model to API model
+	// Convert Terraform model to API model with full transform object
+	// The API requires the complete transform including immutable fields (name, type)
 	apiTransform, err := plan.ConvertToSailPoint(ctx)
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -157,7 +158,7 @@ func (r *transformResource) Update(ctx context.Context, req resource.UpdateReque
 	}
 
 	// Update the transform via API
-	// Note: Only 'attributes' can be updated; 'name' and 'type' are immutable
+	// Note: Only 'attributes' can be updated; 'name' and 'type' must match existing values
 	updatedTransform, err := r.client.UpdateTransform(ctx, plan.ID.ValueString(), apiTransform)
 	if err != nil {
 		resp.Diagnostics.AddError(
