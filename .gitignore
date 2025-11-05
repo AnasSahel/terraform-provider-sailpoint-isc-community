@@ -43,3 +43,4 @@ website/vendor
 local/*
 infrastructure/
 _ignore/
+.claude
