@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"sync"
@@ -92,4 +93,32 @@ func retryCondition(r *resty.Response, err error) bool {
 	}
 
 	return false
+}
+
+func (c *Client) doRequest(ctx context.Context, method string, url string, body interface{}, result interface{}) (*resty.Response, error) {
+	req := c.HTTPClient.R().
+		SetContext(ctx).
+		SetHeader("Accept", "application/json")
+
+	if body != nil {
+		req.SetBody(body)
+	}
+
+	if result != nil {
+		req.SetResult(result)
+	}
+
+	switch method {
+	case http.MethodGet:
+		return req.Get(url)
+	case http.MethodPost:
+		return req.Post(url)
+	case http.MethodPatch:
+		req.SetContentType("application/json-patch+json")
+		return req.Patch(url)
+	case http.MethodDelete:
+		return req.Delete(url)
+	default:
+		return nil, fmt.Errorf("unsupported HTTP method: %s", method)
+	}
 }
