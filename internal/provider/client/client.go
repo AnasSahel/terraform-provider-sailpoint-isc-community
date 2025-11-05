@@ -116,6 +116,8 @@ func (c *Client) doRequest(ctx context.Context, method string, url string, body 
 		return req.Get(url)
 	case http.MethodPost:
 		return req.Post(url)
+	case http.MethodPut:
+		return req.Put(url)
 	case http.MethodPatch:
 		req.SetContentType("application/json-patch+json")
 		return req.Patch(url)
