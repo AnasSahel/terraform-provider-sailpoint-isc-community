@@ -7,7 +7,6 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/models"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/schemas"
-	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/utils"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -26,11 +25,19 @@ func NewSourceDataSource() datasource.DataSource {
 }
 
 func (d *sourceDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	client, diags := utils.ConfigureClient(req.ProviderData)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
+	if req.ProviderData == nil {
 		return
 	}
+
+	client, ok := req.ProviderData.(*client.Client)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Configure Type",
+			fmt.Sprintf("Expected *client.Client, got %T. Please report this issue to the provider developers.", req.ProviderData),
+		)
+		return
+	}
+
 	d.client = client
 }
 

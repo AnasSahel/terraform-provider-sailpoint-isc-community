@@ -7,7 +7,6 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/models"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/schemas"
-	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/utils"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -28,13 +27,20 @@ func NewSourceResource() resource.Resource {
 	return new(sourceResource)
 }
 
-// Then in both source_resource.go and source_data_source.go:
 func (r *sourceResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	client, diags := utils.ConfigureClient(req.ProviderData)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
+	if req.ProviderData == nil {
 		return
 	}
+
+	client, ok := req.ProviderData.(*client.Client)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Configure Type",
+			fmt.Sprintf("Expected *client.Client, got %T. Please report this issue to the provider developers.", req.ProviderData),
+		)
+		return
+	}
+
 	r.client = client
 }
 
