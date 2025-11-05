@@ -9,8 +9,6 @@ import (
 	"os"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/client"
-	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/datasources"
-	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/resources"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -153,14 +151,10 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 
 // DataSources defines the data sources implemented in the provider.
 func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.DataSource {
-	return []func() datasource.DataSource{
-		datasources.NewSourceDataSource,
-	}
+	return nil
 }
 
 // Resources defines the resources implemented in the provider.
 func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resource {
-	return []func() resource.Resource{
-		resources.NewSourceResource,
-	}
+	return nil
 }
