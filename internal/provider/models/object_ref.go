@@ -66,7 +66,12 @@ func (o *ObjectRef) ConvertFromSailPointForDataSource(ctx context.Context, sourc
 
 	o.Type = types.StringValue(source.Type)
 	o.ID = types.StringValue(source.ID)
-	o.Name = types.StringValue(source.Name)
+	// Only set Name if it's not empty to avoid inconsistent state errors
+	if source.Name != "" {
+		o.Name = types.StringValue(source.Name)
+	} else {
+		o.Name = types.StringNull()
+	}
 }
 
 // ConvertFromSailPointForResource implements ModelWithSourceConversionMethods.
@@ -77,7 +82,12 @@ func (o *ObjectRef) ConvertFromSailPointForResource(ctx context.Context, source 
 
 	o.Type = types.StringValue(source.Type)
 	o.ID = types.StringValue(source.ID)
-	o.Name = types.StringValue(source.Name)
+	// Only set Name if it's not empty to avoid inconsistent state errors
+	if source.Name != "" {
+		o.Name = types.StringValue(source.Name)
+	} else {
+		o.Name = types.StringNull()
+	}
 }
 
 func (o *ObjectRef) Equals(other *ObjectRef) bool {
