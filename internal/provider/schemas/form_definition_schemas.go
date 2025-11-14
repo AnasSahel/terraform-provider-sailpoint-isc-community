@@ -92,10 +92,6 @@ func (sb *FormDefinitionSchemaBuilder) GetResourceSchema() map[string]resource_s
 			Description:         desc["form_input"].description,
 			MarkdownDescription: desc["form_input"].markdown,
 			Optional:            true,
-			Computed:            true,
-			PlanModifiers: []planmodifier.List{
-				listplanmodifier.UseStateForUnknown(),
-			},
 			NestedObject: resource_schema.NestedAttributeObject{
 				Attributes: map[string]resource_schema.Attribute{
 					"id": resource_schema.StringAttribute{
@@ -122,10 +118,72 @@ func (sb *FormDefinitionSchemaBuilder) GetResourceSchema() map[string]resource_s
 			MarkdownDescription: desc["form_elements"].markdown,
 			Required:            true,
 		},
-		"form_conditions": resource_schema.StringAttribute{
+		"form_conditions": resource_schema.ListNestedAttribute{
 			Description:         desc["form_conditions"].description,
 			MarkdownDescription: desc["form_conditions"].markdown,
 			Optional:            true,
+			NestedObject: resource_schema.NestedAttributeObject{
+				Attributes: map[string]resource_schema.Attribute{
+					"rule_operator": resource_schema.StringAttribute{
+						Description: "The logical operator to apply to the rules (AND, OR).",
+						Optional:    true,
+					},
+					"rules": resource_schema.ListNestedAttribute{
+						Description: "The list of rules that make up the condition.",
+						Optional:    true,
+						NestedObject: resource_schema.NestedAttributeObject{
+							Attributes: map[string]resource_schema.Attribute{
+								"source_type": resource_schema.StringAttribute{
+									Description: "The type of the source (e.g., ELEMENT, INPUT).",
+									Optional:    true,
+								},
+								"source": resource_schema.StringAttribute{
+									Description: "The ID of the source element or input.",
+									Optional:    true,
+								},
+								"operator": resource_schema.StringAttribute{
+									Description: "The comparison operator (EQ, NE, GT, LT, etc.).",
+									Optional:    true,
+								},
+								"value_type": resource_schema.StringAttribute{
+									Description: "The type of the value being compared (STRING, NUMBER, BOOLEAN).",
+									Optional:    true,
+								},
+								"value": resource_schema.StringAttribute{
+									Description: "The value to compare against.",
+									Optional:    true,
+								},
+							},
+						},
+					},
+					"effects": resource_schema.ListNestedAttribute{
+						Description: "The effects to apply when the condition is met.",
+						Optional:    true,
+						NestedObject: resource_schema.NestedAttributeObject{
+							Attributes: map[string]resource_schema.Attribute{
+								"effect_type": resource_schema.StringAttribute{
+									Description: "The type of effect (SHOW, HIDE, ENABLE, DISABLE, REQUIRE, OPTIONAL, SET_DEFAULT_VALUE).",
+									Optional:    true,
+								},
+								"config": resource_schema.SingleNestedAttribute{
+									Description: "The effect configuration.",
+									Optional:    true,
+									Attributes: map[string]resource_schema.Attribute{
+										"default_value_label": resource_schema.StringAttribute{
+											Description: "The default value label (for SET_DEFAULT_VALUE effect type).",
+											Optional:    true,
+										},
+										"element": resource_schema.StringAttribute{
+											Description: "The ID of the element to apply the effect to (can be string or number).",
+											Optional:    true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 		"created": resource_schema.StringAttribute{
 			Description:         desc["created"].description,
@@ -233,10 +291,72 @@ func (sb *FormDefinitionSchemaBuilder) GetDataSourceSchema() map[string]datasour
 			MarkdownDescription: desc["form_elements"].markdown,
 			Computed:            true,
 		},
-		"form_conditions": datasource_schema.StringAttribute{
+		"form_conditions": datasource_schema.ListNestedAttribute{
 			Description:         desc["form_conditions"].description,
 			MarkdownDescription: desc["form_conditions"].markdown,
 			Computed:            true,
+			NestedObject: datasource_schema.NestedAttributeObject{
+				Attributes: map[string]datasource_schema.Attribute{
+					"rule_operator": datasource_schema.StringAttribute{
+						Description: "The logical operator to apply to the rules (AND, OR).",
+						Computed:    true,
+					},
+					"rules": datasource_schema.ListNestedAttribute{
+						Description: "The list of rules that make up the condition.",
+						Computed:    true,
+						NestedObject: datasource_schema.NestedAttributeObject{
+							Attributes: map[string]datasource_schema.Attribute{
+								"source_type": datasource_schema.StringAttribute{
+									Description: "The type of the source (e.g., ELEMENT, INPUT).",
+									Computed:    true,
+								},
+								"source": datasource_schema.StringAttribute{
+									Description: "The ID of the source element or input.",
+									Computed:    true,
+								},
+								"operator": datasource_schema.StringAttribute{
+									Description: "The comparison operator (EQ, NE, GT, LT, etc.).",
+									Computed:    true,
+								},
+								"value_type": datasource_schema.StringAttribute{
+									Description: "The type of the value being compared (STRING, NUMBER, BOOLEAN).",
+									Computed:    true,
+								},
+								"value": datasource_schema.StringAttribute{
+									Description: "The value to compare against.",
+									Computed:    true,
+								},
+							},
+						},
+					},
+					"effects": datasource_schema.ListNestedAttribute{
+						Description: "The effects to apply when the condition is met.",
+						Computed:    true,
+						NestedObject: datasource_schema.NestedAttributeObject{
+							Attributes: map[string]datasource_schema.Attribute{
+								"effect_type": datasource_schema.StringAttribute{
+									Description: "The type of effect (SHOW, HIDE, ENABLE, DISABLE, REQUIRE, OPTIONAL, SET_DEFAULT_VALUE).",
+									Computed:    true,
+								},
+								"config": datasource_schema.SingleNestedAttribute{
+									Description: "The effect configuration.",
+									Computed:    true,
+									Attributes: map[string]datasource_schema.Attribute{
+										"default_value_label": datasource_schema.StringAttribute{
+											Description: "The default value label (for SET_DEFAULT_VALUE effect type).",
+											Computed:    true,
+										},
+										"element": datasource_schema.StringAttribute{
+											Description: "The ID of the element to apply the effect to (can be string or number).",
+											Computed:    true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 		"created": datasource_schema.StringAttribute{
 			Description:         desc["created"].description,

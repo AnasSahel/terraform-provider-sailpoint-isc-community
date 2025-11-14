@@ -13,16 +13,16 @@ import (
 
 // FormDefinition represents the Terraform model for a SailPoint Form Definition.
 type FormDefinition struct {
-	ID             types.String `tfsdk:"id"`
-	Name           types.String `tfsdk:"name"`
-	Description    types.String `tfsdk:"description"`
-	Owner          *ObjectRef   `tfsdk:"owner"`
-	UsedBy         []ObjectRef  `tfsdk:"used_by"`          // List of object references
-	FormInput      []FormInput  `tfsdk:"form_input"`       // List of form inputs
-	FormElements   types.String `tfsdk:"form_elements"`    // JSON string
-	FormConditions types.String `tfsdk:"form_conditions"`  // JSON string
-	Created        types.String `tfsdk:"created"`
-	Modified       types.String `tfsdk:"modified"`
+	ID             types.String    `tfsdk:"id"`
+	Name           types.String    `tfsdk:"name"`
+	Description    types.String    `tfsdk:"description"`
+	Owner          *ObjectRef      `tfsdk:"owner"`
+	UsedBy         []ObjectRef     `tfsdk:"used_by"`          // List of object references
+	FormInput      []FormInput     `tfsdk:"form_input"`       // List of form inputs
+	FormElements   types.String    `tfsdk:"form_elements"`    // JSON string
+	FormConditions []FormCondition `tfsdk:"form_conditions"`  // List of form conditions
+	Created        types.String    `tfsdk:"created"`
+	Modified       types.String    `tfsdk:"modified"`
 }
 
 // ConvertToSailPoint converts the Terraform model to a SailPoint API FormDefinition.
@@ -80,13 +80,13 @@ func (f *FormDefinition) ConvertToSailPoint(ctx context.Context) (*client.FormDe
 		form.FormInput = inputMaps
 	}
 
-	// Parse FormConditions JSON string to slice of maps
-	if !f.FormConditions.IsNull() && !f.FormConditions.IsUnknown() {
-		var conditions []map[string]interface{}
-		if err := json.Unmarshal([]byte(f.FormConditions.ValueString()), &conditions); err != nil {
-			return nil, err
+	// Convert FormConditions array to slice of maps
+	if f.FormConditions != nil && len(f.FormConditions) > 0 {
+		conditionMaps := make([]map[string]interface{}, len(f.FormConditions))
+		for i, condition := range f.FormConditions {
+			conditionMaps[i] = condition.ConvertToSailPoint(ctx)
 		}
-		form.FormConditions = conditions
+		form.FormConditions = conditionMaps
 	}
 
 	return form, nil
@@ -146,9 +146,8 @@ func (f *FormDefinition) ConvertFromSailPoint(ctx context.Context, form *client.
 			formInputs[i].ConvertFromSailPoint(ctx, inputMap)
 		}
 		f.FormInput = formInputs
-	} else {
-		f.FormInput = []FormInput{}
 	}
+	// If nil or empty, leave FormInput as nil to preserve null vs [] distinction
 
 	// FormElements
 	if form.FormElements != nil && len(form.FormElements) > 0 {
@@ -165,14 +164,13 @@ func (f *FormDefinition) ConvertFromSailPoint(ctx context.Context, form *client.
 
 	// FormConditions
 	if form.FormConditions != nil && len(form.FormConditions) > 0 {
-		conditionsJSON, err := json.Marshal(form.FormConditions)
-		if err != nil {
-			return err
+		formConditions := make([]FormCondition, len(form.FormConditions))
+		for i, conditionMap := range form.FormConditions {
+			formConditions[i].ConvertFromSailPoint(ctx, conditionMap)
 		}
-		f.FormConditions = types.StringValue(string(conditionsJSON))
-	} else if includeNull {
-		f.FormConditions = types.StringNull()
+		f.FormConditions = formConditions
 	}
+	// If nil or empty, leave FormConditions as nil to preserve null vs [] distinction
 
 	// Created and Modified timestamps
 	if form.Created != "" {
@@ -301,23 +299,16 @@ func (f *FormDefinition) GeneratePatchOperations(ctx context.Context, newForm Fo
 	}
 
 	// FormConditions
-	if !f.FormConditions.Equal(newForm.FormConditions) {
-		if newForm.FormConditions.IsNull() {
-			operations = append(operations, map[string]interface{}{
-				"op":   "remove",
-				"path": "/formConditions",
-			})
-		} else {
-			var conditions []map[string]interface{}
-			if err := json.Unmarshal([]byte(newForm.FormConditions.ValueString()), &conditions); err != nil {
-				return nil, err
-			}
-			operations = append(operations, map[string]interface{}{
-				"op":    "replace",
-				"path":  "/formConditions",
-				"value": conditions,
-			})
+	if !formConditionsEqual(f.FormConditions, newForm.FormConditions) {
+		conditionMaps := make([]map[string]interface{}, len(newForm.FormConditions))
+		for i, condition := range newForm.FormConditions {
+			conditionMaps[i] = condition.ConvertToSailPoint(ctx)
 		}
+		operations = append(operations, map[string]interface{}{
+			"op":    "replace",
+			"path":  "/formConditions",
+			"value": conditionMaps,
+		})
 	}
 
 	return operations, nil
@@ -421,6 +412,58 @@ func formInputEqual(a, b []FormInput) bool {
 			!a[i].Label.Equal(b[i].Label) ||
 			!a[i].Description.Equal(b[i].Description) {
 			return false
+		}
+	}
+
+	return true
+}
+
+// formConditionsEqual compares two FormCondition slices to determine if they are equal.
+func formConditionsEqual(a, b []FormCondition) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		// Compare rule operator
+		if !a[i].RuleOperator.Equal(b[i].RuleOperator) {
+			return false
+		}
+
+		// Compare rules
+		if len(a[i].Rules) != len(b[i].Rules) {
+			return false
+		}
+		for j := range a[i].Rules {
+			if !a[i].Rules[j].SourceType.Equal(b[i].Rules[j].SourceType) ||
+				!a[i].Rules[j].Source.Equal(b[i].Rules[j].Source) ||
+				!a[i].Rules[j].Operator.Equal(b[i].Rules[j].Operator) ||
+				!a[i].Rules[j].ValueType.Equal(b[i].Rules[j].ValueType) ||
+				!a[i].Rules[j].Value.Equal(b[i].Rules[j].Value) {
+				return false
+			}
+		}
+
+		// Compare effects
+		if len(a[i].Effects) != len(b[i].Effects) {
+			return false
+		}
+		for j := range a[i].Effects {
+			if !a[i].Effects[j].EffectType.Equal(b[i].Effects[j].EffectType) {
+				return false
+			}
+			// Compare configs
+			aConfig := a[i].Effects[j].Config
+			bConfig := b[i].Effects[j].Config
+			if (aConfig == nil) != (bConfig == nil) {
+				return false
+			}
+			if aConfig != nil && bConfig != nil {
+				if !aConfig.DefaultValueLabel.Equal(bConfig.DefaultValueLabel) ||
+					!aConfig.Element.Equal(bConfig.Element) {
+					return false
+				}
+			}
 		}
 	}
 

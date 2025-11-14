@@ -52,13 +52,53 @@ output "form_elements" {
 
 - `created` (String) ISO 8601 timestamp indicating when the form definition was created.
 - `description` (String) Description text that explains the purpose of this form.
-- `form_conditions` (String) Form conditions configuration defining conditional logic that modifies the form dynamically, represented as a JSON string.
+- `form_conditions` (Attributes List) Form conditions configuration defining conditional logic that modifies the form dynamically, represented as a JSON string. (see [below for nested schema](#nestedatt--form_conditions))
 - `form_elements` (String) **Required.** Form elements configuration defining sections and fields for data collection, represented as a JSON string. Forms are composed of sections that split the form into logical groups, and fields that are the data collection points. At minimum, a form must contain one section with at least one field.
 - `form_input` (Attributes List) Form input configuration defining the data sources and inputs for the form, represented as a JSON string. (see [below for nested schema](#nestedatt--form_input))
 - `modified` (String) ISO 8601 timestamp indicating when the form definition was last modified.
 - `name` (String) Name of the form as it appears in the UI.
 - `owner` (Attributes) **Required.** Owner reference containing the identity who owns this form. Must include type (e.g., 'IDENTITY') and id fields. (see [below for nested schema](#nestedatt--owner))
 - `used_by` (Attributes List) Optional list of object references showing which systems are using this form definition. Can be set during creation to indicate workflows or other systems that will use the form. Each reference must include type and id, with name being optional. (see [below for nested schema](#nestedatt--used_by))
+
+<a id="nestedatt--form_conditions"></a>
+### Nested Schema for `form_conditions`
+
+Read-Only:
+
+- `effects` (Attributes List) The effects to apply when the condition is met. (see [below for nested schema](#nestedatt--form_conditions--effects))
+- `rule_operator` (String) The logical operator to apply to the rules (AND, OR).
+- `rules` (Attributes List) The list of rules that make up the condition. (see [below for nested schema](#nestedatt--form_conditions--rules))
+
+<a id="nestedatt--form_conditions--effects"></a>
+### Nested Schema for `form_conditions.effects`
+
+Read-Only:
+
+- `config` (Attributes) The effect configuration. (see [below for nested schema](#nestedatt--form_conditions--effects--config))
+- `effect_type` (String) The type of effect (SHOW, HIDE, ENABLE, DISABLE, REQUIRE, OPTIONAL, SET_DEFAULT_VALUE).
+
+<a id="nestedatt--form_conditions--effects--config"></a>
+### Nested Schema for `form_conditions.effects.config`
+
+Read-Only:
+
+- `default_value_label` (String) The default value label (for SET_DEFAULT_VALUE effect type).
+- `element` (String) The ID of the element to apply the effect to (can be string or number).
+
+
+
+<a id="nestedatt--form_conditions--rules"></a>
+### Nested Schema for `form_conditions.rules`
+
+Read-Only:
+
+- `operator` (String) The comparison operator (EQ, NE, GT, LT, etc.).
+- `source` (String) The ID of the source element or input.
+- `source_type` (String) The type of the source (e.g., ELEMENT, INPUT).
+- `value` (String) The value to compare against.
+- `value_type` (String) The type of the value being compared (STRING, NUMBER, BOOLEAN).
+
+
 
 <a id="nestedatt--form_input"></a>
 ### Nested Schema for `form_input`
