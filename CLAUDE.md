@@ -67,20 +67,31 @@ internal/provider/
 ├── client/          # Custom REST client for SailPoint API
 │   ├── client.go    # Base client with retry logic and error handling
 │   ├── auth.go      # OAuth2 token management
-│   └── sources.go   # Source-specific API methods
+│   ├── errors.go    # Error formatting and handling
+│   ├── transforms.go # Transform-specific API methods
+│   ├── forms.go     # Form Definition-specific API methods
+│   ├── workflows.go # Workflow-specific API methods
+│   ├── patch.go     # JSON Patch utilities
+│   └── types.go     # Shared client types
 ├── models/          # Terraform model structs with conversion methods
-│   ├── source.go    # Source resource model
+│   ├── transform.go # Transform resource model
+│   ├── form_definition.go # Form Definition resource model
+│   ├── workflow.go  # Workflow resource model
 │   ├── object_ref.go # Reusable nested object reference
 │   └── helpers.go   # Generic conversion utilities
 ├── schemas/         # Terraform schema definitions
-│   ├── source_schemas.go     # Source schema builder
-│   └── object_ref_schema.go  # Reusable nested schema
+│   ├── transform_schemas.go     # Transform schema builder
+│   ├── form_definition_schemas.go # Form Definition schema builder
+│   ├── workflow_schemas.go      # Workflow schema builder
+│   └── object_ref_schema.go     # Reusable nested schema
 ├── resources/       # Resource implementations
-│   └── source.go    # Source resource CRUD operations
+│   ├── transform_resource.go          # Transform resource CRUD operations
+│   ├── form_definition_resource.go    # Form Definition resource CRUD operations
+│   └── workflow_resource.go           # Workflow resource CRUD operations
 ├── datasources/     # Data source implementations
-│   └── source.go    # Source data source Read operation
-├── utils/           # Shared utilities
-│   └── configure.go # Client configuration helper
+│   ├── transform_data_source.go       # Transform data source Read operation
+│   ├── form_definition_data_source.go # Form Definition data source Read operation
+│   └── workflow_data_source.go        # Workflow data source Read operation
 └── provider.go      # Main provider registration
 ```
 
@@ -101,17 +112,19 @@ The provider uses a custom Resty-based HTTP client instead of the official SailP
 Models implement interfaces for bidirectional conversion between Terraform and SailPoint:
 
 ```go
-// From internal/provider/models/source.go
-type Source struct {
+// From internal/provider/models/transform.go
+type Transform struct {
     ID          types.String `tfsdk:"id"`
     Name        types.String `tfsdk:"name"`
+    Type        types.String `tfsdk:"type"`
+    Attributes  types.String `tfsdk:"attributes"`
     // ... terraform-plugin-framework types
 }
 
 // Conversion methods:
-func (s *Source) ConvertToSailPoint(ctx context.Context) client.Source
-func (s *Source) ConvertFromSailPoint(ctx context.Context, source *client.Source, includeNull bool)
-func (s *Source) GeneratePatchOperations(ctx context.Context, newSource Source) []map[string]any
+func (t *Transform) ConvertToSailPoint(ctx context.Context) client.Transform
+func (t *Transform) ConvertFromSailPoint(ctx context.Context, transform *client.Transform, includeNull bool)
+func (t *Transform) GeneratePatchOperations(ctx context.Context, newTransform Transform) []map[string]any
 ```
 
 **Important**: The `includeNull` parameter controls whether null API values overwrite Terraform state. Use `false` for data sources to preserve state, `true` for resources to clear values.
@@ -174,9 +187,9 @@ When adding new resources:
    - Use `stringplanmodifier.RequiresReplace()` for immutable fields
 
 4. **Implement CRUD** in `internal/provider/resources/`:
-   - Follow the pattern in `source.go`
+   - Follow the pattern in `transform_resource.go` or `form_definition_resource.go`
    - Use structured logging with `tflog.Debug()` and `tflog.Info()`
-   - For updates, use `GeneratePatchOperations()` and `client.PatchSource()`
+   - For updates, consider using `GeneratePatchOperations()` for PATCH or full PUT depending on API requirements
 
 5. **Register** in `internal/provider/provider.go`:
    - Add to `Resources()` or `DataSources()` slice
@@ -187,10 +200,19 @@ When adding new resources:
 - **Acceptance tests**: Require `TF_ACC=1` and valid SailPoint credentials to test against real API
 - Examples in `examples/` are used by tfplugindocs for documentation generation
 
+## Current Resources
+
+The provider currently supports:
+- **Transform** - Resource and data source for managing identity transforms
+- **Form Definition** - Resource and data source for managing custom forms
+- **Workflow** - Resource and data source for managing custom automation workflows
+
 ## Common Pitfalls
 
 1. **Don't use the official SailPoint SDK** - This provider uses a custom REST client
 2. **Watch null vs computed** - Data sources should use `includeNull: false` to avoid clearing user-configured values
-3. **Patch operations require exact JSON Patch format** - Use the model's `GeneratePatchOperations()` method
+3. **API update methods vary** - Some resources use PATCH with JSON Patch format (older pattern), others use PUT with full object (Transform, Workflow). Check the API documentation for each resource.
 4. **Rate limits** - SailPoint has a 100 requests per 10 seconds limit; the client handles retries automatically
 5. **Token refresh** - The client refreshes tokens 5 minutes before expiry; don't implement manual refresh
+6. **Form Definition complexity** - Forms have nested structures (fields, conditions, inputs) that require careful type handling and validation
+7. **Workflow deletion** - Workflows must be disabled before they can be deleted. The provider automatically handles disabling workflows during deletion.

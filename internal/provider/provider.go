@@ -156,6 +156,7 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 	return []func() datasource.DataSource{
 		datasources.NewTransformDataSource,
 		datasources.NewFormDefinitionDataSource,
+		datasources.NewWorkflowDataSource,
 	}
 }
 
@@ -164,5 +165,6 @@ func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resou
 	return []func() resource.Resource{
 		resources.NewTransformResource,
 		resources.NewFormDefinitionResource,
+		resources.NewWorkflowResource,
 	}
 }
