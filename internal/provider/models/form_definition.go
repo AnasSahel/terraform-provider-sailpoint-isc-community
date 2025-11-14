@@ -18,7 +18,7 @@ type FormDefinition struct {
 	Description    types.String `tfsdk:"description"`
 	Owner          *ObjectRef   `tfsdk:"owner"`
 	UsedBy         []ObjectRef  `tfsdk:"used_by"`          // List of object references
-	FormInput      types.String `tfsdk:"form_input"`       // JSON string
+	FormInput      []FormInput  `tfsdk:"form_input"`       // List of form inputs
 	FormElements   types.String `tfsdk:"form_elements"`    // JSON string
 	FormConditions types.String `tfsdk:"form_conditions"`  // JSON string
 	Created        types.String `tfsdk:"created"`
@@ -46,6 +46,22 @@ func (f *FormDefinition) ConvertToSailPoint(ctx context.Context) (*client.FormDe
 		form.Owner = &ownerRef
 	}
 
+	// UsedBy
+	if f.UsedBy != nil && len(f.UsedBy) > 0 {
+		usedByMaps := make([]map[string]interface{}, len(f.UsedBy))
+		for i, ref := range f.UsedBy {
+			apiRef := ref.ConvertToSailPoint(ctx)
+			usedByMaps[i] = map[string]interface{}{
+				"type": apiRef.Type,
+				"id":   apiRef.ID,
+			}
+			if apiRef.Name != "" {
+				usedByMaps[i]["name"] = apiRef.Name
+			}
+		}
+		form.UsedBy = usedByMaps
+	}
+
 	// Parse FormElements JSON string to slice of maps
 	if !f.FormElements.IsNull() && !f.FormElements.IsUnknown() {
 		var elements []map[string]interface{}
@@ -55,13 +71,13 @@ func (f *FormDefinition) ConvertToSailPoint(ctx context.Context) (*client.FormDe
 		form.FormElements = elements
 	}
 
-	// Parse FormInput JSON string to slice of maps
-	if !f.FormInput.IsNull() && !f.FormInput.IsUnknown() {
-		var input []map[string]interface{}
-		if err := json.Unmarshal([]byte(f.FormInput.ValueString()), &input); err != nil {
-			return nil, err
+	// Convert FormInput array to slice of maps
+	if f.FormInput != nil && len(f.FormInput) > 0 {
+		inputMaps := make([]map[string]interface{}, len(f.FormInput))
+		for i, input := range f.FormInput {
+			inputMaps[i] = input.ConvertToSailPoint(ctx)
 		}
-		form.FormInput = input
+		form.FormInput = inputMaps
 	}
 
 	// Parse FormConditions JSON string to slice of maps
@@ -125,13 +141,13 @@ func (f *FormDefinition) ConvertFromSailPoint(ctx context.Context, form *client.
 
 	// FormInput
 	if form.FormInput != nil && len(form.FormInput) > 0 {
-		inputJSON, err := json.Marshal(form.FormInput)
-		if err != nil {
-			return err
+		formInputs := make([]FormInput, len(form.FormInput))
+		for i, inputMap := range form.FormInput {
+			formInputs[i].ConvertFromSailPoint(ctx, inputMap)
 		}
-		f.FormInput = types.StringValue(string(inputJSON))
-	} else if includeNull {
-		f.FormInput = types.StringNull()
+		f.FormInput = formInputs
+	} else {
+		f.FormInput = []FormInput{}
 	}
 
 	// FormElements
@@ -231,6 +247,26 @@ func (f *FormDefinition) GeneratePatchOperations(ctx context.Context, newForm Fo
 		}
 	}
 
+	// UsedBy
+	if !usedByEqual(f.UsedBy, newForm.UsedBy) {
+		usedByMaps := make([]map[string]interface{}, len(newForm.UsedBy))
+		for i, ref := range newForm.UsedBy {
+			apiRef := ref.ConvertToSailPoint(ctx)
+			usedByMaps[i] = map[string]interface{}{
+				"type": apiRef.Type,
+				"id":   apiRef.ID,
+			}
+			if apiRef.Name != "" {
+				usedByMaps[i]["name"] = apiRef.Name
+			}
+		}
+		operations = append(operations, map[string]interface{}{
+			"op":    "replace",
+			"path":  "/usedBy",
+			"value": usedByMaps,
+		})
+	}
+
 	// FormElements
 	if !f.FormElements.Equal(newForm.FormElements) {
 		if newForm.FormElements.IsNull() {
@@ -252,23 +288,16 @@ func (f *FormDefinition) GeneratePatchOperations(ctx context.Context, newForm Fo
 	}
 
 	// FormInput
-	if !f.FormInput.Equal(newForm.FormInput) {
-		if newForm.FormInput.IsNull() {
-			operations = append(operations, map[string]interface{}{
-				"op":   "remove",
-				"path": "/formInput",
-			})
-		} else {
-			var input []map[string]interface{}
-			if err := json.Unmarshal([]byte(newForm.FormInput.ValueString()), &input); err != nil {
-				return nil, err
-			}
-			operations = append(operations, map[string]interface{}{
-				"op":    "replace",
-				"path":  "/formInput",
-				"value": input,
-			})
+	if !formInputEqual(f.FormInput, newForm.FormInput) {
+		inputMaps := make([]map[string]interface{}, len(newForm.FormInput))
+		for i, input := range newForm.FormInput {
+			inputMaps[i] = input.ConvertToSailPoint(ctx)
 		}
+		operations = append(operations, map[string]interface{}{
+			"op":    "replace",
+			"path":  "/formInput",
+			"value": inputMaps,
+		})
 	}
 
 	// FormConditions
@@ -344,4 +373,56 @@ func normalizeFormElements(elements []map[string]interface{}) []map[string]inter
 	}
 
 	return normalized
+}
+
+// usedByEqual compares two UsedBy slices to determine if they are equal.
+// Two UsedBy slices are equal if they have the same length and all corresponding
+// elements have matching type, id, and name values.
+func usedByEqual(a, b []ObjectRef) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	// Create a map to track matches
+	// This handles cases where the order might be different
+	matchedIndices := make(map[int]bool)
+
+	for _, aRef := range a {
+		found := false
+		for j, bRef := range b {
+			if matchedIndices[j] {
+				continue // Already matched
+			}
+			if aRef.Type.Equal(bRef.Type) && aRef.ID.Equal(bRef.ID) && aRef.Name.Equal(bRef.Name) {
+				matchedIndices[j] = true
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+
+	return true
+}
+
+// formInputEqual compares two FormInput slices to determine if they are equal.
+// Two FormInput slices are equal if they have the same length and all corresponding
+// elements have matching id, type, label, and description values.
+func formInputEqual(a, b []FormInput) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if !a[i].ID.Equal(b[i].ID) ||
+			!a[i].Type.Equal(b[i].Type) ||
+			!a[i].Label.Equal(b[i].Label) ||
+			!a[i].Description.Equal(b[i].Description) {
+			return false
+		}
+	}
+
+	return true
 }

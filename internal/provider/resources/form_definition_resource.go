@@ -167,11 +167,21 @@ func (r *formDefinitionResource) Update(ctx context.Context, req resource.Update
 	}
 
 	// Update the form definition via API
-	updatedForm, err := r.client.PatchFormDefinition(ctx, plan.ID.ValueString(), operations)
+	_, err = r.client.PatchFormDefinition(ctx, plan.ID.ValueString(), operations)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating Form Definition",
 			fmt.Sprintf("An error occurred while updating the form definition: %s", err.Error()),
+		)
+		return
+	}
+
+	// Read back the updated form to get the latest state including timestamps
+	updatedForm, err := r.client.GetFormDefinition(ctx, plan.ID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Updated Form Definition",
+			fmt.Sprintf("Could not read form definition after update: %s", err.Error()),
 		)
 		return
 	}

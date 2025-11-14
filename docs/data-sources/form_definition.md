@@ -54,11 +54,22 @@ output "form_elements" {
 - `description` (String) Description text that explains the purpose of this form.
 - `form_conditions` (String) Form conditions configuration defining conditional logic that modifies the form dynamically, represented as a JSON string.
 - `form_elements` (String) **Required.** Form elements configuration defining sections and fields for data collection, represented as a JSON string. Forms are composed of sections that split the form into logical groups, and fields that are the data collection points. At minimum, a form must contain one section with at least one field.
-- `form_input` (String) Form input configuration defining the data sources and inputs for the form, represented as a JSON string.
+- `form_input` (Attributes List) Form input configuration defining the data sources and inputs for the form, represented as a JSON string. (see [below for nested schema](#nestedatt--form_input))
 - `modified` (String) ISO 8601 timestamp indicating when the form definition was last modified.
 - `name` (String) Name of the form as it appears in the UI.
 - `owner` (Attributes) **Required.** Owner reference containing the identity who owns this form. Must include type (e.g., 'IDENTITY') and id fields. (see [below for nested schema](#nestedatt--owner))
-- `used_by` (Attributes List) List of object references showing which systems are using this form definition. Automatically tracked by the API when systems use the form. Each reference includes type, id, and name. (see [below for nested schema](#nestedatt--used_by))
+- `used_by` (Attributes List) Optional list of object references showing which systems are using this form definition. Can be set during creation to indicate workflows or other systems that will use the form. Each reference must include type and id, with name being optional. (see [below for nested schema](#nestedatt--used_by))
+
+<a id="nestedatt--form_input"></a>
+### Nested Schema for `form_input`
+
+Read-Only:
+
+- `description` (String) The description of the form input.
+- `id` (String) The unique identifier of the form input.
+- `label` (String) The label for the form input.
+- `type` (String) The type of the form input (e.g., STRING, BOOLEAN, ARRAY).
+
 
 <a id="nestedatt--owner"></a>
 ### Nested Schema for `owner`

@@ -275,14 +275,14 @@ resource "sailpoint_form_definition" "onboarding_form" {
 
 - `description` (String) Description text that explains the purpose of this form.
 - `form_conditions` (String) Form conditions configuration defining conditional logic that modifies the form dynamically, represented as a JSON string.
-- `form_input` (String) Form input configuration defining the data sources and inputs for the form, represented as a JSON string.
+- `form_input` (Attributes List) Form input configuration defining the data sources and inputs for the form, represented as a JSON string. (see [below for nested schema](#nestedatt--form_input))
+- `used_by` (Attributes List) Optional list of object references showing which systems are using this form definition. Can be set during creation to indicate workflows or other systems that will use the form. Each reference must include type and id, with name being optional. (see [below for nested schema](#nestedatt--used_by))
 
 ### Read-Only
 
 - `created` (String) ISO 8601 timestamp indicating when the form definition was created.
 - `id` (String) Unique identifier (UUID) of the form definition.
 - `modified` (String) ISO 8601 timestamp indicating when the form definition was last modified.
-- `used_by` (Attributes List) List of object references showing which systems are using this form definition. Automatically tracked by the API when systems use the form. Each reference includes type, id, and name. (see [below for nested schema](#nestedatt--used_by))
 
 <a id="nestedatt--owner"></a>
 ### Nested Schema for `owner`
@@ -297,14 +297,31 @@ Optional:
 - `name` (String) The name of the referenced object.
 
 
+<a id="nestedatt--form_input"></a>
+### Nested Schema for `form_input`
+
+Required:
+
+- `id` (String) The unique identifier of the form input.
+- `type` (String) The type of the form input (e.g., STRING, BOOLEAN, ARRAY).
+
+Optional:
+
+- `description` (String) The description of the form input.
+- `label` (String) The label for the form input.
+
+
 <a id="nestedatt--used_by"></a>
 ### Nested Schema for `used_by`
 
-Read-Only:
+Required:
 
 - `id` (String) The unique identifier of the referenced object.
-- `name` (String) The name of the referenced object.
 - `type` (String) The type of the referenced object.
+
+Optional:
+
+- `name` (String) The name of the referenced object.
 
 ## Import
 

@@ -6,6 +6,7 @@ package schemas
 import (
 	datasource_schema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	resource_schema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 )
@@ -61,28 +62,60 @@ func (sb *FormDefinitionSchemaBuilder) GetResourceSchema() map[string]resource_s
 		"used_by": resource_schema.ListNestedAttribute{
 			Description:         desc["used_by"].description,
 			MarkdownDescription: desc["used_by"].markdown,
+			Optional:            true,
 			Computed:            true,
+			PlanModifiers: []planmodifier.List{
+				listplanmodifier.UseStateForUnknown(),
+			},
 			NestedObject: resource_schema.NestedAttributeObject{
 				Attributes: map[string]resource_schema.Attribute{
 					"type": resource_schema.StringAttribute{
 						Description: "The type of the referenced object.",
-						Computed:    true,
+						Required:    true,
 					},
 					"id": resource_schema.StringAttribute{
 						Description: "The unique identifier of the referenced object.",
-						Computed:    true,
+						Required:    true,
 					},
 					"name": resource_schema.StringAttribute{
 						Description: "The name of the referenced object.",
+						Optional:    true,
 						Computed:    true,
+						PlanModifiers: []planmodifier.String{
+							stringplanmodifier.UseStateForUnknown(),
+						},
 					},
 				},
 			},
 		},
-		"form_input": resource_schema.StringAttribute{
+		"form_input": resource_schema.ListNestedAttribute{
 			Description:         desc["form_input"].description,
 			MarkdownDescription: desc["form_input"].markdown,
 			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.List{
+				listplanmodifier.UseStateForUnknown(),
+			},
+			NestedObject: resource_schema.NestedAttributeObject{
+				Attributes: map[string]resource_schema.Attribute{
+					"id": resource_schema.StringAttribute{
+						Description: "The unique identifier of the form input.",
+						Required:    true,
+					},
+					"type": resource_schema.StringAttribute{
+						Description: "The type of the form input (e.g., STRING, BOOLEAN, ARRAY).",
+						Required:    true,
+					},
+					"label": resource_schema.StringAttribute{
+						Description: "The label for the form input.",
+						Optional:    true,
+					},
+					"description": resource_schema.StringAttribute{
+						Description: "The description of the form input.",
+						Optional:    true,
+					},
+				},
+			},
 		},
 		"form_elements": resource_schema.StringAttribute{
 			Description:         desc["form_elements"].description,
@@ -98,6 +131,9 @@ func (sb *FormDefinitionSchemaBuilder) GetResourceSchema() map[string]resource_s
 			Description:         desc["created"].description,
 			MarkdownDescription: desc["created"].markdown,
 			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
 		},
 		"modified": resource_schema.StringAttribute{
 			Description:         desc["modified"].description,
@@ -167,10 +203,30 @@ func (sb *FormDefinitionSchemaBuilder) GetDataSourceSchema() map[string]datasour
 				},
 			},
 		},
-		"form_input": datasource_schema.StringAttribute{
+		"form_input": datasource_schema.ListNestedAttribute{
 			Description:         desc["form_input"].description,
 			MarkdownDescription: desc["form_input"].markdown,
 			Computed:            true,
+			NestedObject: datasource_schema.NestedAttributeObject{
+				Attributes: map[string]datasource_schema.Attribute{
+					"id": datasource_schema.StringAttribute{
+						Description: "The unique identifier of the form input.",
+						Computed:    true,
+					},
+					"type": datasource_schema.StringAttribute{
+						Description: "The type of the form input (e.g., STRING, BOOLEAN, ARRAY).",
+						Computed:    true,
+					},
+					"label": datasource_schema.StringAttribute{
+						Description: "The label for the form input.",
+						Computed:    true,
+					},
+					"description": datasource_schema.StringAttribute{
+						Description: "The description of the form input.",
+						Computed:    true,
+					},
+				},
+			},
 		},
 		"form_elements": datasource_schema.StringAttribute{
 			Description:         desc["form_elements"].description,
@@ -221,8 +277,8 @@ func (sb *FormDefinitionSchemaBuilder) fieldDescriptions() map[string]struct {
 			markdown:    "**Required.** Owner reference containing the identity who owns this form. Must include type (e.g., 'IDENTITY') and id fields.",
 		},
 		"used_by": {
-			description: "List of objects using this form definition.",
-			markdown:    "List of object references showing which systems are using this form definition. Automatically tracked by the API when systems use the form. Each reference includes type, id, and name.",
+			description: "Optional list of objects using this form definition.",
+			markdown:    "Optional list of object references showing which systems are using this form definition. Can be set during creation to indicate workflows or other systems that will use the form. Each reference must include type and id, with name being optional.",
 		},
 		"form_input": {
 			description: "Form input configuration as a JSON string.",
