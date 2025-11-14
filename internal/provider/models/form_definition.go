@@ -125,7 +125,9 @@ func (f *FormDefinition) ConvertFromSailPoint(ctx context.Context, form *client.
 
 	// FormElements
 	if form.FormElements != nil && len(form.FormElements) > 0 {
-		elementsJSON, err := json.Marshal(form.FormElements)
+		// Normalize form elements by removing empty validations arrays that the API adds
+		normalizedElements := normalizeFormElements(form.FormElements)
+		elementsJSON, err := json.Marshal(normalizedElements)
 		if err != nil {
 			return err
 		}
@@ -279,4 +281,56 @@ func (f *FormDefinition) GeneratePatchOperations(ctx context.Context, newForm Fo
 	}
 
 	return operations, nil
+}
+
+// normalizeFormElements removes empty arrays and API-added fields from form elements
+// to prevent state inconsistency errors. The SailPoint API adds empty "validations"
+// arrays to form elements even when not provided, which causes Terraform to detect
+// a diff between the plan and the actual state.
+func normalizeFormElements(elements []map[string]interface{}) []map[string]interface{} {
+	normalized := make([]map[string]interface{}, len(elements))
+
+	for i, element := range elements {
+		normalizedElement := make(map[string]interface{})
+
+		for key, value := range element {
+			// Skip empty validations arrays
+			if key == "validations" {
+				if arr, ok := value.([]interface{}); ok && len(arr) == 0 {
+					continue
+				}
+			}
+
+			// Recursively normalize nested formElements (for sections)
+			if key == "config" {
+				if configMap, ok := value.(map[string]interface{}); ok {
+					normalizedConfig := make(map[string]interface{})
+					for configKey, configValue := range configMap {
+						if configKey == "formElements" {
+							if nestedElements, ok := configValue.([]interface{}); ok {
+								// Convert to []map[string]interface{} for recursion
+								nestedMaps := make([]map[string]interface{}, len(nestedElements))
+								for j, ne := range nestedElements {
+									if neMap, ok := ne.(map[string]interface{}); ok {
+										nestedMaps[j] = neMap
+									}
+								}
+								normalizedConfig[configKey] = normalizeFormElements(nestedMaps)
+								continue
+							}
+						}
+						normalizedConfig[configKey] = configValue
+					}
+					normalizedElement[key] = normalizedConfig
+					continue
+				}
+			}
+
+			normalizedElement[key] = value
+		}
+
+		normalized[i] = normalizedElement
+	}
+
+	return normalized
 }
