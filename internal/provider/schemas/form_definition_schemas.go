@@ -42,15 +42,15 @@ func (sb *FormDefinitionSchemaBuilder) GetResourceSchema() map[string]resource_s
 		"owner": resource_schema.SingleNestedAttribute{
 			Description:         desc["owner"].description,
 			MarkdownDescription: desc["owner"].markdown,
-			Optional:            true,
+			Required:            true,
 			Attributes: map[string]resource_schema.Attribute{
 				"type": resource_schema.StringAttribute{
 					Description: "The type of the referenced object.",
-					Optional:    true,
+					Required:    true,
 				},
 				"id": resource_schema.StringAttribute{
 					Description: "The unique identifier of the referenced object.",
-					Optional:    true,
+					Required:    true,
 				},
 				"name": resource_schema.StringAttribute{
 					Description: "The name of the referenced object.",
@@ -185,8 +185,8 @@ func (sb *FormDefinitionSchemaBuilder) fieldDescriptions() map[string]struct {
 			markdown:    "Description text that explains the purpose of this form.",
 		},
 		"owner": {
-			description: "Owner of the form definition.",
-			markdown:    "Owner reference containing the identity who owns this form. Includes type, id, and name fields.",
+			description: "Owner of the form definition. Required - must specify type and id.",
+			markdown:    "**Required.** Owner reference containing the identity who owns this form. Must include type (e.g., 'IDENTITY') and id fields.",
 		},
 		"used_by": {
 			description: "List of objects using this form definition, represented as a JSON string.",

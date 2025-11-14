@@ -1,9 +1,10 @@
 # SailPoint Form Definition Resource Examples
 #
 # IMPORTANT NOTES:
+# - REQUIRED FIELDS: name, owner (with type and id), form_elements
 # - Forms are composed of sections and fields for data collection
-# - The 'name' field is required
 # - Form elements, inputs, and conditions are specified as JSON strings
+# - Each form element MUST have an 'id' field
 # - The 'owner' field references an identity who owns this form
 #
 # For more information, see:

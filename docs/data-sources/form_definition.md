@@ -57,7 +57,7 @@ output "form_elements" {
 - `form_input` (String) Form input configuration defining the data sources and inputs for the form, represented as a JSON string.
 - `modified` (String) ISO 8601 timestamp indicating when the form definition was last modified.
 - `name` (String) Name of the form as it appears in the UI.
-- `owner` (Attributes) Owner reference containing the identity who owns this form. Includes type, id, and name fields. (see [below for nested schema](#nestedatt--owner))
+- `owner` (Attributes) **Required.** Owner reference containing the identity who owns this form. Must include type (e.g., 'IDENTITY') and id fields. (see [below for nested schema](#nestedatt--owner))
 - `used_by` (String) List of objects using this form definition, represented as a JSON string. Automatically tracked when systems use the form.
 
 <a id="nestedatt--owner"></a>

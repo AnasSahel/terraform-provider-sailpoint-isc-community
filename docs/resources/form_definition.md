@@ -16,9 +16,10 @@ Manages a SailPoint Form Definition. Forms are composed of sections and fields f
 # SailPoint Form Definition Resource Examples
 #
 # IMPORTANT NOTES:
+# - REQUIRED FIELDS: name, owner (with type and id), form_elements
 # - Forms are composed of sections and fields for data collection
-# - The 'name' field is required
 # - Form elements, inputs, and conditions are specified as JSON strings
+# - Each form element MUST have an 'id' field
 # - The 'owner' field references an identity who owns this form
 #
 # For more information, see:
@@ -268,13 +269,13 @@ resource "sailpoint_form_definition" "onboarding_form" {
 
 - `form_elements` (String) **Required.** Form elements configuration defining sections and fields for data collection, represented as a JSON string. Forms are composed of sections that split the form into logical groups, and fields that are the data collection points. At minimum, a form must contain one section with at least one field.
 - `name` (String) Name of the form as it appears in the UI.
+- `owner` (Attributes) **Required.** Owner reference containing the identity who owns this form. Must include type (e.g., 'IDENTITY') and id fields. (see [below for nested schema](#nestedatt--owner))
 
 ### Optional
 
 - `description` (String) Description text that explains the purpose of this form.
 - `form_conditions` (String) Form conditions configuration defining conditional logic that modifies the form dynamically, represented as a JSON string.
 - `form_input` (String) Form input configuration defining the data sources and inputs for the form, represented as a JSON string.
-- `owner` (Attributes) Owner reference containing the identity who owns this form. Includes type, id, and name fields. (see [below for nested schema](#nestedatt--owner))
 
 ### Read-Only
 
@@ -286,11 +287,14 @@ resource "sailpoint_form_definition" "onboarding_form" {
 <a id="nestedatt--owner"></a>
 ### Nested Schema for `owner`
 
-Optional:
+Required:
 
 - `id` (String) The unique identifier of the referenced object.
-- `name` (String) The name of the referenced object.
 - `type` (String) The type of the referenced object.
+
+Optional:
+
+- `name` (String) The name of the referenced object.
 
 ## Import
 
