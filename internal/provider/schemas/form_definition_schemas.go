@@ -71,7 +71,7 @@ func (sb *FormDefinitionSchemaBuilder) GetResourceSchema() map[string]resource_s
 		"form_elements": resource_schema.StringAttribute{
 			Description:         desc["form_elements"].description,
 			MarkdownDescription: desc["form_elements"].markdown,
-			Optional:            true,
+			Required:            true,
 		},
 		"form_conditions": resource_schema.StringAttribute{
 			Description:         desc["form_conditions"].description,
@@ -197,8 +197,8 @@ func (sb *FormDefinitionSchemaBuilder) fieldDescriptions() map[string]struct {
 			markdown:    "Form input configuration defining the data sources and inputs for the form, represented as a JSON string.",
 		},
 		"form_elements": {
-			description: "Form elements configuration as a JSON string.",
-			markdown:    "Form elements configuration defining sections and fields for data collection, represented as a JSON string. Forms are composed of sections that split the form into logical groups, and fields that are the data collection points.",
+			description: "Form elements configuration as a JSON string. Required - forms must have at least one section with fields.",
+			markdown:    "**Required.** Form elements configuration defining sections and fields for data collection, represented as a JSON string. Forms are composed of sections that split the form into logical groups, and fields that are the data collection points. At minimum, a form must contain one section with at least one field.",
 		},
 		"form_conditions": {
 			description: "Form conditions configuration as a JSON string.",

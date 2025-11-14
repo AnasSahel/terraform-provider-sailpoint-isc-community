@@ -53,7 +53,7 @@ output "form_elements" {
 - `created` (String) ISO 8601 timestamp indicating when the form definition was created.
 - `description` (String) Description text that explains the purpose of this form.
 - `form_conditions` (String) Form conditions configuration defining conditional logic that modifies the form dynamically, represented as a JSON string.
-- `form_elements` (String) Form elements configuration defining sections and fields for data collection, represented as a JSON string. Forms are composed of sections that split the form into logical groups, and fields that are the data collection points.
+- `form_elements` (String) **Required.** Form elements configuration defining sections and fields for data collection, represented as a JSON string. Forms are composed of sections that split the form into logical groups, and fields that are the data collection points. At minimum, a form must contain one section with at least one field.
 - `form_input` (String) Form input configuration defining the data sources and inputs for the form, represented as a JSON string.
 - `modified` (String) ISO 8601 timestamp indicating when the form definition was last modified.
 - `name` (String) Name of the form as it appears in the UI.

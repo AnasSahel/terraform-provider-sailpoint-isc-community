@@ -266,13 +266,13 @@ resource "sailpoint_form_definition" "onboarding_form" {
 
 ### Required
 
+- `form_elements` (String) **Required.** Form elements configuration defining sections and fields for data collection, represented as a JSON string. Forms are composed of sections that split the form into logical groups, and fields that are the data collection points. At minimum, a form must contain one section with at least one field.
 - `name` (String) Name of the form as it appears in the UI.
 
 ### Optional
 
 - `description` (String) Description text that explains the purpose of this form.
 - `form_conditions` (String) Form conditions configuration defining conditional logic that modifies the form dynamically, represented as a JSON string.
-- `form_elements` (String) Form elements configuration defining sections and fields for data collection, represented as a JSON string. Forms are composed of sections that split the form into logical groups, and fields that are the data collection points.
 - `form_input` (String) Form input configuration defining the data sources and inputs for the form, represented as a JSON string.
 - `owner` (Attributes) Owner reference containing the identity who owns this form. Includes type, id, and name fields. (see [below for nested schema](#nestedatt--owner))
 
