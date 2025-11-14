@@ -13,8 +13,8 @@ import (
 // FormCondition represents a conditional logic rule for a form.
 // Conditions can show/hide/enable/disable form elements based on other element values.
 type FormCondition struct {
-	RuleOperator types.String         `tfsdk:"rule_operator"`
-	Rules        []FormConditionRule  `tfsdk:"rules"`
+	RuleOperator types.String          `tfsdk:"rule_operator"`
+	Rules        []FormConditionRule   `tfsdk:"rules"`
 	Effects      []FormConditionEffect `tfsdk:"effects"`
 }
 
@@ -29,8 +29,8 @@ type FormConditionRule struct {
 
 // FormConditionEffect represents an effect applied when condition rules are met.
 type FormConditionEffect struct {
-	EffectType   types.String              `tfsdk:"effect_type"`
-	Config       *FormConditionEffectConfig `tfsdk:"config"`
+	EffectType types.String               `tfsdk:"effect_type"`
+	Config     *FormConditionEffectConfig `tfsdk:"config"`
 }
 
 // FormConditionEffectConfig represents the configuration for a form condition effect.
@@ -51,7 +51,7 @@ func (fc *FormCondition) ConvertToSailPoint(ctx context.Context) map[string]inte
 		result["ruleOperator"] = fc.RuleOperator.ValueString()
 	}
 
-	if fc.Rules != nil && len(fc.Rules) > 0 {
+	if len(fc.Rules) > 0 {
 		rules := make([]map[string]interface{}, len(fc.Rules))
 		for i, rule := range fc.Rules {
 			rules[i] = rule.ConvertToSailPoint(ctx)
@@ -59,7 +59,7 @@ func (fc *FormCondition) ConvertToSailPoint(ctx context.Context) map[string]inte
 		result["rules"] = rules
 	}
 
-	if fc.Effects != nil && len(fc.Effects) > 0 {
+	if len(fc.Effects) > 0 {
 		effects := make([]map[string]interface{}, len(fc.Effects))
 		for i, effect := range fc.Effects {
 			effects[i] = effect.ConvertToSailPoint(ctx)

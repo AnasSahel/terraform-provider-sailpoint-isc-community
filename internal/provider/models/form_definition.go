@@ -17,10 +17,10 @@ type FormDefinition struct {
 	Name           types.String    `tfsdk:"name"`
 	Description    types.String    `tfsdk:"description"`
 	Owner          *ObjectRef      `tfsdk:"owner"`
-	UsedBy         []ObjectRef     `tfsdk:"used_by"`          // List of object references
-	FormInput      []FormInput     `tfsdk:"form_input"`       // List of form inputs
-	FormElements   types.String    `tfsdk:"form_elements"`    // JSON string
-	FormConditions []FormCondition `tfsdk:"form_conditions"`  // List of form conditions
+	UsedBy         []ObjectRef     `tfsdk:"used_by"`         // List of object references
+	FormInput      []FormInput     `tfsdk:"form_input"`      // List of form inputs
+	FormElements   types.String    `tfsdk:"form_elements"`   // JSON string
+	FormConditions []FormCondition `tfsdk:"form_conditions"` // List of form conditions
 	Created        types.String    `tfsdk:"created"`
 	Modified       types.String    `tfsdk:"modified"`
 }
@@ -47,7 +47,7 @@ func (f *FormDefinition) ConvertToSailPoint(ctx context.Context) (*client.FormDe
 	}
 
 	// UsedBy
-	if f.UsedBy != nil && len(f.UsedBy) > 0 {
+	if len(f.UsedBy) > 0 {
 		usedByMaps := make([]map[string]interface{}, len(f.UsedBy))
 		for i, ref := range f.UsedBy {
 			apiRef := ref.ConvertToSailPoint(ctx)
@@ -72,7 +72,7 @@ func (f *FormDefinition) ConvertToSailPoint(ctx context.Context) (*client.FormDe
 	}
 
 	// Convert FormInput array to slice of maps
-	if f.FormInput != nil && len(f.FormInput) > 0 {
+	if len(f.FormInput) > 0 {
 		inputMaps := make([]map[string]interface{}, len(f.FormInput))
 		for i, input := range f.FormInput {
 			inputMaps[i] = input.ConvertToSailPoint(ctx)
@@ -81,7 +81,7 @@ func (f *FormDefinition) ConvertToSailPoint(ctx context.Context) (*client.FormDe
 	}
 
 	// Convert FormConditions array to slice of maps
-	if f.FormConditions != nil && len(f.FormConditions) > 0 {
+	if len(f.FormConditions) > 0 {
 		conditionMaps := make([]map[string]interface{}, len(f.FormConditions))
 		for i, condition := range f.FormConditions {
 			conditionMaps[i] = condition.ConvertToSailPoint(ctx)
@@ -118,7 +118,7 @@ func (f *FormDefinition) ConvertFromSailPoint(ctx context.Context, form *client.
 	}
 
 	// UsedBy
-	if form.UsedBy != nil && len(form.UsedBy) > 0 {
+	if len(form.UsedBy) > 0 {
 		usedByRefs := make([]ObjectRef, len(form.UsedBy))
 		for i, usedByMap := range form.UsedBy {
 			// Convert map to client.ObjectRef
@@ -140,7 +140,7 @@ func (f *FormDefinition) ConvertFromSailPoint(ctx context.Context, form *client.
 	}
 
 	// FormInput
-	if form.FormInput != nil && len(form.FormInput) > 0 {
+	if len(form.FormInput) > 0 {
 		formInputs := make([]FormInput, len(form.FormInput))
 		for i, inputMap := range form.FormInput {
 			formInputs[i].ConvertFromSailPoint(ctx, inputMap)
@@ -150,7 +150,7 @@ func (f *FormDefinition) ConvertFromSailPoint(ctx context.Context, form *client.
 	// If nil or empty, leave FormInput as nil to preserve null vs [] distinction
 
 	// FormElements
-	if form.FormElements != nil && len(form.FormElements) > 0 {
+	if len(form.FormElements) > 0 {
 		// Normalize form elements by removing empty validations arrays that the API adds
 		normalizedElements := normalizeFormElements(form.FormElements)
 		elementsJSON, err := json.Marshal(normalizedElements)
@@ -163,7 +163,7 @@ func (f *FormDefinition) ConvertFromSailPoint(ctx context.Context, form *client.
 	}
 
 	// FormConditions
-	if form.FormConditions != nil && len(form.FormConditions) > 0 {
+	if len(form.FormConditions) > 0 {
 		formConditions := make([]FormCondition, len(form.FormConditions))
 		for i, conditionMap := range form.FormConditions {
 			formConditions[i].ConvertFromSailPoint(ctx, conditionMap)
@@ -229,7 +229,7 @@ func (f *FormDefinition) GeneratePatchOperations(ctx context.Context, newForm Fo
 
 	// Owner
 	if (f.Owner == nil && newForm.Owner != nil) || (f.Owner != nil && newForm.Owner == nil) ||
-	   (f.Owner != nil && newForm.Owner != nil && (!f.Owner.ID.Equal(newForm.Owner.ID) || !f.Owner.Type.Equal(newForm.Owner.Type))) {
+		(f.Owner != nil && newForm.Owner != nil && (!f.Owner.ID.Equal(newForm.Owner.ID) || !f.Owner.Type.Equal(newForm.Owner.Type))) {
 		if newForm.Owner == nil {
 			operations = append(operations, map[string]interface{}{
 				"op":   "remove",
