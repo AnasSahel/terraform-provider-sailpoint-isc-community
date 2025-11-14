@@ -16,9 +16,10 @@ Manages a SailPoint Form Definition. Forms are composed of sections and fields f
 # SailPoint Form Definition Resource Examples
 #
 # IMPORTANT NOTES:
+# - REQUIRED FIELDS: name, owner (with type and id), form_elements
 # - Forms are composed of sections and fields for data collection
-# - The 'name' field is required
 # - Form elements, inputs, and conditions are specified as JSON strings
+# - Each form element MUST have an 'id' field
 # - The 'owner' field references an identity who owns this form
 #
 # For more information, see:
@@ -266,31 +267,101 @@ resource "sailpoint_form_definition" "onboarding_form" {
 
 ### Required
 
+- `form_elements` (String) **Required.** Form elements configuration defining sections and fields for data collection, represented as a JSON string. Forms are composed of sections that split the form into logical groups, and fields that are the data collection points. At minimum, a form must contain one section with at least one field.
 - `name` (String) Name of the form as it appears in the UI.
+- `owner` (Attributes) **Required.** Owner reference containing the identity who owns this form. Must include type (e.g., 'IDENTITY') and id fields. (see [below for nested schema](#nestedatt--owner))
 
 ### Optional
 
 - `description` (String) Description text that explains the purpose of this form.
-- `form_conditions` (String) Form conditions configuration defining conditional logic that modifies the form dynamically, represented as a JSON string.
-- `form_elements` (String) Form elements configuration defining sections and fields for data collection, represented as a JSON string. Forms are composed of sections that split the form into logical groups, and fields that are the data collection points.
-- `form_input` (String) Form input configuration defining the data sources and inputs for the form, represented as a JSON string.
-- `owner` (Attributes) Owner reference containing the identity who owns this form. Includes type, id, and name fields. (see [below for nested schema](#nestedatt--owner))
+- `form_conditions` (Attributes List) Form conditions configuration defining conditional logic that modifies the form dynamically, represented as a JSON string. (see [below for nested schema](#nestedatt--form_conditions))
+- `form_input` (Attributes List) Form input configuration defining the data sources and inputs for the form, represented as a JSON string. (see [below for nested schema](#nestedatt--form_input))
+- `used_by` (Attributes List) Optional list of object references showing which systems are using this form definition. Can be set during creation to indicate workflows or other systems that will use the form. Each reference must include type and id, with name being optional. (see [below for nested schema](#nestedatt--used_by))
 
 ### Read-Only
 
 - `created` (String) ISO 8601 timestamp indicating when the form definition was created.
 - `id` (String) Unique identifier (UUID) of the form definition.
 - `modified` (String) ISO 8601 timestamp indicating when the form definition was last modified.
-- `used_by` (String) List of objects using this form definition, represented as a JSON string. Automatically tracked when systems use the form.
 
 <a id="nestedatt--owner"></a>
 ### Nested Schema for `owner`
 
-Optional:
+Required:
 
 - `id` (String) The unique identifier of the referenced object.
-- `name` (String) The name of the referenced object.
 - `type` (String) The type of the referenced object.
+
+Optional:
+
+- `name` (String) The name of the referenced object.
+
+
+<a id="nestedatt--form_conditions"></a>
+### Nested Schema for `form_conditions`
+
+Optional:
+
+- `effects` (Attributes List) The effects to apply when the condition is met. (see [below for nested schema](#nestedatt--form_conditions--effects))
+- `rule_operator` (String) The logical operator to apply to the rules (AND, OR).
+- `rules` (Attributes List) The list of rules that make up the condition. (see [below for nested schema](#nestedatt--form_conditions--rules))
+
+<a id="nestedatt--form_conditions--effects"></a>
+### Nested Schema for `form_conditions.effects`
+
+Optional:
+
+- `config` (Attributes) The effect configuration. (see [below for nested schema](#nestedatt--form_conditions--effects--config))
+- `effect_type` (String) The type of effect (SHOW, HIDE, ENABLE, DISABLE, REQUIRE, OPTIONAL, SET_DEFAULT_VALUE).
+
+<a id="nestedatt--form_conditions--effects--config"></a>
+### Nested Schema for `form_conditions.effects.config`
+
+Optional:
+
+- `default_value_label` (String) The default value label (for SET_DEFAULT_VALUE effect type).
+- `element` (String) The ID of the element to apply the effect to (can be string or number).
+
+
+
+<a id="nestedatt--form_conditions--rules"></a>
+### Nested Schema for `form_conditions.rules`
+
+Optional:
+
+- `operator` (String) The comparison operator (EQ, NE, GT, LT, etc.).
+- `source` (String) The ID of the source element or input.
+- `source_type` (String) The type of the source (e.g., ELEMENT, INPUT).
+- `value` (String) The value to compare against.
+- `value_type` (String) The type of the value being compared (STRING, NUMBER, BOOLEAN).
+
+
+
+<a id="nestedatt--form_input"></a>
+### Nested Schema for `form_input`
+
+Required:
+
+- `id` (String) The unique identifier of the form input.
+- `type` (String) The type of the form input (e.g., STRING, BOOLEAN, ARRAY).
+
+Optional:
+
+- `description` (String) The description of the form input.
+- `label` (String) The label for the form input.
+
+
+<a id="nestedatt--used_by"></a>
+### Nested Schema for `used_by`
+
+Required:
+
+- `id` (String) The unique identifier of the referenced object.
+- `type` (String) The type of the referenced object.
+
+Optional:
+
+- `name` (String) The name of the referenced object.
 
 ## Import
 

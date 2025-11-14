@@ -70,10 +70,10 @@ func (c *Client) CreateFormDefinition(ctx context.Context, form *FormDefinition)
 		return &result, nil
 	}
 
-	return nil, c.formatError(ErrorContext{
+	return nil, c.formatErrorWithBody(ErrorContext{
 		Operation: "create",
 		Resource:  "form_definition",
-	}, nil, resp.StatusCode())
+	}, nil, resp.StatusCode(), resp.String())
 }
 
 // PatchFormDefinition updates an existing form definition using JSON Patch operations.

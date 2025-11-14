@@ -159,19 +159,26 @@ func (r *formDefinitionResource) Update(ctx context.Context, req resource.Update
 		return
 	}
 
-	// If no operations, nothing to update
-	if len(operations) == 0 {
-		tflog.Info(ctx, "No changes detected, skipping update")
-		resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
-		return
+	// Update the form definition via API if there are operations
+	if len(operations) > 0 {
+		_, err = r.client.PatchFormDefinition(ctx, plan.ID.ValueString(), operations)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Updating Form Definition",
+				fmt.Sprintf("An error occurred while updating the form definition: %s", err.Error()),
+			)
+			return
+		}
+	} else {
+		tflog.Info(ctx, "No changes detected, skipping PATCH operation")
 	}
 
-	// Update the form definition via API
-	updatedForm, err := r.client.PatchFormDefinition(ctx, plan.ID.ValueString(), operations)
+	// Always read back the form to get the latest state including timestamps
+	updatedForm, err := r.client.GetFormDefinition(ctx, plan.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error Updating Form Definition",
-			fmt.Sprintf("An error occurred while updating the form definition: %s", err.Error()),
+			"Error Reading Updated Form Definition",
+			fmt.Sprintf("Could not read form definition after update: %s", err.Error()),
 		)
 		return
 	}

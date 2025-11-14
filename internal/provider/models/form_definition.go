@@ -13,16 +13,16 @@ import (
 
 // FormDefinition represents the Terraform model for a SailPoint Form Definition.
 type FormDefinition struct {
-	ID             types.String `tfsdk:"id"`
-	Name           types.String `tfsdk:"name"`
-	Description    types.String `tfsdk:"description"`
-	Owner          *ObjectRef   `tfsdk:"owner"`
-	UsedBy         types.String `tfsdk:"used_by"`          // JSON string
-	FormInput      types.String `tfsdk:"form_input"`       // JSON string
-	FormElements   types.String `tfsdk:"form_elements"`    // JSON string
-	FormConditions types.String `tfsdk:"form_conditions"`  // JSON string
-	Created        types.String `tfsdk:"created"`
-	Modified       types.String `tfsdk:"modified"`
+	ID             types.String    `tfsdk:"id"`
+	Name           types.String    `tfsdk:"name"`
+	Description    types.String    `tfsdk:"description"`
+	Owner          *ObjectRef      `tfsdk:"owner"`
+	UsedBy         []ObjectRef     `tfsdk:"used_by"`          // List of object references
+	FormInput      []FormInput     `tfsdk:"form_input"`       // List of form inputs
+	FormElements   types.String    `tfsdk:"form_elements"`    // JSON string
+	FormConditions []FormCondition `tfsdk:"form_conditions"`  // List of form conditions
+	Created        types.String    `tfsdk:"created"`
+	Modified       types.String    `tfsdk:"modified"`
 }
 
 // ConvertToSailPoint converts the Terraform model to a SailPoint API FormDefinition.
@@ -46,6 +46,22 @@ func (f *FormDefinition) ConvertToSailPoint(ctx context.Context) (*client.FormDe
 		form.Owner = &ownerRef
 	}
 
+	// UsedBy
+	if f.UsedBy != nil && len(f.UsedBy) > 0 {
+		usedByMaps := make([]map[string]interface{}, len(f.UsedBy))
+		for i, ref := range f.UsedBy {
+			apiRef := ref.ConvertToSailPoint(ctx)
+			usedByMaps[i] = map[string]interface{}{
+				"type": apiRef.Type,
+				"id":   apiRef.ID,
+			}
+			if apiRef.Name != "" {
+				usedByMaps[i]["name"] = apiRef.Name
+			}
+		}
+		form.UsedBy = usedByMaps
+	}
+
 	// Parse FormElements JSON string to slice of maps
 	if !f.FormElements.IsNull() && !f.FormElements.IsUnknown() {
 		var elements []map[string]interface{}
@@ -55,22 +71,22 @@ func (f *FormDefinition) ConvertToSailPoint(ctx context.Context) (*client.FormDe
 		form.FormElements = elements
 	}
 
-	// Parse FormInput JSON string to slice of maps
-	if !f.FormInput.IsNull() && !f.FormInput.IsUnknown() {
-		var input []map[string]interface{}
-		if err := json.Unmarshal([]byte(f.FormInput.ValueString()), &input); err != nil {
-			return nil, err
+	// Convert FormInput array to slice of maps
+	if f.FormInput != nil && len(f.FormInput) > 0 {
+		inputMaps := make([]map[string]interface{}, len(f.FormInput))
+		for i, input := range f.FormInput {
+			inputMaps[i] = input.ConvertToSailPoint(ctx)
 		}
-		form.FormInput = input
+		form.FormInput = inputMaps
 	}
 
-	// Parse FormConditions JSON string to slice of maps
-	if !f.FormConditions.IsNull() && !f.FormConditions.IsUnknown() {
-		var conditions []map[string]interface{}
-		if err := json.Unmarshal([]byte(f.FormConditions.ValueString()), &conditions); err != nil {
-			return nil, err
+	// Convert FormConditions array to slice of maps
+	if f.FormConditions != nil && len(f.FormConditions) > 0 {
+		conditionMaps := make([]map[string]interface{}, len(f.FormConditions))
+		for i, condition := range f.FormConditions {
+			conditionMaps[i] = condition.ConvertToSailPoint(ctx)
 		}
-		form.FormConditions = conditions
+		form.FormConditions = conditionMaps
 	}
 
 	return form, nil
@@ -103,29 +119,41 @@ func (f *FormDefinition) ConvertFromSailPoint(ctx context.Context, form *client.
 
 	// UsedBy
 	if form.UsedBy != nil && len(form.UsedBy) > 0 {
-		usedByJSON, err := json.Marshal(form.UsedBy)
-		if err != nil {
-			return err
+		usedByRefs := make([]ObjectRef, len(form.UsedBy))
+		for i, usedByMap := range form.UsedBy {
+			// Convert map to client.ObjectRef
+			objRef := &client.ObjectRef{}
+			if typeVal, ok := usedByMap["type"].(string); ok {
+				objRef.Type = typeVal
+			}
+			if idVal, ok := usedByMap["id"].(string); ok {
+				objRef.ID = idVal
+			}
+			if nameVal, ok := usedByMap["name"].(string); ok {
+				objRef.Name = nameVal
+			}
+			usedByRefs[i].ConvertFromSailPointForResource(ctx, objRef)
 		}
-		f.UsedBy = types.StringValue(string(usedByJSON))
-	} else if includeNull {
-		f.UsedBy = types.StringNull()
+		f.UsedBy = usedByRefs
+	} else {
+		f.UsedBy = []ObjectRef{}
 	}
 
 	// FormInput
 	if form.FormInput != nil && len(form.FormInput) > 0 {
-		inputJSON, err := json.Marshal(form.FormInput)
-		if err != nil {
-			return err
+		formInputs := make([]FormInput, len(form.FormInput))
+		for i, inputMap := range form.FormInput {
+			formInputs[i].ConvertFromSailPoint(ctx, inputMap)
 		}
-		f.FormInput = types.StringValue(string(inputJSON))
-	} else if includeNull {
-		f.FormInput = types.StringNull()
+		f.FormInput = formInputs
 	}
+	// If nil or empty, leave FormInput as nil to preserve null vs [] distinction
 
 	// FormElements
 	if form.FormElements != nil && len(form.FormElements) > 0 {
-		elementsJSON, err := json.Marshal(form.FormElements)
+		// Normalize form elements by removing empty validations arrays that the API adds
+		normalizedElements := normalizeFormElements(form.FormElements)
+		elementsJSON, err := json.Marshal(normalizedElements)
 		if err != nil {
 			return err
 		}
@@ -136,14 +164,13 @@ func (f *FormDefinition) ConvertFromSailPoint(ctx context.Context, form *client.
 
 	// FormConditions
 	if form.FormConditions != nil && len(form.FormConditions) > 0 {
-		conditionsJSON, err := json.Marshal(form.FormConditions)
-		if err != nil {
-			return err
+		formConditions := make([]FormCondition, len(form.FormConditions))
+		for i, conditionMap := range form.FormConditions {
+			formConditions[i].ConvertFromSailPoint(ctx, conditionMap)
 		}
-		f.FormConditions = types.StringValue(string(conditionsJSON))
-	} else if includeNull {
-		f.FormConditions = types.StringNull()
+		f.FormConditions = formConditions
 	}
+	// If nil or empty, leave FormConditions as nil to preserve null vs [] distinction
 
 	// Created and Modified timestamps
 	if form.Created != "" {
@@ -218,6 +245,26 @@ func (f *FormDefinition) GeneratePatchOperations(ctx context.Context, newForm Fo
 		}
 	}
 
+	// UsedBy
+	if !usedByEqual(f.UsedBy, newForm.UsedBy) {
+		usedByMaps := make([]map[string]interface{}, len(newForm.UsedBy))
+		for i, ref := range newForm.UsedBy {
+			apiRef := ref.ConvertToSailPoint(ctx)
+			usedByMaps[i] = map[string]interface{}{
+				"type": apiRef.Type,
+				"id":   apiRef.ID,
+			}
+			if apiRef.Name != "" {
+				usedByMaps[i]["name"] = apiRef.Name
+			}
+		}
+		operations = append(operations, map[string]interface{}{
+			"op":    "replace",
+			"path":  "/usedBy",
+			"value": usedByMaps,
+		})
+	}
+
 	// FormElements
 	if !f.FormElements.Equal(newForm.FormElements) {
 		if newForm.FormElements.IsNull() {
@@ -239,44 +286,186 @@ func (f *FormDefinition) GeneratePatchOperations(ctx context.Context, newForm Fo
 	}
 
 	// FormInput
-	if !f.FormInput.Equal(newForm.FormInput) {
-		if newForm.FormInput.IsNull() {
-			operations = append(operations, map[string]interface{}{
-				"op":   "remove",
-				"path": "/formInput",
-			})
-		} else {
-			var input []map[string]interface{}
-			if err := json.Unmarshal([]byte(newForm.FormInput.ValueString()), &input); err != nil {
-				return nil, err
-			}
-			operations = append(operations, map[string]interface{}{
-				"op":    "replace",
-				"path":  "/formInput",
-				"value": input,
-			})
+	if !formInputEqual(f.FormInput, newForm.FormInput) {
+		inputMaps := make([]map[string]interface{}, len(newForm.FormInput))
+		for i, input := range newForm.FormInput {
+			inputMaps[i] = input.ConvertToSailPoint(ctx)
 		}
+		operations = append(operations, map[string]interface{}{
+			"op":    "replace",
+			"path":  "/formInput",
+			"value": inputMaps,
+		})
 	}
 
 	// FormConditions
-	if !f.FormConditions.Equal(newForm.FormConditions) {
-		if newForm.FormConditions.IsNull() {
-			operations = append(operations, map[string]interface{}{
-				"op":   "remove",
-				"path": "/formConditions",
-			})
-		} else {
-			var conditions []map[string]interface{}
-			if err := json.Unmarshal([]byte(newForm.FormConditions.ValueString()), &conditions); err != nil {
-				return nil, err
-			}
-			operations = append(operations, map[string]interface{}{
-				"op":    "replace",
-				"path":  "/formConditions",
-				"value": conditions,
-			})
+	if !formConditionsEqual(f.FormConditions, newForm.FormConditions) {
+		conditionMaps := make([]map[string]interface{}, len(newForm.FormConditions))
+		for i, condition := range newForm.FormConditions {
+			conditionMaps[i] = condition.ConvertToSailPoint(ctx)
 		}
+		operations = append(operations, map[string]interface{}{
+			"op":    "replace",
+			"path":  "/formConditions",
+			"value": conditionMaps,
+		})
 	}
 
 	return operations, nil
+}
+
+// normalizeFormElements removes empty arrays and API-added fields from form elements
+// to prevent state inconsistency errors. The SailPoint API adds empty "validations"
+// arrays to form elements even when not provided, which causes Terraform to detect
+// a diff between the plan and the actual state.
+func normalizeFormElements(elements []map[string]interface{}) []map[string]interface{} {
+	normalized := make([]map[string]interface{}, len(elements))
+
+	for i, element := range elements {
+		normalizedElement := make(map[string]interface{})
+
+		for key, value := range element {
+			// Skip empty validations arrays
+			if key == "validations" {
+				if arr, ok := value.([]interface{}); ok && len(arr) == 0 {
+					continue
+				}
+			}
+
+			// Recursively normalize nested formElements (for sections)
+			if key == "config" {
+				if configMap, ok := value.(map[string]interface{}); ok {
+					normalizedConfig := make(map[string]interface{})
+					for configKey, configValue := range configMap {
+						if configKey == "formElements" {
+							if nestedElements, ok := configValue.([]interface{}); ok {
+								// Convert to []map[string]interface{} for recursion
+								nestedMaps := make([]map[string]interface{}, len(nestedElements))
+								for j, ne := range nestedElements {
+									if neMap, ok := ne.(map[string]interface{}); ok {
+										nestedMaps[j] = neMap
+									}
+								}
+								normalizedConfig[configKey] = normalizeFormElements(nestedMaps)
+								continue
+							}
+						}
+						normalizedConfig[configKey] = configValue
+					}
+					normalizedElement[key] = normalizedConfig
+					continue
+				}
+			}
+
+			normalizedElement[key] = value
+		}
+
+		normalized[i] = normalizedElement
+	}
+
+	return normalized
+}
+
+// usedByEqual compares two UsedBy slices to determine if they are equal.
+// Two UsedBy slices are equal if they have the same length and all corresponding
+// elements have matching type, id, and name values.
+func usedByEqual(a, b []ObjectRef) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	// Create a map to track matches
+	// This handles cases where the order might be different
+	matchedIndices := make(map[int]bool)
+
+	for _, aRef := range a {
+		found := false
+		for j, bRef := range b {
+			if matchedIndices[j] {
+				continue // Already matched
+			}
+			if aRef.Type.Equal(bRef.Type) && aRef.ID.Equal(bRef.ID) && aRef.Name.Equal(bRef.Name) {
+				matchedIndices[j] = true
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+
+	return true
+}
+
+// formInputEqual compares two FormInput slices to determine if they are equal.
+// Two FormInput slices are equal if they have the same length and all corresponding
+// elements have matching id, type, label, and description values.
+func formInputEqual(a, b []FormInput) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if !a[i].ID.Equal(b[i].ID) ||
+			!a[i].Type.Equal(b[i].Type) ||
+			!a[i].Label.Equal(b[i].Label) ||
+			!a[i].Description.Equal(b[i].Description) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// formConditionsEqual compares two FormCondition slices to determine if they are equal.
+func formConditionsEqual(a, b []FormCondition) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		// Compare rule operator
+		if !a[i].RuleOperator.Equal(b[i].RuleOperator) {
+			return false
+		}
+
+		// Compare rules
+		if len(a[i].Rules) != len(b[i].Rules) {
+			return false
+		}
+		for j := range a[i].Rules {
+			if !a[i].Rules[j].SourceType.Equal(b[i].Rules[j].SourceType) ||
+				!a[i].Rules[j].Source.Equal(b[i].Rules[j].Source) ||
+				!a[i].Rules[j].Operator.Equal(b[i].Rules[j].Operator) ||
+				!a[i].Rules[j].ValueType.Equal(b[i].Rules[j].ValueType) ||
+				!a[i].Rules[j].Value.Equal(b[i].Rules[j].Value) {
+				return false
+			}
+		}
+
+		// Compare effects
+		if len(a[i].Effects) != len(b[i].Effects) {
+			return false
+		}
+		for j := range a[i].Effects {
+			if !a[i].Effects[j].EffectType.Equal(b[i].Effects[j].EffectType) {
+				return false
+			}
+			// Compare configs
+			aConfig := a[i].Effects[j].Config
+			bConfig := b[i].Effects[j].Config
+			if (aConfig == nil) != (bConfig == nil) {
+				return false
+			}
+			if aConfig != nil && bConfig != nil {
+				if !aConfig.DefaultValueLabel.Equal(bConfig.DefaultValueLabel) ||
+					!aConfig.Element.Equal(bConfig.Element) {
+					return false
+				}
+			}
+		}
+	}
+
+	return true
 }
