@@ -155,6 +155,7 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		datasources.NewTransformDataSource,
+		datasources.NewFormDefinitionDataSource,
 	}
 }
 
@@ -162,5 +163,6 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		resources.NewTransformResource,
+		resources.NewFormDefinitionResource,
 	}
 }
