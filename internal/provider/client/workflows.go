@@ -13,10 +13,10 @@ import (
 type Workflow struct {
 	ID          string                 `json:"id,omitempty"`
 	Name        string                 `json:"name"`
-	Owner       map[string]interface{} `json:"owner"`
+	Owner       *ObjectRef             `json:"owner"`
 	Description *string                `json:"description,omitempty"`
 	Definition  map[string]interface{} `json:"definition"`
-	Trigger     map[string]interface{} `json:"trigger"`
+	Trigger     *WorkflowTrigger       `json:"trigger"`
 	Enabled     *bool                  `json:"enabled,omitempty"`
 	Created     *string                `json:"created,omitempty"`
 	Modified    *string                `json:"modified,omitempty"`

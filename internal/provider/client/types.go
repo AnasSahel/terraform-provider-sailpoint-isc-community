@@ -11,3 +11,9 @@ type ObjectRef struct {
 	ID   string `json:"id"`
 	Name string `json:"name,omitempty"`
 }
+
+// WorkflowTrigger represents a trigger configuration for a workflow.
+type WorkflowTrigger struct {
+	Type       string                 `json:"type"`
+	Attributes map[string]interface{} `json:"attributes,omitempty"`
+}
