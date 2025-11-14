@@ -58,10 +58,26 @@ func (sb *FormDefinitionSchemaBuilder) GetResourceSchema() map[string]resource_s
 				},
 			},
 		},
-		"used_by": resource_schema.StringAttribute{
+		"used_by": resource_schema.ListNestedAttribute{
 			Description:         desc["used_by"].description,
 			MarkdownDescription: desc["used_by"].markdown,
 			Computed:            true,
+			NestedObject: resource_schema.NestedAttributeObject{
+				Attributes: map[string]resource_schema.Attribute{
+					"type": resource_schema.StringAttribute{
+						Description: "The type of the referenced object.",
+						Computed:    true,
+					},
+					"id": resource_schema.StringAttribute{
+						Description: "The unique identifier of the referenced object.",
+						Computed:    true,
+					},
+					"name": resource_schema.StringAttribute{
+						Description: "The name of the referenced object.",
+						Computed:    true,
+					},
+				},
+			},
 		},
 		"form_input": resource_schema.StringAttribute{
 			Description:         desc["form_input"].description,
@@ -130,10 +146,26 @@ func (sb *FormDefinitionSchemaBuilder) GetDataSourceSchema() map[string]datasour
 				},
 			},
 		},
-		"used_by": datasource_schema.StringAttribute{
+		"used_by": datasource_schema.ListNestedAttribute{
 			Description:         desc["used_by"].description,
 			MarkdownDescription: desc["used_by"].markdown,
 			Computed:            true,
+			NestedObject: datasource_schema.NestedAttributeObject{
+				Attributes: map[string]datasource_schema.Attribute{
+					"type": datasource_schema.StringAttribute{
+						Description: "The type of the referenced object.",
+						Computed:    true,
+					},
+					"id": datasource_schema.StringAttribute{
+						Description: "The unique identifier of the referenced object.",
+						Computed:    true,
+					},
+					"name": datasource_schema.StringAttribute{
+						Description: "The name of the referenced object.",
+						Computed:    true,
+					},
+				},
+			},
 		},
 		"form_input": datasource_schema.StringAttribute{
 			Description:         desc["form_input"].description,
@@ -189,8 +221,8 @@ func (sb *FormDefinitionSchemaBuilder) fieldDescriptions() map[string]struct {
 			markdown:    "**Required.** Owner reference containing the identity who owns this form. Must include type (e.g., 'IDENTITY') and id fields.",
 		},
 		"used_by": {
-			description: "List of objects using this form definition, represented as a JSON string.",
-			markdown:    "List of objects using this form definition, represented as a JSON string. Automatically tracked when systems use the form.",
+			description: "List of objects using this form definition.",
+			markdown:    "List of object references showing which systems are using this form definition. Automatically tracked by the API when systems use the form. Each reference includes type, id, and name.",
 		},
 		"form_input": {
 			description: "Form input configuration as a JSON string.",

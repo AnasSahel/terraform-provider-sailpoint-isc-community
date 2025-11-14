@@ -58,10 +58,20 @@ output "form_elements" {
 - `modified` (String) ISO 8601 timestamp indicating when the form definition was last modified.
 - `name` (String) Name of the form as it appears in the UI.
 - `owner` (Attributes) **Required.** Owner reference containing the identity who owns this form. Must include type (e.g., 'IDENTITY') and id fields. (see [below for nested schema](#nestedatt--owner))
-- `used_by` (String) List of objects using this form definition, represented as a JSON string. Automatically tracked when systems use the form.
+- `used_by` (Attributes List) List of object references showing which systems are using this form definition. Automatically tracked by the API when systems use the form. Each reference includes type, id, and name. (see [below for nested schema](#nestedatt--used_by))
 
 <a id="nestedatt--owner"></a>
 ### Nested Schema for `owner`
+
+Read-Only:
+
+- `id` (String) The unique identifier of the referenced object.
+- `name` (String) The name of the referenced object.
+- `type` (String) The type of the referenced object.
+
+
+<a id="nestedatt--used_by"></a>
+### Nested Schema for `used_by`
 
 Read-Only:
 

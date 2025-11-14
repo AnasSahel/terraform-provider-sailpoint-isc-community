@@ -17,7 +17,7 @@ type FormDefinition struct {
 	Name           types.String `tfsdk:"name"`
 	Description    types.String `tfsdk:"description"`
 	Owner          *ObjectRef   `tfsdk:"owner"`
-	UsedBy         types.String `tfsdk:"used_by"`          // JSON string
+	UsedBy         []ObjectRef  `tfsdk:"used_by"`          // List of object references
 	FormInput      types.String `tfsdk:"form_input"`       // JSON string
 	FormElements   types.String `tfsdk:"form_elements"`    // JSON string
 	FormConditions types.String `tfsdk:"form_conditions"`  // JSON string
@@ -103,13 +103,24 @@ func (f *FormDefinition) ConvertFromSailPoint(ctx context.Context, form *client.
 
 	// UsedBy
 	if form.UsedBy != nil && len(form.UsedBy) > 0 {
-		usedByJSON, err := json.Marshal(form.UsedBy)
-		if err != nil {
-			return err
+		usedByRefs := make([]ObjectRef, len(form.UsedBy))
+		for i, usedByMap := range form.UsedBy {
+			// Convert map to client.ObjectRef
+			objRef := &client.ObjectRef{}
+			if typeVal, ok := usedByMap["type"].(string); ok {
+				objRef.Type = typeVal
+			}
+			if idVal, ok := usedByMap["id"].(string); ok {
+				objRef.ID = idVal
+			}
+			if nameVal, ok := usedByMap["name"].(string); ok {
+				objRef.Name = nameVal
+			}
+			usedByRefs[i].ConvertFromSailPointForResource(ctx, objRef)
 		}
-		f.UsedBy = types.StringValue(string(usedByJSON))
-	} else if includeNull {
-		f.UsedBy = types.StringNull()
+		f.UsedBy = usedByRefs
+	} else {
+		f.UsedBy = []ObjectRef{}
 	}
 
 	// FormInput

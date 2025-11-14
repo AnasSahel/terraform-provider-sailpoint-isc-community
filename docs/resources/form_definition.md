@@ -282,7 +282,7 @@ resource "sailpoint_form_definition" "onboarding_form" {
 - `created` (String) ISO 8601 timestamp indicating when the form definition was created.
 - `id` (String) Unique identifier (UUID) of the form definition.
 - `modified` (String) ISO 8601 timestamp indicating when the form definition was last modified.
-- `used_by` (String) List of objects using this form definition, represented as a JSON string. Automatically tracked when systems use the form.
+- `used_by` (Attributes List) List of object references showing which systems are using this form definition. Automatically tracked by the API when systems use the form. Each reference includes type, id, and name. (see [below for nested schema](#nestedatt--used_by))
 
 <a id="nestedatt--owner"></a>
 ### Nested Schema for `owner`
@@ -295,6 +295,16 @@ Required:
 Optional:
 
 - `name` (String) The name of the referenced object.
+
+
+<a id="nestedatt--used_by"></a>
+### Nested Schema for `used_by`
+
+Read-Only:
+
+- `id` (String) The unique identifier of the referenced object.
+- `name` (String) The name of the referenced object.
+- `type` (String) The type of the referenced object.
 
 ## Import
 
