@@ -24,18 +24,23 @@ This is a Terraform provider for SailPoint Identity Security Cloud (ISC) built u
    git commit -m "<type>: <description>"
    ```
 
-4. **Merge to main** with a merge commit:
+4. **WAIT FOR USER VALIDATION** - Do NOT merge to main automatically
+   - Present the changes to the user
+   - Wait for explicit approval before merging
+
+5. **Merge to main** (only after user approval) with a merge commit:
    ```bash
    git checkout main
    git merge <branch-name> --no-ff
    ```
 
-5. **Clean up** the feature branch (optional):
+6. **Clean up** the feature branch (optional):
    ```bash
    git branch -d <branch-name>
    ```
 
 **Never commit directly to main** - always use feature branches.
+**Never merge without user validation** - always wait for explicit approval.
 
 ## Development Commands
 
