@@ -13,8 +13,9 @@ import (
 
 // WorkflowTrigger represents the Terraform model for a workflow trigger.
 type WorkflowTrigger struct {
-	Type       types.String `tfsdk:"type"`
-	Attributes types.String `tfsdk:"attributes"` // JSON string for flexibility
+	Type        types.String `tfsdk:"type"`
+	DisplayName types.String `tfsdk:"display_name"`
+	Attributes  types.String `tfsdk:"attributes"` // JSON string for flexibility
 }
 
 // ConvertToSailPoint converts the Terraform model to a SailPoint API WorkflowTrigger.
@@ -25,6 +26,11 @@ func (t *WorkflowTrigger) ConvertToSailPoint(ctx context.Context) (*client.Workf
 
 	trigger := &client.WorkflowTrigger{
 		Type: t.Type.ValueString(),
+	}
+
+	// Set optional displayName
+	if !t.DisplayName.IsNull() && !t.DisplayName.IsUnknown() {
+		trigger.DisplayName = t.DisplayName.ValueString()
 	}
 
 	// Parse attributes JSON string to map
@@ -47,6 +53,13 @@ func (t *WorkflowTrigger) ConvertFromSailPointForResource(ctx context.Context, t
 
 	t.Type = types.StringValue(trigger.Type)
 
+	// Handle optional displayName
+	if trigger.DisplayName != "" {
+		t.DisplayName = types.StringValue(trigger.DisplayName)
+	} else {
+		t.DisplayName = types.StringNull()
+	}
+
 	// Convert attributes map to JSON string
 	if trigger.Attributes != nil && len(trigger.Attributes) > 0 {
 		attributesJSON, err := json.Marshal(trigger.Attributes)
@@ -68,6 +81,12 @@ func (t *WorkflowTrigger) ConvertFromSailPointForDataSource(ctx context.Context,
 	}
 
 	t.Type = types.StringValue(trigger.Type)
+
+	// Handle optional displayName
+	if trigger.DisplayName != "" {
+		t.DisplayName = types.StringValue(trigger.DisplayName)
+	}
+	// Don't set to null for data sources to preserve state
 
 	// Convert attributes map to JSON string
 	if trigger.Attributes != nil && len(trigger.Attributes) > 0 {

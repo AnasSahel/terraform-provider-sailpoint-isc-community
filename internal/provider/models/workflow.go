@@ -5,7 +5,6 @@ package models
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/client"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -13,15 +12,15 @@ import (
 
 // Workflow represents the Terraform model for a SailPoint Workflow.
 type Workflow struct {
-	ID          types.String     `tfsdk:"id"`
-	Name        types.String     `tfsdk:"name"`
-	Owner       *ObjectRef       `tfsdk:"owner"`
-	Description types.String     `tfsdk:"description"`
-	Definition  types.String     `tfsdk:"definition"` // JSON string
-	Trigger     *WorkflowTrigger `tfsdk:"trigger"`
-	Enabled     types.Bool       `tfsdk:"enabled"`
-	Created     types.String     `tfsdk:"created"`
-	Modified    types.String     `tfsdk:"modified"`
+	ID          types.String        `tfsdk:"id"`
+	Name        types.String        `tfsdk:"name"`
+	Owner       *ObjectRef          `tfsdk:"owner"`
+	Description types.String        `tfsdk:"description"`
+	Definition  *WorkflowDefinition `tfsdk:"definition"`
+	Trigger     *WorkflowTrigger    `tfsdk:"trigger"`
+	Enabled     types.Bool          `tfsdk:"enabled"`
+	Created     types.String        `tfsdk:"created"`
+	Modified    types.String        `tfsdk:"modified"`
 }
 
 // ConvertToSailPoint converts the Terraform model to a SailPoint API Workflow.
@@ -40,10 +39,10 @@ func (w *Workflow) ConvertToSailPoint(ctx context.Context) (*client.Workflow, er
 		workflow.Owner = &ownerRef
 	}
 
-	// Parse definition JSON string to map
-	if !w.Definition.IsNull() && !w.Definition.IsUnknown() {
-		var definition map[string]interface{}
-		if err := json.Unmarshal([]byte(w.Definition.ValueString()), &definition); err != nil {
+	// Convert definition WorkflowDefinition
+	if w.Definition != nil {
+		definition, err := w.Definition.ConvertToSailPoint(ctx)
+		if err != nil {
 			return nil, err
 		}
 		workflow.Definition = definition
@@ -94,15 +93,20 @@ func (w *Workflow) ConvertFromSailPoint(ctx context.Context, workflow *client.Wo
 		w.Owner = nil
 	}
 
-	// Convert definition map to JSON string
+	// Convert definition WorkflowDefinition
 	if workflow.Definition != nil {
-		definitionJSON, err := json.Marshal(workflow.Definition)
+		w.Definition = &WorkflowDefinition{}
+		var err error
+		if includeNull {
+			err = w.Definition.ConvertFromSailPointForResource(ctx, workflow.Definition)
+		} else {
+			err = w.Definition.ConvertFromSailPointForDataSource(ctx, workflow.Definition)
+		}
 		if err != nil {
 			return err
 		}
-		w.Definition = types.StringValue(string(definitionJSON))
 	} else if includeNull {
-		w.Definition = types.StringNull()
+		w.Definition = nil
 	}
 
 	// Convert trigger WorkflowTrigger

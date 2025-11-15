@@ -11,15 +11,15 @@ import (
 
 // Workflow represents a SailPoint Workflow.
 type Workflow struct {
-	ID          string                 `json:"id,omitempty"`
-	Name        string                 `json:"name"`
-	Owner       *ObjectRef             `json:"owner"`
-	Description *string                `json:"description,omitempty"`
-	Definition  map[string]interface{} `json:"definition"`
-	Trigger     *WorkflowTrigger       `json:"trigger"`
-	Enabled     *bool                  `json:"enabled,omitempty"`
-	Created     *string                `json:"created,omitempty"`
-	Modified    *string                `json:"modified,omitempty"`
+	ID          string              `json:"id,omitempty"`
+	Name        string              `json:"name"`
+	Owner       *ObjectRef          `json:"owner"`
+	Description *string             `json:"description,omitempty"`
+	Definition  *WorkflowDefinition `json:"definition"`
+	Trigger     *WorkflowTrigger    `json:"trigger"`
+	Enabled     *bool               `json:"enabled,omitempty"`
+	Created     *string             `json:"created,omitempty"`
+	Modified    *string             `json:"modified,omitempty"`
 }
 
 // CreateWorkflow creates a new workflow in SailPoint.
