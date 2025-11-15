@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2025-01-15
+
+### Added
+
+- **Workflow Resource** (`sailpoint_workflow`): Complete CRUD implementation for managing SailPoint Workflows
+  - Full workflow lifecycle management (create, read, update, delete)
+  - Structured object fields for better usability:
+    - `owner`: Object with type, id, and name fields
+    - `trigger`: Object with type, display_name, and attributes
+    - `definition`: Object with start step and steps configuration
+  - Automatic workflow disabling before deletion (API requirement)
+  - Support for all trigger types (EVENT, SCHEDULED, REQUEST_RESPONSE)
+  - Import support for existing workflows
+  - Comprehensive error handling with resource context
+
+- **Workflow Data Source** (`sailpoint_workflow`): Read existing workflows by ID
+  - Retrieve complete workflow configuration
+  - Access all workflow properties including computed fields
+
+- **Documentation**:
+  - Comprehensive workflow examples:
+    - Email notification workflow with event trigger
+    - Approval workflow with conditional logic
+    - Scheduled workflow with cron trigger
+  - Data source examples with workflow cloning pattern
+  - Complete API documentation for workflow resource and data source
+
+- **Client Types**:
+  - `WorkflowDefinition`: Structured type for workflow logic
+  - `WorkflowTrigger`: Enhanced trigger type with displayName support
+  - Improved type safety across workflow operations
+
+### Changed
+
+- **CLAUDE.md**: Updated Git workflow to require explicit user validation before merging to main
+- **Project Structure**: Added workflow-specific models and schemas
+  - `workflow_definition.go`: Definition model with start and steps
+  - `workflow_trigger.go`: Trigger model with type, displayName, and attributes
+  - Enhanced workflow schema with nested object attributes
+
+### Removed
+
+- Cleaned up obsolete files from `_ignore/` directory
+
 ## [0.3.0] - 2025-01-05
 
 ### Added
