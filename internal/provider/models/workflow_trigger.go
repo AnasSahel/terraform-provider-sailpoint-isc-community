@@ -34,7 +34,7 @@ func (t *WorkflowTrigger) ConvertToSailPoint(ctx context.Context) (*client.Workf
 	}
 
 	// Parse attributes JSON string to map
-	if !t.Attributes.IsNull() && !t.Attributes.IsUnknown() && t.Attributes.ValueString() != "" {
+	if !t.Attributes.IsNull() && !t.Attributes.IsUnknown() {
 		var attributes map[string]interface{}
 		if err := json.Unmarshal([]byte(t.Attributes.ValueString()), &attributes); err != nil {
 			return nil, err
@@ -61,7 +61,7 @@ func (t *WorkflowTrigger) ConvertFromSailPointForResource(ctx context.Context, t
 	}
 
 	// Convert attributes map to JSON string
-	if trigger.Attributes != nil && len(trigger.Attributes) > 0 {
+	if len(trigger.Attributes) > 0 {
 		attributesJSON, err := json.Marshal(trigger.Attributes)
 		if err != nil {
 			return err
@@ -89,7 +89,7 @@ func (t *WorkflowTrigger) ConvertFromSailPointForDataSource(ctx context.Context,
 	// Don't set to null for data sources to preserve state
 
 	// Convert attributes map to JSON string
-	if trigger.Attributes != nil && len(trigger.Attributes) > 0 {
+	if len(trigger.Attributes) > 0 {
 		attributesJSON, err := json.Marshal(trigger.Attributes)
 		if err != nil {
 			return err

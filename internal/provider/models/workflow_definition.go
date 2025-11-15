@@ -48,7 +48,7 @@ func (d *WorkflowDefinition) ConvertFromSailPointForResource(ctx context.Context
 	d.Start = types.StringValue(definition.Start)
 
 	// Convert steps map to JSON string
-	if definition.Steps != nil && len(definition.Steps) > 0 {
+	if len(definition.Steps) > 0 {
 		stepsJSON, err := json.Marshal(definition.Steps)
 		if err != nil {
 			return err
@@ -70,7 +70,7 @@ func (d *WorkflowDefinition) ConvertFromSailPointForDataSource(ctx context.Conte
 	d.Start = types.StringValue(definition.Start)
 
 	// Convert steps map to JSON string
-	if definition.Steps != nil && len(definition.Steps) > 0 {
+	if len(definition.Steps) > 0 {
 		stepsJSON, err := json.Marshal(definition.Steps)
 		if err != nil {
 			return err

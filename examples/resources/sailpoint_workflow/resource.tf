@@ -14,10 +14,10 @@ resource "sailpoint_workflow" "send_email_notification" {
     type         = "EVENT"
     display_name = "Identity Attributes Changed"
     attributes = jsonencode({
-      id                 = "idn:identity-attributes-changed"
-      filter             = "$.changes[?(@.attribute == 'manager')]"
-      description        = "Triggered when an identity's manager attribute changes"
-      attributeToFilter  = "manager"
+      id                = "idn:identity-attributes-changed"
+      filter            = "$.changes[?(@.attribute == 'manager')]"
+      description       = "Triggered when an identity's manager attribute changes"
+      attributeToFilter = "manager"
     })
   }
 
@@ -27,10 +27,10 @@ resource "sailpoint_workflow" "send_email_notification" {
       "Send Email" = {
         actionId = "sp:send-email"
         attributes = {
-          body          = "Manager attribute has been changed for $${identity.name}"
-          from          = "noreply@example.com"
-          recipientId   = "$$.identity.id"
-          subject       = "Manager Change Notification"
+          body        = "Manager attribute has been changed for $${identity.name}"
+          from        = "noreply@example.com"
+          recipientId = "$$.identity.id"
+          subject     = "Manager Change Notification"
         }
         nextStep     = "success"
         selectResult = null
