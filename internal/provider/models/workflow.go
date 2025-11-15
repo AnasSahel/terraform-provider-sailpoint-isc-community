@@ -5,7 +5,6 @@ package models
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/client"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -13,15 +12,15 @@ import (
 
 // Workflow represents the Terraform model for a SailPoint Workflow.
 type Workflow struct {
-	ID          types.String `tfsdk:"id"`
-	Name        types.String `tfsdk:"name"`
-	Owner       types.String `tfsdk:"owner"` // JSON string
-	Description types.String `tfsdk:"description"`
-	Definition  types.String `tfsdk:"definition"` // JSON string
-	Trigger     types.String `tfsdk:"trigger"`    // JSON string
-	Enabled     types.Bool   `tfsdk:"enabled"`
-	Created     types.String `tfsdk:"created"`
-	Modified    types.String `tfsdk:"modified"`
+	ID          types.String        `tfsdk:"id"`
+	Name        types.String        `tfsdk:"name"`
+	Owner       *ObjectRef          `tfsdk:"owner"`
+	Description types.String        `tfsdk:"description"`
+	Definition  *WorkflowDefinition `tfsdk:"definition"`
+	Trigger     *WorkflowTrigger    `tfsdk:"trigger"`
+	Enabled     types.Bool          `tfsdk:"enabled"`
+	Created     types.String        `tfsdk:"created"`
+	Modified    types.String        `tfsdk:"modified"`
 }
 
 // ConvertToSailPoint converts the Terraform model to a SailPoint API Workflow.
@@ -34,28 +33,25 @@ func (w *Workflow) ConvertToSailPoint(ctx context.Context) (*client.Workflow, er
 		Name: w.Name.ValueString(),
 	}
 
-	// Parse owner JSON string to map
-	if !w.Owner.IsNull() && !w.Owner.IsUnknown() {
-		var owner map[string]interface{}
-		if err := json.Unmarshal([]byte(w.Owner.ValueString()), &owner); err != nil {
-			return nil, err
-		}
-		workflow.Owner = owner
+	// Convert owner ObjectRef
+	if w.Owner != nil {
+		ownerRef := w.Owner.ConvertToSailPoint(ctx)
+		workflow.Owner = &ownerRef
 	}
 
-	// Parse definition JSON string to map
-	if !w.Definition.IsNull() && !w.Definition.IsUnknown() {
-		var definition map[string]interface{}
-		if err := json.Unmarshal([]byte(w.Definition.ValueString()), &definition); err != nil {
+	// Convert definition WorkflowDefinition
+	if w.Definition != nil {
+		definition, err := w.Definition.ConvertToSailPoint(ctx)
+		if err != nil {
 			return nil, err
 		}
 		workflow.Definition = definition
 	}
 
-	// Parse trigger JSON string to map
-	if !w.Trigger.IsNull() && !w.Trigger.IsUnknown() {
-		var trigger map[string]interface{}
-		if err := json.Unmarshal([]byte(w.Trigger.ValueString()), &trigger); err != nil {
+	// Convert trigger WorkflowTrigger
+	if w.Trigger != nil {
+		trigger, err := w.Trigger.ConvertToSailPoint(ctx)
+		if err != nil {
 			return nil, err
 		}
 		workflow.Trigger = trigger
@@ -85,37 +81,48 @@ func (w *Workflow) ConvertFromSailPoint(ctx context.Context, workflow *client.Wo
 	w.ID = types.StringValue(workflow.ID)
 	w.Name = types.StringValue(workflow.Name)
 
-	// Convert owner map to JSON string
+	// Convert owner ObjectRef
 	if workflow.Owner != nil {
-		ownerJSON, err := json.Marshal(workflow.Owner)
-		if err != nil {
-			return err
+		w.Owner = &ObjectRef{}
+		if includeNull {
+			w.Owner.ConvertFromSailPointForResource(ctx, workflow.Owner)
+		} else {
+			w.Owner.ConvertFromSailPointForDataSource(ctx, workflow.Owner)
 		}
-		w.Owner = types.StringValue(string(ownerJSON))
 	} else if includeNull {
-		w.Owner = types.StringNull()
+		w.Owner = nil
 	}
 
-	// Convert definition map to JSON string
+	// Convert definition WorkflowDefinition
 	if workflow.Definition != nil {
-		definitionJSON, err := json.Marshal(workflow.Definition)
+		w.Definition = &WorkflowDefinition{}
+		var err error
+		if includeNull {
+			err = w.Definition.ConvertFromSailPointForResource(ctx, workflow.Definition)
+		} else {
+			err = w.Definition.ConvertFromSailPointForDataSource(ctx, workflow.Definition)
+		}
 		if err != nil {
 			return err
 		}
-		w.Definition = types.StringValue(string(definitionJSON))
 	} else if includeNull {
-		w.Definition = types.StringNull()
+		w.Definition = nil
 	}
 
-	// Convert trigger map to JSON string
+	// Convert trigger WorkflowTrigger
 	if workflow.Trigger != nil {
-		triggerJSON, err := json.Marshal(workflow.Trigger)
+		w.Trigger = &WorkflowTrigger{}
+		var err error
+		if includeNull {
+			err = w.Trigger.ConvertFromSailPointForResource(ctx, workflow.Trigger)
+		} else {
+			err = w.Trigger.ConvertFromSailPointForDataSource(ctx, workflow.Trigger)
+		}
 		if err != nil {
 			return err
 		}
-		w.Trigger = types.StringValue(string(triggerJSON))
 	} else if includeNull {
-		w.Trigger = types.StringNull()
+		w.Trigger = nil
 	}
 
 	// Handle optional fields

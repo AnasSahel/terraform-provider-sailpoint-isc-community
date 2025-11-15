@@ -35,25 +35,64 @@ func (sb *WorkflowSchemaBuilder) GetResourceSchema() map[string]resource_schema.
 			MarkdownDescription: desc["name"].markdown,
 			Required:            true,
 		},
-		"owner": resource_schema.StringAttribute{
+		"owner": resource_schema.SingleNestedAttribute{
 			Description:         desc["owner"].description,
 			MarkdownDescription: desc["owner"].markdown,
 			Required:            true,
+			Attributes: map[string]resource_schema.Attribute{
+				"type": resource_schema.StringAttribute{
+					Description: "The type of the referenced object (e.g., IDENTITY).",
+					Required:    true,
+				},
+				"id": resource_schema.StringAttribute{
+					Description: "The unique identifier (UUID) of the owner identity.",
+					Required:    true,
+				},
+				"name": resource_schema.StringAttribute{
+					Description: "The name of the owner identity.",
+					Optional:    true,
+					Computed:    true,
+				},
+			},
 		},
 		"description": resource_schema.StringAttribute{
 			Description:         desc["description"].description,
 			MarkdownDescription: desc["description"].markdown,
 			Optional:            true,
 		},
-		"definition": resource_schema.StringAttribute{
+		"definition": resource_schema.SingleNestedAttribute{
 			Description:         desc["definition"].description,
 			MarkdownDescription: desc["definition"].markdown,
 			Required:            true,
+			Attributes: map[string]resource_schema.Attribute{
+				"start": resource_schema.StringAttribute{
+					Description: "The name of the first step to execute in the workflow.",
+					Required:    true,
+				},
+				"steps": resource_schema.StringAttribute{
+					Description: "Workflow steps as a JSON string. Each step defines an action or operator with its configuration.",
+					Required:    true,
+				},
+			},
 		},
-		"trigger": resource_schema.StringAttribute{
+		"trigger": resource_schema.SingleNestedAttribute{
 			Description:         desc["trigger"].description,
 			MarkdownDescription: desc["trigger"].markdown,
 			Required:            true,
+			Attributes: map[string]resource_schema.Attribute{
+				"type": resource_schema.StringAttribute{
+					Description: "The type of trigger (e.g., EVENT, SCHEDULED, REQUEST_RESPONSE).",
+					Required:    true,
+				},
+				"display_name": resource_schema.StringAttribute{
+					Description: "Display name for the trigger.",
+					Optional:    true,
+				},
+				"attributes": resource_schema.StringAttribute{
+					Description: "Trigger-specific attributes as a JSON string. Structure varies by trigger type.",
+					Optional:    true,
+				},
+			},
 		},
 		"enabled": resource_schema.BoolAttribute{
 			Description:         desc["enabled"].description,
@@ -95,25 +134,63 @@ func (sb *WorkflowSchemaBuilder) GetDataSourceSchema() map[string]datasource_sch
 			MarkdownDescription: desc["name"].markdown,
 			Computed:            true,
 		},
-		"owner": datasource_schema.StringAttribute{
+		"owner": datasource_schema.SingleNestedAttribute{
 			Description:         desc["owner"].description,
 			MarkdownDescription: desc["owner"].markdown,
 			Computed:            true,
+			Attributes: map[string]datasource_schema.Attribute{
+				"type": datasource_schema.StringAttribute{
+					Description: "The type of the referenced object (e.g., IDENTITY).",
+					Computed:    true,
+				},
+				"id": datasource_schema.StringAttribute{
+					Description: "The unique identifier (UUID) of the owner identity.",
+					Computed:    true,
+				},
+				"name": datasource_schema.StringAttribute{
+					Description: "The name of the owner identity.",
+					Computed:    true,
+				},
+			},
 		},
 		"description": datasource_schema.StringAttribute{
 			Description:         desc["description"].description,
 			MarkdownDescription: desc["description"].markdown,
 			Computed:            true,
 		},
-		"definition": datasource_schema.StringAttribute{
+		"definition": datasource_schema.SingleNestedAttribute{
 			Description:         desc["definition"].description,
 			MarkdownDescription: desc["definition"].markdown,
 			Computed:            true,
+			Attributes: map[string]datasource_schema.Attribute{
+				"start": datasource_schema.StringAttribute{
+					Description: "The name of the first step to execute in the workflow.",
+					Computed:    true,
+				},
+				"steps": datasource_schema.StringAttribute{
+					Description: "Workflow steps as a JSON string. Each step defines an action or operator with its configuration.",
+					Computed:    true,
+				},
+			},
 		},
-		"trigger": datasource_schema.StringAttribute{
+		"trigger": datasource_schema.SingleNestedAttribute{
 			Description:         desc["trigger"].description,
 			MarkdownDescription: desc["trigger"].markdown,
 			Computed:            true,
+			Attributes: map[string]datasource_schema.Attribute{
+				"type": datasource_schema.StringAttribute{
+					Description: "The type of trigger (e.g., EVENT, SCHEDULED, REQUEST_RESPONSE).",
+					Computed:    true,
+				},
+				"display_name": datasource_schema.StringAttribute{
+					Description: "Display name for the trigger.",
+					Computed:    true,
+				},
+				"attributes": datasource_schema.StringAttribute{
+					Description: "Trigger-specific attributes as a JSON string. Structure varies by trigger type.",
+					Computed:    true,
+				},
+			},
 		},
 		"enabled": datasource_schema.BoolAttribute{
 			Description:         desc["enabled"].description,
@@ -151,20 +228,20 @@ func (sb *WorkflowSchemaBuilder) fieldDescriptions() map[string]struct {
 			markdown:    "Name of the workflow as it appears in the UI.",
 		},
 		"owner": {
-			description: "Owner of the workflow as a JSON string.",
-			markdown:    "Owner of the workflow as a JSON string. Must be a valid identity reference with `type`, `id`, and `name` fields. Example: `{\"type\":\"IDENTITY\",\"id\":\"2c91808568c529c60168cca6f90c1313\",\"name\":\"William Wilson\"}`",
+			description: "Owner of the workflow.",
+			markdown:    "Owner of the workflow. Must be a valid identity reference with `type` (typically 'IDENTITY'), `id` (UUID), and optionally `name`.",
 		},
 		"description": {
 			description: "Description of the workflow.",
 			markdown:    "Description of the workflow's purpose and functionality.",
 		},
 		"definition": {
-			description: "Workflow definition as a JSON string.",
-			markdown:    "Workflow definition as a JSON string containing the workflow logic. Must include `start` (name of first step) and `steps` (object containing all workflow steps with their actions and configurations). See [Workflows Documentation](https://developer.sailpoint.com/docs/extensibility/workflows) for structure details.",
+			description: "Workflow definition.",
+			markdown:    "Workflow definition containing the workflow logic. Must include `start` (name of first step to execute) and `steps` (JSON string with all workflow steps and their configurations).",
 		},
 		"trigger": {
-			description: "Trigger configuration as a JSON string.",
-			markdown:    "Trigger configuration as a JSON string defining what initiates the workflow. Must include `type` (e.g., `EVENT`) and `attributes` (trigger-specific configuration). See [Workflow Triggers](https://developer.sailpoint.com/docs/extensibility/workflows/triggers) for available trigger types.",
+			description: "Trigger configuration.",
+			markdown:    "Trigger configuration defining what initiates the workflow. Must include `type` (e.g., EVENT, SCHEDULED, REQUEST_RESPONSE) and optional `attributes` (trigger-specific configuration as JSON string).",
 		},
 		"enabled": {
 			description: "Whether the workflow is enabled.",

@@ -17,10 +17,10 @@ Manages a SailPoint Workflow. Workflows are custom automation scripts that respo
 
 ### Required
 
-- `definition` (String) Workflow definition as a JSON string containing the workflow logic. Must include `start` (name of first step) and `steps` (object containing all workflow steps with their actions and configurations). See [Workflows Documentation](https://developer.sailpoint.com/docs/extensibility/workflows) for structure details.
+- `definition` (Attributes) Workflow definition containing the workflow logic. Must include `start` (name of first step to execute) and `steps` (JSON string with all workflow steps and their configurations). (see [below for nested schema](#nestedatt--definition))
 - `name` (String) Name of the workflow as it appears in the UI.
-- `owner` (String) Owner of the workflow as a JSON string. Must be a valid identity reference with `type`, `id`, and `name` fields. Example: `{"type":"IDENTITY","id":"2c91808568c529c60168cca6f90c1313","name":"William Wilson"}`
-- `trigger` (String) Trigger configuration as a JSON string defining what initiates the workflow. Must include `type` (e.g., `EVENT`) and `attributes` (trigger-specific configuration). See [Workflow Triggers](https://developer.sailpoint.com/docs/extensibility/workflows/triggers) for available trigger types.
+- `owner` (Attributes) Owner of the workflow. Must be a valid identity reference with `type` (typically 'IDENTITY'), `id` (UUID), and optionally `name`. (see [below for nested schema](#nestedatt--owner))
+- `trigger` (Attributes) Trigger configuration defining what initiates the workflow. Must include `type` (e.g., EVENT, SCHEDULED, REQUEST_RESPONSE) and optional `attributes` (trigger-specific configuration as JSON string). (see [below for nested schema](#nestedatt--trigger))
 
 ### Optional
 
@@ -32,3 +32,37 @@ Manages a SailPoint Workflow. Workflows are custom automation scripts that respo
 - `created` (String) ISO-8601 timestamp when the workflow was created (computed).
 - `id` (String) Unique identifier (UUID) of the workflow.
 - `modified` (String) ISO-8601 timestamp when the workflow was last modified (computed).
+
+<a id="nestedatt--definition"></a>
+### Nested Schema for `definition`
+
+Required:
+
+- `start` (String) The name of the first step to execute in the workflow.
+- `steps` (String) Workflow steps as a JSON string. Each step defines an action or operator with its configuration.
+
+
+<a id="nestedatt--owner"></a>
+### Nested Schema for `owner`
+
+Required:
+
+- `id` (String) The unique identifier (UUID) of the owner identity.
+- `type` (String) The type of the referenced object (e.g., IDENTITY).
+
+Optional:
+
+- `name` (String) The name of the owner identity.
+
+
+<a id="nestedatt--trigger"></a>
+### Nested Schema for `trigger`
+
+Required:
+
+- `type` (String) The type of trigger (e.g., EVENT, SCHEDULED, REQUEST_RESPONSE).
+
+Optional:
+
+- `attributes` (String) Trigger-specific attributes as a JSON string. Structure varies by trigger type.
+- `display_name` (String) Display name for the trigger.
