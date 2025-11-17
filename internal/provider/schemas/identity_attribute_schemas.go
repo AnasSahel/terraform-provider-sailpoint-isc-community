@@ -71,7 +71,7 @@ func (sb *IdentityAttributeSchemaBuilder) GetResourceSchema() map[string]resourc
 		"sources": resource_schema.ListNestedAttribute{
 			Description:         desc["sources"].description,
 			MarkdownDescription: desc["sources"].markdown,
-			Optional:            true,
+			Required:            true,
 			NestedObject: resource_schema.NestedAttributeObject{
 				Attributes: map[string]resource_schema.Attribute{
 					"type": resource_schema.StringAttribute{
@@ -190,8 +190,8 @@ func (sb *IdentityAttributeSchemaBuilder) fieldDescriptions() map[string]struct 
 			markdown:    "Indicates whether this attribute can be used in searches. Can only be `true` if `system`, `standard`, and `multi` are all `false`. Defaults to `false`.",
 		},
 		"sources": {
-			description: "List of sources for this identity attribute.",
-			markdown:    "List of sources that define how the identity attribute is populated.",
+			description: "List of sources for this identity attribute. This field is required by the provider (provider design decision, not a SailPoint API requirement).",
+			markdown:    "List of sources that define how the identity attribute is populated. **Note:** This field is marked as required by this provider to enforce explicit configuration, even though the SailPoint API allows creating attributes without specifying sources. This is a provider design decision to promote infrastructure-as-code best practices.",
 		},
 		"sources.type": {
 			description: "The type of the source.",
