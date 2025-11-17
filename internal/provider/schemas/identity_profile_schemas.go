@@ -4,6 +4,7 @@
 package schemas
 
 import (
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	datasource_schema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	resource_schema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -34,6 +35,9 @@ func (sb *IdentityProfileSchemaBuilder) GetResourceSchema() map[string]resource_
 			Description:         desc["name"].description,
 			MarkdownDescription: desc["name"].markdown,
 			Required:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.RequiresReplace(),
+			},
 		},
 		"created": resource_schema.StringAttribute{
 			Description:         desc["created"].description,
@@ -57,6 +61,7 @@ func (sb *IdentityProfileSchemaBuilder) GetResourceSchema() map[string]resource_
 			Description:         desc["owner"].description,
 			MarkdownDescription: desc["owner"].markdown,
 			Optional:            true,
+			Computed:            true,
 			Attributes: map[string]resource_schema.Attribute{
 				"type": resource_schema.StringAttribute{
 					Description:         desc["owner.type"].description,
@@ -82,6 +87,7 @@ func (sb *IdentityProfileSchemaBuilder) GetResourceSchema() map[string]resource_
 			Description:         desc["priority"].description,
 			MarkdownDescription: desc["priority"].markdown,
 			Optional:            true,
+			Computed:            true,
 		},
 		"authoritative_source": resource_schema.SingleNestedAttribute{
 			Description:         desc["authoritative_source"].description,
@@ -92,11 +98,17 @@ func (sb *IdentityProfileSchemaBuilder) GetResourceSchema() map[string]resource_
 					Description:         desc["authoritative_source.type"].description,
 					MarkdownDescription: desc["authoritative_source.type"].markdown,
 					Required:            true,
+					PlanModifiers: []planmodifier.String{
+						stringplanmodifier.RequiresReplace(),
+					},
 				},
 				"id": resource_schema.StringAttribute{
 					Description:         desc["authoritative_source.id"].description,
 					MarkdownDescription: desc["authoritative_source.id"].markdown,
 					Required:            true,
+					PlanModifiers: []planmodifier.String{
+						stringplanmodifier.RequiresReplace(),
+					},
 				},
 				"name": resource_schema.StringAttribute{
 					Description:         desc["authoritative_source.name"].description,
@@ -111,9 +123,7 @@ func (sb *IdentityProfileSchemaBuilder) GetResourceSchema() map[string]resource_
 		"identity_refresh_required": resource_schema.BoolAttribute{
 			Description:         desc["identity_refresh_required"].description,
 			MarkdownDescription: desc["identity_refresh_required"].markdown,
-			Optional:            true,
 			Computed:            true,
-			Default:             booldefault.StaticBool(false),
 		},
 		"identity_count": resource_schema.Int64Attribute{
 			Description:         desc["identity_count"].description,
@@ -124,6 +134,7 @@ func (sb *IdentityProfileSchemaBuilder) GetResourceSchema() map[string]resource_
 			Description:         desc["identity_attribute_config"].description,
 			MarkdownDescription: desc["identity_attribute_config"].markdown,
 			Optional:            true,
+			Computed:            true,
 			Attributes: map[string]resource_schema.Attribute{
 				"enabled": resource_schema.BoolAttribute{
 					Description:         desc["identity_attribute_config.enabled"].description,
@@ -143,22 +154,11 @@ func (sb *IdentityProfileSchemaBuilder) GetResourceSchema() map[string]resource_
 								MarkdownDescription: desc["identity_attribute_config.attribute_transforms.identity_attribute_name"].markdown,
 								Required:            true,
 							},
-							"transform_definition": resource_schema.SingleNestedAttribute{
+							"transform_definition": resource_schema.StringAttribute{
 								Description:         desc["identity_attribute_config.attribute_transforms.transform_definition"].description,
 								MarkdownDescription: desc["identity_attribute_config.attribute_transforms.transform_definition"].markdown,
 								Optional:            true,
-								Attributes: map[string]resource_schema.Attribute{
-									"type": resource_schema.StringAttribute{
-										Description:         desc["identity_attribute_config.attribute_transforms.transform_definition.type"].description,
-										MarkdownDescription: desc["identity_attribute_config.attribute_transforms.transform_definition.type"].markdown,
-										Required:            true,
-									},
-									"attributes": resource_schema.StringAttribute{
-										Description:         desc["identity_attribute_config.attribute_transforms.transform_definition.attributes"].description,
-										MarkdownDescription: desc["identity_attribute_config.attribute_transforms.transform_definition.attributes"].markdown,
-										Optional:            true,
-									},
-								},
+								CustomType:          jsontypes.NormalizedType{},
 							},
 						},
 					},
@@ -187,7 +187,6 @@ func (sb *IdentityProfileSchemaBuilder) GetResourceSchema() map[string]resource_
 			MarkdownDescription: desc["has_time_based_attr"].markdown,
 			Optional:            true,
 			Computed:            true,
-			Default:             booldefault.StaticBool(false),
 		},
 	}
 }
@@ -302,22 +301,11 @@ func (sb *IdentityProfileSchemaBuilder) GetDataSourceSchema() map[string]datasou
 								MarkdownDescription: desc["identity_attribute_config.attribute_transforms.identity_attribute_name"].markdown,
 								Computed:            true,
 							},
-							"transform_definition": datasource_schema.SingleNestedAttribute{
+							"transform_definition": datasource_schema.StringAttribute{
 								Description:         desc["identity_attribute_config.attribute_transforms.transform_definition"].description,
 								MarkdownDescription: desc["identity_attribute_config.attribute_transforms.transform_definition"].markdown,
 								Computed:            true,
-								Attributes: map[string]datasource_schema.Attribute{
-									"type": datasource_schema.StringAttribute{
-										Description:         desc["identity_attribute_config.attribute_transforms.transform_definition.type"].description,
-										MarkdownDescription: desc["identity_attribute_config.attribute_transforms.transform_definition.type"].markdown,
-										Computed:            true,
-									},
-									"attributes": datasource_schema.StringAttribute{
-										Description:         desc["identity_attribute_config.attribute_transforms.transform_definition.attributes"].description,
-										MarkdownDescription: desc["identity_attribute_config.attribute_transforms.transform_definition.attributes"].markdown,
-										Computed:            true,
-									},
-								},
+								CustomType:          jsontypes.NormalizedType{},
 							},
 						},
 					},

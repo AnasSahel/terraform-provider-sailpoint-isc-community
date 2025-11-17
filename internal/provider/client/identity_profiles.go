@@ -150,7 +150,18 @@ func (c *Client) CreateIdentityProfile(ctx context.Context, profile *IdentityPro
 func (c *Client) UpdateIdentityProfile(ctx context.Context, id string, operations []map[string]interface{}) (*IdentityProfile, error) {
 	var result IdentityProfile
 
-	resp, err := c.doRequest(ctx, http.MethodPatch, fmt.Sprintf("%s/%s", identityProfilesEndpoint, id), operations, &result)
+	resp, err := c.HTTPClient.R().
+		SetContext(ctx).
+		SetHeader("Content-Type", "application/json-patch+json").
+		SetBody(operations).
+		SetResult(&result).
+		Patch(fmt.Sprintf("%s/%s", identityProfilesEndpoint, id))
+
+	// Check status code first before handling errors
+	if resp != nil && resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("update identity_profile failed: status=%d, body=%s",
+			resp.StatusCode(), resp.String())
+	}
 
 	if err != nil {
 		return nil, c.formatError(ErrorContext{
@@ -160,15 +171,7 @@ func (c *Client) UpdateIdentityProfile(ctx context.Context, id string, operation
 		}, err, 0)
 	}
 
-	if resp.StatusCode() == http.StatusOK {
-		return &result, nil
-	}
-
-	return nil, c.formatError(ErrorContext{
-		Operation:  "update",
-		Resource:   "identity_profile",
-		ResourceID: id,
-	}, nil, resp.StatusCode())
+	return &result, nil
 }
 
 // DeleteIdentityProfile deletes an identity profile by ID.
@@ -183,7 +186,8 @@ func (c *Client) DeleteIdentityProfile(ctx context.Context, id string) error {
 		}, err, 0)
 	}
 
-	if resp.StatusCode() == http.StatusNoContent {
+	// Accept both 202 (Accepted - async delete) and 204 (No Content - sync delete)
+	if resp.StatusCode() == http.StatusAccepted || resp.StatusCode() == http.StatusNoContent {
 		return nil
 	}
 

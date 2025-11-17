@@ -58,16 +58,7 @@ Read-Only:
 Read-Only:
 
 - `identity_attribute_name` (String) The name of the identity attribute to which this transform applies (e.g., `email`, `department`).
-- `transform_definition` (Attributes) The transform definition that specifies how the attribute value should be calculated or derived. (see [below for nested schema](#nestedatt--identity_attribute_config--attribute_transforms--transform_definition))
-
-<a id="nestedatt--identity_attribute_config--attribute_transforms--transform_definition"></a>
-### Nested Schema for `identity_attribute_config.attribute_transforms.transform_definition`
-
-Read-Only:
-
-- `attributes` (String) Transform-specific configuration attributes as a JSON string. The structure varies by transform type.
-- `type` (String) The type of transform to apply (e.g., `accountAttribute`, `static`, `reference`).
-
+- `transform_definition` (String) The transform definition that specifies how the attribute value should be calculated or derived.
 
 
 
