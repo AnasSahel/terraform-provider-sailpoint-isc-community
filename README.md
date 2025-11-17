@@ -10,11 +10,30 @@ A Terraform provider for managing [SailPoint Identity Security Cloud (ISC)](http
 
 ## Features
 
-- **Transform Management**: Create, read, update, and delete SailPoint Transforms
-  - Support for all transform types (upper, lower, concatenation, conditional, etc.)
+### Currently Implemented Resources
+
+- ✅ **Transforms** - Create, read, update, and delete SailPoint Transforms
+  - Support for all 31 transform types
   - Immutable name and type fields (changes force recreation)
   - Flexible JSON-based attributes configuration
   - Import existing transforms
+
+- ✅ **Form Definitions** - Manage custom forms for access requests and workflows
+  - Full CRUD operations
+  - Support for nested fields, conditions, and inputs
+  - Import existing form definitions
+
+- ✅ **Workflows** - Manage custom automation workflows
+  - Complete workflow lifecycle management
+  - Support for definitions, triggers, and execution
+  - Automatic disabling before deletion
+  - Import existing workflows
+
+- ✅ **Identity Attributes** - Manage identity attribute configurations
+  - Full CRUD operations
+  - Support for sources with rules and properties
+  - Required sources field for explicit configuration (IaC best practice)
+  - Uses `name` as identifier
 
 ## Requirements
 
@@ -202,20 +221,192 @@ For more examples, see the [examples directory](./examples).
 
 ### Resources
 
-- `sailpoint_transform` - Manage SailPoint Transforms
-  - **Attributes:**
-    - `id` (Computed) - Transform UUID
-    - `name` (Required, Immutable) - Transform name
-    - `type` (Required, Immutable) - Transform type
-    - `attributes` (Required) - JSON configuration (only field that can be updated)
-    - `internal` (Computed) - Whether this is a SailPoint internal transform
+- ✅ `sailpoint_transform` - Manage SailPoint Transforms
+- ✅ `sailpoint_form_definition` - Manage Form Definitions
+- ✅ `sailpoint_workflow` - Manage Workflows
+- ✅ `sailpoint_identity_attribute` - Manage Identity Attributes
 
 ### Data Sources
 
-- `sailpoint_transform` - Read existing Transform by ID
-  - **Attributes:**
-    - `id` (Required) - Transform UUID to retrieve
-    - All other fields are computed
+- ✅ `sailpoint_transform` - Read existing Transform by ID
+- ✅ `sailpoint_form_definition` - Read existing Form Definition by ID
+- ✅ `sailpoint_workflow` - Read existing Workflow by ID
+- ✅ `sailpoint_identity_attribute` - Read existing Identity Attribute by name
+
+## SailPoint v2025 API Coverage
+
+This provider is actively implementing resources for the SailPoint v2025 API. Below is the current coverage status:
+
+### ✅ Implemented (4 endpoint groups)
+
+| API Endpoint Group | Status | Resource | Data Source |
+|-------------------|--------|----------|-------------|
+| Transforms | ✅ Implemented | `sailpoint_transform` | `sailpoint_transform` |
+| Custom Forms | ✅ Implemented | `sailpoint_form_definition` | `sailpoint_form_definition` |
+| Workflows | ✅ Implemented | `sailpoint_workflow` | `sailpoint_workflow` |
+| Identity Attributes | ✅ Implemented | `sailpoint_identity_attribute` | `sailpoint_identity_attribute` |
+
+### 📋 Available SailPoint v2025 API Endpoints
+
+The following endpoint groups are available in the SailPoint v2025 API and could be implemented in future releases:
+
+<details>
+<summary><b>Core Identity & Access (21 groups)</b></summary>
+
+- Access Model Metadata
+- Access Profiles
+- Access Request Approvals
+- Access Request Identity Metrics
+- Access Requests
+- Accounts
+- Account Activities
+- Account Aggregations
+- Account Usages
+- Approvals
+- Entitlements
+- Identities
+- Identity History
+- Identity Profiles
+- Lifecycle States
+- Public Identities
+- Public Identities Config
+- Requestable Objects
+- Role Insights
+- Roles
+- Segments
+
+</details>
+
+<details>
+<summary><b>Governance & Compliance (8 groups)</b></summary>
+
+- Certification Campaign Filters
+- Certification Campaigns
+- Certification Summaries
+- Certifications
+- Governance Groups
+- SOD Policies
+- SOD Violations
+- Work Items
+
+</details>
+
+<details>
+<summary><b>Sources & Connectors (9 groups)</b></summary>
+
+- Sources
+- Source Usages
+- Connectors
+- Connector Customizers
+- Connector Rule Management
+- Account Aggregations
+- Application Discovery
+- Classify Source
+- Multi-Host Integration
+
+</details>
+
+<details>
+<summary><b>AI & Intelligence (6 groups)</b></summary>
+
+- IAI Access Request Recommendations
+- IAI Common Access
+- IAI Outliers
+- IAI Peer Group Strategies
+- IAI Recommendations
+- IAI Role Mining
+
+</details>
+
+<details>
+<summary><b>Automation & Integration (4 groups)</b></summary>
+
+- Task Management
+- Triggers
+- Service Desk Integration
+- SIM Integrations
+
+</details>
+
+<details>
+<summary><b>Security & Authentication (9 groups)</b></summary>
+
+- Auth Profile
+- Auth Users
+- Global Tenant Security Settings
+- MFA Configuration
+- OAuth Clients
+- Password Configuration
+- Password Dictionary
+- Password Management
+- Password Policies
+- Password Sync Groups
+- Personal Access Tokens
+
+</details>
+
+<details>
+<summary><b>Machine & Non-Employee (7 groups)</b></summary>
+
+- Machine Accounts
+- Machine Account Classify
+- Machine Account Mappings
+- Machine Classification Config
+- Machine Identities
+- Non-Employee Lifecycle Management
+
+</details>
+
+<details>
+<summary><b>Search & Reporting (7 groups)</b></summary>
+
+- Search
+- Saved Search
+- Scheduled Search
+- Search Attribute Configuration
+- Reports Data Extraction
+- Tagged Objects
+- Tags
+
+</details>
+
+<details>
+<summary><b>Configuration & Customization (15 groups)</b></summary>
+
+- Branding
+- Configuration Hub
+- Custom Password Instructions
+- Custom User Levels
+- Data Segmentation
+- Dimensions
+- Icons
+- Launchers
+- Org Config
+- Parameter Storage
+- SP-Config
+- Suggested Entitlement Description
+- Tenant
+- Tenant Context
+- UI Metadata
+
+</details>
+
+<details>
+<summary><b>Platform & Administration (6 groups)</b></summary>
+
+- Api Usage
+- Apps
+- Managed Clients
+- Managed Cluster Types
+- Managed Clusters
+- Work Reassignment
+
+</details>
+
+**Total API Endpoint Groups**: ~95+
+**Currently Implemented**: 4 (4.2%)
+
+> **Note**: Implementation priorities are based on community feedback and common use cases. If you need a specific endpoint, please [open an issue](https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/issues) or contribute!
 
 ## Documentation
 
@@ -295,13 +486,30 @@ Please follow the Git workflow documented in `.claude/workflow.md`.
 
 ## Roadmap
 
-- [ ] Add more resources (Sources, Identity Profiles, Roles, etc.)
-- [ ] Add acceptance tests
+### High Priority
+- [ ] **Sources** - Manage source connections (critical for identity aggregation)
+- [ ] **Identity Profiles** - Manage identity profile configurations
+- [ ] **Access Profiles** - Manage access profile definitions
+- [ ] **Roles** - Manage role definitions and assignments
 - [ ] Publish to Terraform Registry
+- [ ] Add comprehensive acceptance tests
+
+### Medium Priority
+- [ ] **Lifecycle States** - Manage identity lifecycle configurations
+- [ ] **Certifications** - Manage certification campaigns
+- [ ] **Connectors** - Manage connector configurations
 - [ ] Add validation for transform attributes by type
-- [ ] Support for list operations (list all transforms)
-- [ ] Add more comprehensive examples
+- [ ] Support for list operations on existing resources
 - [ ] Improve error messages and diagnostics
+
+### Future Enhancements
+- [ ] IAI features (Role Mining, Recommendations, etc.)
+- [ ] Password Management resources
+- [ ] SOD Policy management
+- [ ] Service Desk Integration
+- [ ] Advanced search and reporting capabilities
+
+See the [API Coverage section](#sailpoint-v2025-api-coverage) for the complete list of available endpoints.
 
 ## Known Limitations
 
