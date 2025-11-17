@@ -99,9 +99,18 @@ func retryCondition(r *resty.Response, err error) bool {
 }
 
 func (c *Client) doRequest(ctx context.Context, method string, url string, body interface{}, result interface{}) (*resty.Response, error) {
+	return c.doRequestWithHeaders(ctx, method, url, body, result, nil)
+}
+
+func (c *Client) doRequestWithHeaders(ctx context.Context, method string, url string, body interface{}, result interface{}, headers map[string]string) (*resty.Response, error) {
 	req := c.HTTPClient.R().
 		SetContext(ctx).
 		SetHeader("Accept", "application/json")
+
+	// Add custom headers if provided
+	for key, value := range headers {
+		req.SetHeader(key, value)
+	}
 
 	if body != nil {
 		req.SetBody(body)

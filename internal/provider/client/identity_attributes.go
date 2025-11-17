@@ -84,7 +84,17 @@ func (c *Client) GetIdentityAttribute(ctx context.Context, name string) (*Identi
 func (c *Client) CreateIdentityAttribute(ctx context.Context, attribute *IdentityAttribute) (*IdentityAttribute, error) {
 	var result IdentityAttribute
 
-	resp, err := c.doRequest(ctx, http.MethodPost, identityAttributesEndpoint, attribute, &result)
+	resp, err := c.HTTPClient.R().
+		SetContext(ctx).
+		SetBody(attribute).
+		SetResult(&result).
+		Post(identityAttributesEndpoint)
+
+	// Check status code first before handling errors
+	if resp != nil && resp.StatusCode() != http.StatusCreated {
+		return nil, fmt.Errorf("create identity_attribute failed: status=%d, body=%s",
+			resp.StatusCode(), resp.String())
+	}
 
 	if err != nil {
 		return nil, c.formatError(ErrorContext{
@@ -93,14 +103,7 @@ func (c *Client) CreateIdentityAttribute(ctx context.Context, attribute *Identit
 		}, err, 0)
 	}
 
-	if resp.StatusCode() == http.StatusCreated {
-		return &result, nil
-	}
-
-	return nil, c.formatError(ErrorContext{
-		Operation: "create",
-		Resource:  "identity_attribute",
-	}, nil, resp.StatusCode())
+	return &result, nil
 }
 
 // UpdateIdentityAttribute updates an existing identity attribute by replacing it with the provided attribute.
