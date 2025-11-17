@@ -58,7 +58,7 @@ type IdentityProfile struct {
 	Description                      types.String                      `tfsdk:"description"`
 	Owner                            *IdentityProfileOwner             `tfsdk:"owner"`
 	Priority                         types.Int64                       `tfsdk:"priority"`
-	AuthoritativeSource              AuthoritativeSource               `tfsdk:"authoritative_source"`
+	AuthoritativeSource              *AuthoritativeSource              `tfsdk:"authoritative_source"`
 	IdentityRefreshRequired          types.Bool                        `tfsdk:"identity_refresh_required"`
 	IdentityCount                    types.Int64                       `tfsdk:"identity_count"`
 	IdentityAttributeConfig          *IdentityAttributeConfig          `tfsdk:"identity_attribute_config"`
@@ -74,16 +74,20 @@ func (ip *IdentityProfile) ConvertToSailPoint(ctx context.Context) (*client.Iden
 
 	profile := &client.IdentityProfile{
 		Name: ip.Name.ValueString(),
-		AuthoritativeSource: client.AuthoritativeSource{
-			Type: ip.AuthoritativeSource.Type.ValueString(),
-			ID:   ip.AuthoritativeSource.ID.ValueString(),
-		},
 	}
 
-	// Add authoritative source name if present
-	if !ip.AuthoritativeSource.Name.IsNull() && !ip.AuthoritativeSource.Name.IsUnknown() {
-		name := ip.AuthoritativeSource.Name.ValueString()
-		profile.AuthoritativeSource.Name = name
+	// Add authoritative source if present
+	if ip.AuthoritativeSource != nil {
+		profile.AuthoritativeSource = client.AuthoritativeSource{
+			Type: ip.AuthoritativeSource.Type.ValueString(),
+			ID:   ip.AuthoritativeSource.ID.ValueString(),
+		}
+
+		// Add authoritative source name if present
+		if !ip.AuthoritativeSource.Name.IsNull() && !ip.AuthoritativeSource.Name.IsUnknown() {
+			name := ip.AuthoritativeSource.Name.ValueString()
+			profile.AuthoritativeSource.Name = name
+		}
 	}
 
 	// Optional fields
@@ -215,15 +219,19 @@ func (ip *IdentityProfile) ConvertFromSailPoint(ctx context.Context, profile *cl
 		ip.Description = types.StringNull()
 	}
 
-	// AuthoritativeSource (required)
-	ip.AuthoritativeSource = AuthoritativeSource{
-		Type: types.StringValue(profile.AuthoritativeSource.Type),
-		ID:   types.StringValue(profile.AuthoritativeSource.ID),
-	}
-	if profile.AuthoritativeSource.Name != "" {
-		ip.AuthoritativeSource.Name = types.StringValue(profile.AuthoritativeSource.Name)
+	// AuthoritativeSource
+	if profile.AuthoritativeSource.Type != "" || profile.AuthoritativeSource.ID != "" {
+		ip.AuthoritativeSource = &AuthoritativeSource{
+			Type: types.StringValue(profile.AuthoritativeSource.Type),
+			ID:   types.StringValue(profile.AuthoritativeSource.ID),
+		}
+		if profile.AuthoritativeSource.Name != "" {
+			ip.AuthoritativeSource.Name = types.StringValue(profile.AuthoritativeSource.Name)
+		} else if includeNull {
+			ip.AuthoritativeSource.Name = types.StringNull()
+		}
 	} else if includeNull {
-		ip.AuthoritativeSource.Name = types.StringNull()
+		ip.AuthoritativeSource = nil
 	}
 
 	// Owner

@@ -168,19 +168,16 @@ func (sb *IdentityProfileSchemaBuilder) GetResourceSchema() map[string]resource_
 		"identity_exception_report_reference": resource_schema.SingleNestedAttribute{
 			Description:         desc["identity_exception_report_reference"].description,
 			MarkdownDescription: desc["identity_exception_report_reference"].markdown,
-			Optional:            true,
 			Computed:            true,
 			Attributes: map[string]resource_schema.Attribute{
 				"task_result_id": resource_schema.StringAttribute{
 					Description:         desc["identity_exception_report_reference.task_result_id"].description,
 					MarkdownDescription: desc["identity_exception_report_reference.task_result_id"].markdown,
-					Optional:            true,
 					Computed:            true,
 				},
 				"report_name": resource_schema.StringAttribute{
 					Description:         desc["identity_exception_report_reference.report_name"].description,
 					MarkdownDescription: desc["identity_exception_report_reference.report_name"].markdown,
-					Optional:            true,
 					Computed:            true,
 				},
 			},
