@@ -158,6 +158,7 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 		datasources.NewFormDefinitionDataSource,
 		datasources.NewWorkflowDataSource,
 		datasources.NewIdentityAttributeDataSource,
+		datasources.NewIdentityProfileDataSource,
 	}
 }
 
@@ -168,5 +169,6 @@ func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resou
 		resources.NewFormDefinitionResource,
 		resources.NewWorkflowResource,
 		resources.NewIdentityAttributeResource,
+		resources.NewIdentityProfileResource,
 	}
 }
