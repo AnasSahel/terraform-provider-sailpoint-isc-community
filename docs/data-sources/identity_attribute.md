@@ -24,7 +24,7 @@ Use this data source to retrieve detailed information about a specific SailPoint
 - `display_name` (String) The user-friendly display name of the identity attribute shown in the UI.
 - `multi` (Boolean) Indicates whether this attribute can hold multiple values. Must be set to `false` to make the attribute searchable. Defaults to `false`.
 - `searchable` (Boolean) Indicates whether this attribute can be used in searches. Can only be `true` if `system`, `standard`, and `multi` are all `false`. Defaults to `false`.
-- `sources` (Attributes List) List of sources that define how the identity attribute is populated. (see [below for nested schema](#nestedatt--sources))
+- `sources` (Attributes List) List of sources that define how the identity attribute is populated. **Note:** This field is marked as required by this provider to enforce explicit configuration, even though the SailPoint API allows creating attributes without specifying sources. This is a provider design decision to promote infrastructure-as-code best practices. (see [below for nested schema](#nestedatt--sources))
 - `standard` (Boolean) Indicates whether this is a standard attribute. Standard attributes cannot be deleted. Must be set to `false` to make the attribute searchable or deletable. Defaults to `false`.
 - `system` (Boolean) Indicates whether this is a system-managed attribute. System attributes cannot be deleted. Must be set to `false` to make the attribute searchable or deletable. Defaults to `false`.
 - `type` (String) The data type of the identity attribute (e.g., `string`, `int`, `date`).
