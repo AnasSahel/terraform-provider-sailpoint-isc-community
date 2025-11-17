@@ -2,14 +2,6 @@
 
 This directory contains examples that are mostly used for documentation, but can also be run/tested manually via the Terraform CLI.
 
-## 🆕 Enhanced Examples (v0.2.0)
-
-The examples have been updated to showcase new features:
-
-- **Transform Resources**: Enhanced validation, error handling, and immutable field examples
-- **Transform Data Sources**: New filtering capabilities and single transform lookup examples
-- **Validation Demos**: Examples of field validation and error scenarios
-
 ## Structure
 
 The document generation tool looks for files in the following locations by default. All other *.tf files besides the ones mentioned below are ignored by the documentation tool. This is useful for creating examples that can run and/or are testable even if some parts are not relevant for the documentation.
@@ -20,14 +12,29 @@ The document generation tool looks for files in the following locations by defau
 
 ## Available Examples
 
-### Transform Resources
-- **resources/transform/** - Comprehensive transform examples with validation demos
+### Transform Resources & Data Sources
+- **resources/transform/** - Comprehensive transform examples
   - 15+ transform examples covering all major types
   - Validation and error handling examples
   - Import examples and lifecycle management
+- **data-sources/transform/** - Transform data source examples
+  - Single transform lookup by ID
+  - Usage patterns and integration examples
 
-### Transform Data Sources  
-- **data-sources/transform/** - Enhanced data source examples
-  - `sailpoint_transforms` (plural) with filtering examples
-  - `sailpoint_transform` (singular) lookup examples
-  - Client-side and server-side filtering patterns
+### Form Definition Resources & Data Sources
+- **resources/sailpoint_form_definition/** - Form definition examples
+  - Creating custom forms with sections and fields
+  - Form input and conditional logic
+  - Import existing form definitions
+- **data-sources/sailpoint_form_definition/** - Form definition data source examples
+  - Reading existing form definitions
+  - Form cloning patterns
+
+### Workflow Resources & Data Sources
+- **resources/sailpoint_workflow/** - Workflow examples
+  - Email notification workflow with event trigger
+  - Approval workflow with conditional logic
+  - Scheduled workflow with cron trigger
+- **data-sources/sailpoint_workflow/** - Workflow data source examples
+  - Reading existing workflows
+  - Workflow cloning and modification patterns
