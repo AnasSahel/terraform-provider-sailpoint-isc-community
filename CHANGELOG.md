@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2025-01-15
+
+### Removed
+
+- **Examples Cleanup**: Removed examples for resources that are not yet implemented
+  - Removed managed-cluster examples (resource and data source)
+  - Removed lifecycle-state examples (resource and data sources)
+  - Removed identity-attribute examples (resource and data sources)
+  - Total: 30 files removed, 5,235 lines deleted
+
+### Changed
+
+- **Documentation**: Updated `examples/README.md` to reflect only currently implemented resources
+  - Transform (resource and data source)
+  - Form Definition (resource and data source)
+  - Workflow (resource and data source)
+
+This release ensures all documentation and examples match the actual provider capabilities, improving clarity for users.
+
 ## [0.5.0] - 2025-01-15
 
 ### Added
