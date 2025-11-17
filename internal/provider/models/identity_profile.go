@@ -410,6 +410,15 @@ func (ip *IdentityProfile) ConvertFromSailPointForDataSource(ctx context.Context
 func (ip *IdentityProfile) GeneratePatchOperations(ctx context.Context, newProfile *IdentityProfile) []map[string]interface{} {
 	operations := make([]map[string]interface{}, 0)
 
+	// Name
+	if !ip.Name.Equal(newProfile.Name) {
+		operations = append(operations, map[string]interface{}{
+			"op":    "replace",
+			"path":  "/name",
+			"value": newProfile.Name.ValueString(),
+		})
+	}
+
 	// Description
 	if !ip.Description.Equal(newProfile.Description) {
 		operations = append(operations, map[string]interface{}{

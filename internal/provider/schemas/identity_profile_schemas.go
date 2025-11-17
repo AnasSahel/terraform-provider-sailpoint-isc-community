@@ -8,6 +8,7 @@ import (
 	datasource_schema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	resource_schema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 )
@@ -35,9 +36,6 @@ func (sb *IdentityProfileSchemaBuilder) GetResourceSchema() map[string]resource_
 			Description:         desc["name"].description,
 			MarkdownDescription: desc["name"].markdown,
 			Required:            true,
-			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.RequiresReplace(),
-			},
 		},
 		"created": resource_schema.StringAttribute{
 			Description:         desc["created"].description,
@@ -123,7 +121,11 @@ func (sb *IdentityProfileSchemaBuilder) GetResourceSchema() map[string]resource_
 		"identity_refresh_required": resource_schema.BoolAttribute{
 			Description:         desc["identity_refresh_required"].description,
 			MarkdownDescription: desc["identity_refresh_required"].markdown,
+			Optional:            true,
 			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.RequiresReplace(),
+			},
 		},
 		"identity_count": resource_schema.Int64Attribute{
 			Description:         desc["identity_count"].description,
