@@ -4,6 +4,7 @@
 package schemas
 
 import (
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	datasource_schema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	resource_schema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -49,6 +50,7 @@ func (sb *TransformSchemaBuilder) GetResourceSchema() map[string]resource_schema
 			Description:         desc["attributes"].description,
 			MarkdownDescription: desc["attributes"].markdown,
 			Required:            true,
+			CustomType:          jsontypes.NormalizedType{},
 		},
 		"internal": resource_schema.BoolAttribute{
 			Description:         desc["internal"].description,
@@ -82,6 +84,7 @@ func (sb *TransformSchemaBuilder) GetDataSourceSchema() map[string]datasource_sc
 			Description:         desc["attributes"].description,
 			MarkdownDescription: desc["attributes"].markdown,
 			Computed:            true,
+			CustomType:          jsontypes.NormalizedType{},
 		},
 		"internal": datasource_schema.BoolAttribute{
 			Description:         desc["internal"].description,

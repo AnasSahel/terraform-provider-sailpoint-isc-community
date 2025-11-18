@@ -8,16 +8,17 @@ import (
 	"encoding/json"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/client"
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // Transform represents the Terraform model for a SailPoint Transform.
 type Transform struct {
-	ID         types.String `tfsdk:"id"`
-	Name       types.String `tfsdk:"name"`
-	Type       types.String `tfsdk:"type"`
-	Attributes types.String `tfsdk:"attributes"` // JSON string
-	Internal   types.Bool   `tfsdk:"internal"`
+	ID         types.String         `tfsdk:"id"`
+	Name       types.String         `tfsdk:"name"`
+	Type       types.String         `tfsdk:"type"`
+	Attributes jsontypes.Normalized `tfsdk:"attributes"` // JSON string with normalization
+	Internal   types.Bool           `tfsdk:"internal"`
 }
 
 // ConvertToSailPoint converts the Terraform model to a SailPoint API Transform.
@@ -58,15 +59,15 @@ func (t *Transform) ConvertFromSailPoint(ctx context.Context, transform *client.
 	t.Type = types.StringValue(transform.Type)
 	t.Internal = types.BoolValue(transform.Internal)
 
-	// Convert attributes map to JSON string
+	// Convert attributes map to JSON string with normalization
 	if transform.Attributes != nil {
 		attributesJSON, err := json.Marshal(transform.Attributes)
 		if err != nil {
 			return err
 		}
-		t.Attributes = types.StringValue(string(attributesJSON))
+		t.Attributes = jsontypes.NewNormalizedValue(string(attributesJSON))
 	} else if includeNull {
-		t.Attributes = types.StringNull()
+		t.Attributes = jsontypes.NewNormalizedNull()
 	}
 
 	return nil

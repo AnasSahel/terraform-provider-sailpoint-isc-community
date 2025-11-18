@@ -4,6 +4,7 @@
 package schemas
 
 import (
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	datasource_schema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	resource_schema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
@@ -117,6 +118,7 @@ func (sb *FormDefinitionSchemaBuilder) GetResourceSchema() map[string]resource_s
 			Description:         desc["form_elements"].description,
 			MarkdownDescription: desc["form_elements"].markdown,
 			Required:            true,
+			CustomType:          jsontypes.NormalizedType{},
 		},
 		"form_conditions": resource_schema.ListNestedAttribute{
 			Description:         desc["form_conditions"].description,
@@ -290,6 +292,7 @@ func (sb *FormDefinitionSchemaBuilder) GetDataSourceSchema() map[string]datasour
 			Description:         desc["form_elements"].description,
 			MarkdownDescription: desc["form_elements"].markdown,
 			Computed:            true,
+			CustomType:          jsontypes.NormalizedType{},
 		},
 		"form_conditions": datasource_schema.ListNestedAttribute{
 			Description:         desc["form_conditions"].description,

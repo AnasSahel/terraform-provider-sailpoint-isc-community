@@ -4,6 +4,7 @@
 package schemas
 
 import (
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	datasource_schema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	resource_schema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
@@ -72,6 +73,7 @@ func (sb *WorkflowSchemaBuilder) GetResourceSchema() map[string]resource_schema.
 				"steps": resource_schema.StringAttribute{
 					Description: "Workflow steps as a JSON string. Each step defines an action or operator with its configuration.",
 					Required:    true,
+					CustomType:  jsontypes.NormalizedType{},
 				},
 			},
 		},
@@ -91,6 +93,7 @@ func (sb *WorkflowSchemaBuilder) GetResourceSchema() map[string]resource_schema.
 				"attributes": resource_schema.StringAttribute{
 					Description: "Trigger-specific attributes as a JSON string. Structure varies by trigger type.",
 					Optional:    true,
+					CustomType:  jsontypes.NormalizedType{},
 				},
 			},
 		},
@@ -170,6 +173,7 @@ func (sb *WorkflowSchemaBuilder) GetDataSourceSchema() map[string]datasource_sch
 				"steps": datasource_schema.StringAttribute{
 					Description: "Workflow steps as a JSON string. Each step defines an action or operator with its configuration.",
 					Computed:    true,
+					CustomType:  jsontypes.NormalizedType{},
 				},
 			},
 		},
@@ -189,6 +193,7 @@ func (sb *WorkflowSchemaBuilder) GetDataSourceSchema() map[string]datasource_sch
 				"attributes": datasource_schema.StringAttribute{
 					Description: "Trigger-specific attributes as a JSON string. Structure varies by trigger type.",
 					Computed:    true,
+					CustomType:  jsontypes.NormalizedType{},
 				},
 			},
 		},

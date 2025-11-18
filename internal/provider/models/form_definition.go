@@ -8,21 +8,22 @@ import (
 	"encoding/json"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/client"
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // FormDefinition represents the Terraform model for a SailPoint Form Definition.
 type FormDefinition struct {
-	ID             types.String    `tfsdk:"id"`
-	Name           types.String    `tfsdk:"name"`
-	Description    types.String    `tfsdk:"description"`
-	Owner          *ObjectRef      `tfsdk:"owner"`
-	UsedBy         []ObjectRef     `tfsdk:"used_by"`         // List of object references
-	FormInput      []FormInput     `tfsdk:"form_input"`      // List of form inputs
-	FormElements   types.String    `tfsdk:"form_elements"`   // JSON string
-	FormConditions []FormCondition `tfsdk:"form_conditions"` // List of form conditions
-	Created        types.String    `tfsdk:"created"`
-	Modified       types.String    `tfsdk:"modified"`
+	ID             types.String         `tfsdk:"id"`
+	Name           types.String         `tfsdk:"name"`
+	Description    types.String         `tfsdk:"description"`
+	Owner          *ObjectRef           `tfsdk:"owner"`
+	UsedBy         []ObjectRef          `tfsdk:"used_by"`         // List of object references
+	FormInput      []FormInput          `tfsdk:"form_input"`      // List of form inputs
+	FormElements   jsontypes.Normalized `tfsdk:"form_elements"`   // JSON string with normalization
+	FormConditions []FormCondition      `tfsdk:"form_conditions"` // List of form conditions
+	Created        types.String         `tfsdk:"created"`
+	Modified       types.String         `tfsdk:"modified"`
 }
 
 // ConvertToSailPoint converts the Terraform model to a SailPoint API FormDefinition.
@@ -149,7 +150,7 @@ func (f *FormDefinition) ConvertFromSailPoint(ctx context.Context, form *client.
 	}
 	// If nil or empty, leave FormInput as nil to preserve null vs [] distinction
 
-	// FormElements
+	// FormElements - with JSON normalization
 	if len(form.FormElements) > 0 {
 		// Normalize form elements by removing empty validations arrays that the API adds
 		normalizedElements := normalizeFormElements(form.FormElements)
@@ -157,9 +158,9 @@ func (f *FormDefinition) ConvertFromSailPoint(ctx context.Context, form *client.
 		if err != nil {
 			return err
 		}
-		f.FormElements = types.StringValue(string(elementsJSON))
+		f.FormElements = jsontypes.NewNormalizedValue(string(elementsJSON))
 	} else if includeNull {
-		f.FormElements = types.StringNull()
+		f.FormElements = jsontypes.NewNormalizedNull()
 	}
 
 	// FormConditions
