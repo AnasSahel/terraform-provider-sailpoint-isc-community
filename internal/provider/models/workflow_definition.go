@@ -8,13 +8,14 @@ import (
 	"encoding/json"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/client"
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // WorkflowDefinition represents the Terraform model for a workflow definition.
 type WorkflowDefinition struct {
-	Start types.String `tfsdk:"start"`
-	Steps types.String `tfsdk:"steps"` // JSON string for flexibility
+	Start types.String         `tfsdk:"start"`
+	Steps jsontypes.Normalized `tfsdk:"steps"` // JSON string with normalization
 }
 
 // ConvertToSailPoint converts the Terraform model to a SailPoint API WorkflowDefinition.
@@ -47,15 +48,15 @@ func (d *WorkflowDefinition) ConvertFromSailPointForResource(ctx context.Context
 
 	d.Start = types.StringValue(definition.Start)
 
-	// Convert steps map to JSON string
+	// Convert steps map to JSON string with normalization
 	if len(definition.Steps) > 0 {
 		stepsJSON, err := json.Marshal(definition.Steps)
 		if err != nil {
 			return err
 		}
-		d.Steps = types.StringValue(string(stepsJSON))
+		d.Steps = jsontypes.NewNormalizedValue(string(stepsJSON))
 	} else {
-		d.Steps = types.StringNull()
+		d.Steps = jsontypes.NewNormalizedNull()
 	}
 
 	return nil
@@ -69,13 +70,13 @@ func (d *WorkflowDefinition) ConvertFromSailPointForDataSource(ctx context.Conte
 
 	d.Start = types.StringValue(definition.Start)
 
-	// Convert steps map to JSON string
+	// Convert steps map to JSON string with normalization
 	if len(definition.Steps) > 0 {
 		stepsJSON, err := json.Marshal(definition.Steps)
 		if err != nil {
 			return err
 		}
-		d.Steps = types.StringValue(string(stepsJSON))
+		d.Steps = jsontypes.NewNormalizedValue(string(stepsJSON))
 	}
 	// Don't set to null for data sources to preserve state
 

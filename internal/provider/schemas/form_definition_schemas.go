@@ -4,9 +4,9 @@
 package schemas
 
 import (
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	datasource_schema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	resource_schema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 )
@@ -63,10 +63,6 @@ func (sb *FormDefinitionSchemaBuilder) GetResourceSchema() map[string]resource_s
 			Description:         desc["used_by"].description,
 			MarkdownDescription: desc["used_by"].markdown,
 			Optional:            true,
-			Computed:            true,
-			PlanModifiers: []planmodifier.List{
-				listplanmodifier.UseStateForUnknown(),
-			},
 			NestedObject: resource_schema.NestedAttributeObject{
 				Attributes: map[string]resource_schema.Attribute{
 					"type": resource_schema.StringAttribute{
@@ -80,10 +76,6 @@ func (sb *FormDefinitionSchemaBuilder) GetResourceSchema() map[string]resource_s
 					"name": resource_schema.StringAttribute{
 						Description: "The name of the referenced object.",
 						Optional:    true,
-						Computed:    true,
-						PlanModifiers: []planmodifier.String{
-							stringplanmodifier.UseStateForUnknown(),
-						},
 					},
 				},
 			},
@@ -117,6 +109,7 @@ func (sb *FormDefinitionSchemaBuilder) GetResourceSchema() map[string]resource_s
 			Description:         desc["form_elements"].description,
 			MarkdownDescription: desc["form_elements"].markdown,
 			Required:            true,
+			CustomType:          jsontypes.NormalizedType{},
 		},
 		"form_conditions": resource_schema.ListNestedAttribute{
 			Description:         desc["form_conditions"].description,
@@ -290,6 +283,7 @@ func (sb *FormDefinitionSchemaBuilder) GetDataSourceSchema() map[string]datasour
 			Description:         desc["form_elements"].description,
 			MarkdownDescription: desc["form_elements"].markdown,
 			Computed:            true,
+			CustomType:          jsontypes.NormalizedType{},
 		},
 		"form_conditions": datasource_schema.ListNestedAttribute{
 			Description:         desc["form_conditions"].description,

@@ -8,14 +8,15 @@ import (
 	"encoding/json"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/client"
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // WorkflowTrigger represents the Terraform model for a workflow trigger.
 type WorkflowTrigger struct {
-	Type        types.String `tfsdk:"type"`
-	DisplayName types.String `tfsdk:"display_name"`
-	Attributes  types.String `tfsdk:"attributes"` // JSON string for flexibility
+	Type        types.String         `tfsdk:"type"`
+	DisplayName types.String         `tfsdk:"display_name"`
+	Attributes  jsontypes.Normalized `tfsdk:"attributes"` // JSON string with normalization
 }
 
 // ConvertToSailPoint converts the Terraform model to a SailPoint API WorkflowTrigger.
@@ -60,15 +61,15 @@ func (t *WorkflowTrigger) ConvertFromSailPointForResource(ctx context.Context, t
 		t.DisplayName = types.StringNull()
 	}
 
-	// Convert attributes map to JSON string
+	// Convert attributes map to JSON string with normalization
 	if len(trigger.Attributes) > 0 {
 		attributesJSON, err := json.Marshal(trigger.Attributes)
 		if err != nil {
 			return err
 		}
-		t.Attributes = types.StringValue(string(attributesJSON))
+		t.Attributes = jsontypes.NewNormalizedValue(string(attributesJSON))
 	} else {
-		t.Attributes = types.StringNull()
+		t.Attributes = jsontypes.NewNormalizedNull()
 	}
 
 	return nil
@@ -88,13 +89,13 @@ func (t *WorkflowTrigger) ConvertFromSailPointForDataSource(ctx context.Context,
 	}
 	// Don't set to null for data sources to preserve state
 
-	// Convert attributes map to JSON string
+	// Convert attributes map to JSON string with normalization
 	if len(trigger.Attributes) > 0 {
 		attributesJSON, err := json.Marshal(trigger.Attributes)
 		if err != nil {
 			return err
 		}
-		t.Attributes = types.StringValue(string(attributesJSON))
+		t.Attributes = jsontypes.NewNormalizedValue(string(attributesJSON))
 	}
 	// Don't set to null for data sources to preserve state
 
