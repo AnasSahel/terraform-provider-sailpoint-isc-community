@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2025-01-18
+
+### Fixed
+
+- **Form Definition**: Fixed "Provider produced inconsistent result" error for `used_by` field
+  - Preserve null vs empty list distinction when API returns empty/null values
+  - Remove Computed flag from `used_by` to fix "unknown value" errors
+  - Align with FormInput and FormConditions patterns for consistent behavior
+
+### Changed
+
+- **All Resources**: Applied jsontypes.Normalized to all JSON string fields for consistent JSON key ordering
+  - Transform: `attributes` field now uses jsontypes.Normalized
+  - Form Definition: `form_elements` field now uses jsontypes.Normalized
+  - Workflow: `definition.steps` and `trigger.attributes` fields now use jsontypes.Normalized
+  - Prevents state drift from JSON key reordering by the API
+
 ## [0.5.1] - 2025-01-15
 
 ### Removed
