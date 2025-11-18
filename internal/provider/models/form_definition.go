@@ -136,9 +136,8 @@ func (f *FormDefinition) ConvertFromSailPoint(ctx context.Context, form *client.
 			usedByRefs[i].ConvertFromSailPointForResource(ctx, objRef)
 		}
 		f.UsedBy = usedByRefs
-	} else {
-		f.UsedBy = []ObjectRef{}
 	}
+	// If nil or empty, leave UsedBy as nil to preserve null vs [] distinction
 
 	// FormInput
 	if len(form.FormInput) > 0 {
