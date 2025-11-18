@@ -35,6 +35,13 @@ A Terraform provider for managing [SailPoint Identity Security Cloud (ISC)](http
   - Required sources field for explicit configuration (IaC best practice)
   - Uses `name` as identifier
 
+- ✅ **Identity Profiles** - Manage identity profile configurations
+  - Full CRUD operations with PATCH-based updates
+  - Support for authoritative source and attribute mappings
+  - Complex nested structures (identity_attribute_config with transforms)
+  - JSON normalization for transform definitions
+  - Proper handling of Optional+Computed fields
+
 ## Requirements
 
 - [Terraform](https://www.terraform.io/downloads.html) >= 1.0
@@ -225,6 +232,7 @@ For more examples, see the [examples directory](./examples).
 - ✅ `sailpoint_form_definition` - Manage Form Definitions
 - ✅ `sailpoint_workflow` - Manage Workflows
 - ✅ `sailpoint_identity_attribute` - Manage Identity Attributes
+- ✅ `sailpoint_identity_profile` - Manage Identity Profiles
 
 ### Data Sources
 
@@ -232,12 +240,13 @@ For more examples, see the [examples directory](./examples).
 - ✅ `sailpoint_form_definition` - Read existing Form Definition by ID
 - ✅ `sailpoint_workflow` - Read existing Workflow by ID
 - ✅ `sailpoint_identity_attribute` - Read existing Identity Attribute by name
+- ✅ `sailpoint_identity_profile` - Read existing Identity Profile by ID
 
 ## SailPoint v2025 API Coverage
 
 This provider is actively implementing resources for the SailPoint v2025 API. Below is the current coverage status:
 
-### ✅ Implemented (4 endpoint groups)
+### ✅ Implemented (5 endpoint groups)
 
 | API Endpoint Group | Status | Resource | Data Source |
 |-------------------|--------|----------|-------------|
@@ -245,6 +254,7 @@ This provider is actively implementing resources for the SailPoint v2025 API. Be
 | Custom Forms | ✅ Implemented | `sailpoint_form_definition` | `sailpoint_form_definition` |
 | Workflows | ✅ Implemented | `sailpoint_workflow` | `sailpoint_workflow` |
 | Identity Attributes | ✅ Implemented | `sailpoint_identity_attribute` | `sailpoint_identity_attribute` |
+| Identity Profiles | ✅ Implemented | `sailpoint_identity_profile` | `sailpoint_identity_profile` |
 
 ### 📋 Available SailPoint v2025 API Endpoints
 
@@ -404,7 +414,7 @@ The following endpoint groups are available in the SailPoint v2025 API and could
 </details>
 
 **Total API Endpoint Groups**: ~95+
-**Currently Implemented**: 4 (4.2%)
+**Currently Implemented**: 5 (5.3%)
 
 > **Note**: Implementation priorities are based on community feedback and common use cases. If you need a specific endpoint, please [open an issue](https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/issues) or contribute!
 
@@ -488,7 +498,6 @@ Please follow the Git workflow documented in `.claude/workflow.md`.
 
 ### High Priority
 - [ ] **Sources** - Manage source connections (critical for identity aggregation)
-- [ ] **Identity Profiles** - Manage identity profile configurations
 - [ ] **Access Profiles** - Manage access profile definitions
 - [ ] **Roles** - Manage role definitions and assignments
 - [ ] Publish to Terraform Registry
