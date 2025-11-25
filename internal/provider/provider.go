@@ -160,6 +160,7 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 		datasources.NewIdentityAttributeDataSource,
 		datasources.NewIdentityProfileDataSource,
 		datasources.NewLauncherDataSource,
+		datasources.NewEntitlementDataSource,
 	}
 }
 
