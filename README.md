@@ -49,6 +49,13 @@ A Terraform provider for managing [SailPoint Identity Security Cloud (ISC)](http
   - Enable/disable launcher state management
   - Import existing launchers
 
+### Data Sources
+
+- ✅ **Entitlements** - Read entitlement details from SailPoint
+  - Access entitlement metadata and properties
+  - Support for complex nested structures (access model metadata)
+  - Query by entitlement ID
+
 ## Requirements
 
 - [Terraform](https://www.terraform.io/downloads.html) >= 1.0
@@ -229,6 +236,25 @@ resource "sailpoint_transform" "imported" {
 }
 ```
 
+### Read an Existing Entitlement
+
+```hcl
+data "sailpoint_entitlement" "ad_group" {
+  id = "2c91808874ff91550175097daaec161c"
+}
+
+output "entitlement_details" {
+  value = {
+    name                 = data.sailpoint_entitlement.ad_group.name
+    description          = data.sailpoint_entitlement.ad_group.description
+    privileged           = data.sailpoint_entitlement.ad_group.privileged
+    requestable          = data.sailpoint_entitlement.ad_group.requestable
+    source_name          = data.sailpoint_entitlement.ad_group.source.name
+    access_metadata      = data.sailpoint_entitlement.ad_group.access_model_metadata
+  }
+}
+```
+
 For more examples, see the [examples directory](./examples).
 
 ## Available Resources and Data Sources
@@ -250,12 +276,13 @@ For more examples, see the [examples directory](./examples).
 - ✅ `sailpoint_identity_attribute` - Read existing Identity Attribute by name
 - ✅ `sailpoint_identity_profile` - Read existing Identity Profile by ID
 - ✅ `sailpoint_launcher` - Read existing Launcher by ID
+- ✅ `sailpoint_entitlement` - Read existing Entitlement by ID
 
 ## SailPoint v2025 API Coverage
 
 This provider is actively implementing resources for the SailPoint v2025 API. Below is the current coverage status:
 
-### ✅ Implemented (6 endpoint groups)
+### ✅ Implemented (7 endpoint groups)
 
 | API Endpoint Group | Status | Resource | Data Source |
 |-------------------|--------|----------|-------------|
@@ -265,6 +292,7 @@ This provider is actively implementing resources for the SailPoint v2025 API. Be
 | Identity Attributes | ✅ Implemented | `sailpoint_identity_attribute` | `sailpoint_identity_attribute` |
 | Identity Profiles | ✅ Implemented | `sailpoint_identity_profile` | `sailpoint_identity_profile` |
 | Launchers | ✅ Implemented | `sailpoint_launcher` | `sailpoint_launcher` |
+| Entitlements | ✅ Implemented | - | `sailpoint_entitlement` |
 
 ### 📋 Available SailPoint v2025 API Endpoints
 
@@ -423,7 +451,7 @@ The following endpoint groups are available in the SailPoint v2025 API and could
 </details>
 
 **Total API Endpoint Groups**: ~95+
-**Currently Implemented**: 6 (6.3%)
+**Currently Implemented**: 7 (7.4%)
 
 > **Note**: Implementation priorities are based on community feedback and common use cases. If you need a specific endpoint, please [open an issue](https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/issues) or contribute!
 
