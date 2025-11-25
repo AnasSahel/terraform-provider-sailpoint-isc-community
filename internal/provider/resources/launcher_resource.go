@@ -122,7 +122,9 @@ func (r *launcherResource) Update(ctx context.Context, req resource.UpdateReques
 	tflog.Info(ctx, "Updating Launcher resource")
 
 	var plan models.Launcher
+	var state models.Launcher
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -142,6 +144,9 @@ func (r *launcherResource) Update(ctx context.Context, req resource.UpdateReques
 
 	// Convert API response back to Terraform model
 	plan.ConvertFromSailPointForResource(ctx, updatedLauncher)
+
+	// Preserve the created timestamp from state (it should not change)
+	plan.Created = state.Created
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {

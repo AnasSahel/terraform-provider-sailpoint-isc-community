@@ -42,6 +42,13 @@ A Terraform provider for managing [SailPoint Identity Security Cloud (ISC)](http
   - JSON normalization for transform definitions
   - Proper handling of Optional+Computed fields
 
+- ✅ **Launchers** - Manage interactive process launchers
+  - Full CRUD operations
+  - Support for workflow references
+  - JSON configuration for launcher inputs and behavior
+  - Enable/disable launcher state management
+  - Import existing launchers
+
 ## Requirements
 
 - [Terraform](https://www.terraform.io/downloads.html) >= 1.0
@@ -233,6 +240,7 @@ For more examples, see the [examples directory](./examples).
 - ✅ `sailpoint_workflow` - Manage Workflows
 - ✅ `sailpoint_identity_attribute` - Manage Identity Attributes
 - ✅ `sailpoint_identity_profile` - Manage Identity Profiles
+- ✅ `sailpoint_launcher` - Manage Interactive Process Launchers
 
 ### Data Sources
 
@@ -241,12 +249,13 @@ For more examples, see the [examples directory](./examples).
 - ✅ `sailpoint_workflow` - Read existing Workflow by ID
 - ✅ `sailpoint_identity_attribute` - Read existing Identity Attribute by name
 - ✅ `sailpoint_identity_profile` - Read existing Identity Profile by ID
+- ✅ `sailpoint_launcher` - Read existing Launcher by ID
 
 ## SailPoint v2025 API Coverage
 
 This provider is actively implementing resources for the SailPoint v2025 API. Below is the current coverage status:
 
-### ✅ Implemented (5 endpoint groups)
+### ✅ Implemented (6 endpoint groups)
 
 | API Endpoint Group | Status | Resource | Data Source |
 |-------------------|--------|----------|-------------|
@@ -255,6 +264,7 @@ This provider is actively implementing resources for the SailPoint v2025 API. Be
 | Workflows | ✅ Implemented | `sailpoint_workflow` | `sailpoint_workflow` |
 | Identity Attributes | ✅ Implemented | `sailpoint_identity_attribute` | `sailpoint_identity_attribute` |
 | Identity Profiles | ✅ Implemented | `sailpoint_identity_profile` | `sailpoint_identity_profile` |
+| Launchers | ✅ Implemented | `sailpoint_launcher` | `sailpoint_launcher` |
 
 ### 📋 Available SailPoint v2025 API Endpoints
 
@@ -390,7 +400,6 @@ The following endpoint groups are available in the SailPoint v2025 API and could
 - Data Segmentation
 - Dimensions
 - Icons
-- Launchers
 - Org Config
 - Parameter Storage
 - SP-Config
@@ -414,7 +423,7 @@ The following endpoint groups are available in the SailPoint v2025 API and could
 </details>
 
 **Total API Endpoint Groups**: ~95+
-**Currently Implemented**: 5 (5.3%)
+**Currently Implemented**: 6 (6.3%)
 
 > **Note**: Implementation priorities are based on community feedback and common use cases. If you need a specific endpoint, please [open an issue](https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/issues) or contribute!
 

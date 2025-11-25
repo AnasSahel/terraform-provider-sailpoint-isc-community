@@ -29,7 +29,7 @@ resource "sailpoint_launcher" "cloned_launcher" {
   name        = "${data.sailpoint_launcher.existing_launcher.name} - Copy"
   description = "Cloned from ${data.sailpoint_launcher.existing_launcher.name}"
   type        = data.sailpoint_launcher.existing_launcher.type
-  disabled    = true  # Start disabled for safety
+  disabled    = true # Start disabled for safety
 
   reference = data.sailpoint_launcher.existing_launcher.reference
   config    = data.sailpoint_launcher.existing_launcher.config

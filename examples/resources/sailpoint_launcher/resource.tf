@@ -11,25 +11,25 @@ resource "sailpoint_launcher" "group_creation" {
   }
 
   config = jsonencode({
-    label = "Create AD Group"
+    label       = "Create AD Group"
     description = "Create a new Active Directory group with specified members"
     inputs = [
       {
-        id = "groupName"
-        label = "Group Name"
-        type = "text"
+        id       = "groupName"
+        label    = "Group Name"
+        type     = "text"
         required = true
       },
       {
-        id = "groupDescription"
-        label = "Description"
-        type = "text"
+        id       = "groupDescription"
+        label    = "Description"
+        type     = "text"
         required = false
       },
       {
-        id = "members"
-        label = "Initial Members"
-        type = "multiselect"
+        id       = "members"
+        label    = "Initial Members"
+        type     = "multiselect"
         required = false
       }
     ]
@@ -51,44 +51,44 @@ resource "sailpoint_launcher" "user_onboarding" {
   }
 
   config = jsonencode({
-    label = "Onboard New Employee"
+    label       = "Onboard New Employee"
     description = "Start the onboarding process for a new employee"
     inputs = [
       {
-        id = "firstName"
-        label = "First Name"
-        type = "text"
+        id       = "firstName"
+        label    = "First Name"
+        type     = "text"
         required = true
       },
       {
-        id = "lastName"
-        label = "Last Name"
-        type = "text"
+        id       = "lastName"
+        label    = "Last Name"
+        type     = "text"
         required = true
       },
       {
-        id = "email"
-        label = "Email Address"
-        type = "email"
+        id       = "email"
+        label    = "Email Address"
+        type     = "email"
         required = true
       },
       {
-        id = "department"
-        label = "Department"
-        type = "select"
+        id       = "department"
+        label    = "Department"
+        type     = "select"
         required = true
-        options = ["Engineering", "Sales", "Marketing", "Finance"]
+        options  = ["Engineering", "Sales", "Marketing", "Finance"]
       },
       {
-        id = "manager"
-        label = "Manager"
-        type = "identity"
+        id       = "manager"
+        label    = "Manager"
+        type     = "identity"
         required = true
       },
       {
-        id = "startDate"
-        label = "Start Date"
-        type = "date"
+        id       = "startDate"
+        label    = "Start Date"
+        type     = "date"
         required = true
       }
     ]
@@ -110,27 +110,27 @@ resource "sailpoint_launcher" "access_request" {
   }
 
   config = jsonencode({
-    label = "Request Application Access"
+    label       = "Request Application Access"
     description = "Submit a request for access to an application"
     inputs = [
       {
-        id = "application"
-        label = "Application"
-        type = "select"
+        id       = "application"
+        label    = "Application"
+        type     = "select"
         required = true
-        options = ["Salesforce", "Workday", "ServiceNow"]
+        options  = ["Salesforce", "Workday", "ServiceNow"]
       },
       {
-        id = "accessLevel"
-        label = "Access Level"
-        type = "select"
+        id       = "accessLevel"
+        label    = "Access Level"
+        type     = "select"
         required = true
-        options = ["Read Only", "Standard User", "Power User", "Admin"]
+        options  = ["Read Only", "Standard User", "Power User", "Admin"]
       },
       {
-        id = "justification"
-        label = "Business Justification"
-        type = "textarea"
+        id       = "justification"
+        label    = "Business Justification"
+        type     = "textarea"
         required = true
       }
     ]

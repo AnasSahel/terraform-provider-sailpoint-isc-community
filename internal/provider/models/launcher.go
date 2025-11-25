@@ -8,6 +8,7 @@ import (
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/client"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -26,7 +27,7 @@ type Launcher struct {
 	Disabled    types.Bool           `tfsdk:"disabled"`
 	Reference   *LauncherReference   `tfsdk:"reference"`
 	Config      jsontypes.Normalized `tfsdk:"config"`
-	Owner       *ObjectRef           `tfsdk:"owner"`
+	Owner       types.Object         `tfsdk:"owner"`
 	Created     types.String         `tfsdk:"created"`
 	Modified    types.String         `tfsdk:"modified"`
 }
@@ -115,16 +116,37 @@ func (l *Launcher) ConvertFromSailPoint(ctx context.Context, launcher *client.La
 		l.Reference = nil
 	}
 
-	// Convert owner ObjectRef
+	// Convert owner ObjectRef to types.Object
 	if launcher.Owner != nil {
-		l.Owner = &ObjectRef{}
-		if includeNull {
-			l.Owner.ConvertFromSailPointForResource(ctx, launcher.Owner)
+		ownerAttrs := map[string]attr.Value{
+			"type": types.StringValue(launcher.Owner.Type),
+			"id":   types.StringValue(launcher.Owner.ID),
+		}
+		if launcher.Owner.Name != "" {
+			ownerAttrs["name"] = types.StringValue(launcher.Owner.Name)
+		} else if includeNull {
+			ownerAttrs["name"] = types.StringNull()
 		} else {
-			l.Owner.ConvertFromSailPointForDataSource(ctx, launcher.Owner)
+			ownerAttrs["name"] = types.StringValue("")
+		}
+
+		ownerObj, diag := types.ObjectValue(
+			map[string]attr.Type{
+				"type": types.StringType,
+				"id":   types.StringType,
+				"name": types.StringType,
+			},
+			ownerAttrs,
+		)
+		if !diag.HasError() {
+			l.Owner = ownerObj
 		}
 	} else if includeNull {
-		l.Owner = nil
+		l.Owner = types.ObjectNull(map[string]attr.Type{
+			"type": types.StringType,
+			"id":   types.StringType,
+			"name": types.StringType,
+		})
 	}
 
 	// Handle computed fields

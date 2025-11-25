@@ -53,7 +53,7 @@ func (sb *LauncherSchemaBuilder) GetResourceSchema() map[string]resource_schema.
 		"reference": resource_schema.SingleNestedAttribute{
 			Description:         desc["reference"].description,
 			MarkdownDescription: desc["reference"].markdown,
-			Required:            true,
+			Optional:            true,
 			Attributes: map[string]resource_schema.Attribute{
 				"type": resource_schema.StringAttribute{
 					Description: "The type of the referenced resource (typically 'WORKFLOW').",
@@ -220,7 +220,7 @@ func (sb *LauncherSchemaBuilder) fieldDescriptions() map[string]struct {
 		},
 		"reference": {
 			description: "Reference to the workflow or resource.",
-			markdown:    "Reference to the workflow or other resource that this launcher will execute. Must include `type` (typically 'WORKFLOW') and `id` (UUID of the referenced resource).",
+			markdown:    "Optional reference to the workflow or other resource that this launcher will execute. When provided, must include `type` (typically 'WORKFLOW') and `id` (UUID of the referenced resource).",
 		},
 		"config": {
 			description: "JSON configuration associated with the launcher.",
