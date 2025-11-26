@@ -50,14 +50,10 @@ func (c *Client) handleHTTPError(statusCode int, operationName string, resourceI
 
 // formatErrorWithBody creates a formatted error message with context and response body details.
 // This is useful for debugging API errors that include detailed error messages in the response.
-func (c *Client) formatErrorWithBody(ctx ErrorContext, err error, statusCode int, responseBody string) error {
+func (c *Client) formatErrorWithBody(ctx ErrorContext, statusCode int, responseBody string) error {
 	base := fmt.Sprintf("%s %s", ctx.Operation, ctx.Resource)
 	if ctx.ResourceID != "" {
 		base = fmt.Sprintf("%s %q", base, ctx.ResourceID)
-	}
-
-	if err != nil {
-		return fmt.Errorf("%s: %w", base, err)
 	}
 
 	// Include response body if available and not empty

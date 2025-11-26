@@ -154,6 +154,7 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 // DataSources defines the data sources implemented in the provider.
 func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
+		datasources.NewAccessProfileDataSource,
 		datasources.NewTransformDataSource,
 		datasources.NewFormDefinitionDataSource,
 		datasources.NewWorkflowDataSource,
@@ -167,6 +168,7 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 // Resources defines the resources implemented in the provider.
 func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
+		resources.NewAccessProfileResource,
 		resources.NewTransformResource,
 		resources.NewFormDefinitionResource,
 		resources.NewWorkflowResource,

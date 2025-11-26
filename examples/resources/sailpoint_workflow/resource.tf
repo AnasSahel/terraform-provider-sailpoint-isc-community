@@ -6,7 +6,7 @@ resource "sailpoint_workflow" "send_email_notification" {
 
   owner = {
     type = "IDENTITY"
-    id   = "2c91808568c529c60168cca6f90c1313"
+    id   = "00000000000000000000000000000001"
     name = "John Doe"
   }
 
@@ -51,7 +51,7 @@ resource "sailpoint_workflow" "access_request_approval" {
 
   owner = {
     type = "IDENTITY"
-    id   = "2c91808568c529c60168cca6f90c1313"
+    id   = "00000000000000000000000000000001"
   }
 
   trigger = {
@@ -135,7 +135,7 @@ resource "sailpoint_workflow" "daily_report" {
 
   owner = {
     type = "IDENTITY"
-    id   = "2c91808568c529c60168cca6f90c1313"
+    id   = "00000000000000000000000000000001"
     name = "Admin User"
   }
 
