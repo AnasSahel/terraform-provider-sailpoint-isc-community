@@ -149,8 +149,6 @@ func (fc *FormCondition) ConvertFromSailPoint(ctx context.Context, condition map
 			}
 		}
 		fc.Rules = fcRules
-	} else {
-		fc.Rules = []FormConditionRule{}
 	}
 
 	if effects, ok := condition["effects"].([]interface{}); ok {
@@ -161,8 +159,6 @@ func (fc *FormCondition) ConvertFromSailPoint(ctx context.Context, condition map
 			}
 		}
 		fc.Effects = fcEffects
-	} else {
-		fc.Effects = []FormConditionEffect{}
 	}
 }
 

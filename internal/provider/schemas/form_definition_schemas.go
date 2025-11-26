@@ -137,53 +137,6 @@ func (sb *FormDefinitionSchemaBuilder) GetResourceSchema() map[string]resource_s
 									Description: "The type of validation (e.g., REQUIRED, MIN_LENGTH, MAX_LENGTH).",
 									Required:    true,
 								},
-								"config": resource_schema.SingleNestedAttribute{
-									Description: "Configuration for the validation rule.",
-									Optional:    true,
-									Attributes:  map[string]resource_schema.Attribute{},
-								},
-							},
-						},
-					},
-					"form_elements": resource_schema.ListNestedAttribute{
-						Description: "Nested form elements (for containers like SECTION).",
-						Optional:    true,
-						NestedObject: resource_schema.NestedAttributeObject{
-							Attributes: map[string]resource_schema.Attribute{
-								"id": resource_schema.StringAttribute{
-									Description: "The unique identifier of the nested form element.",
-									Required:    true,
-								},
-								"element_type": resource_schema.StringAttribute{
-									Description: "The type of the nested form element.",
-									Required:    true,
-								},
-								"key": resource_schema.StringAttribute{
-									Description: "The key identifier for the nested form element.",
-									Optional:    true,
-								},
-								"config": resource_schema.StringAttribute{
-									Description: "Configuration for the nested form element as JSON.",
-									Optional:    true,
-									CustomType:  jsontypes.NormalizedType{},
-								},
-								"validations": resource_schema.ListNestedAttribute{
-									Description: "Validation rules for the nested form element.",
-									Optional:    true,
-									NestedObject: resource_schema.NestedAttributeObject{
-										Attributes: map[string]resource_schema.Attribute{
-											"validation_type": resource_schema.StringAttribute{
-												Description: "The type of validation.",
-												Required:    true,
-											},
-											"config": resource_schema.SingleNestedAttribute{
-												Description: "Validation configuration.",
-												Optional:    true,
-												Attributes:  map[string]resource_schema.Attribute{},
-											},
-										},
-									},
-								},
 							},
 						},
 					},
@@ -389,53 +342,6 @@ func (sb *FormDefinitionSchemaBuilder) GetDataSourceSchema() map[string]datasour
 								"validation_type": datasource_schema.StringAttribute{
 									Description: "The type of validation (e.g., REQUIRED, MIN_LENGTH, MAX_LENGTH).",
 									Computed:    true,
-								},
-								"config": datasource_schema.SingleNestedAttribute{
-									Description: "Configuration for the validation rule.",
-									Computed:    true,
-									Attributes:  map[string]datasource_schema.Attribute{},
-								},
-							},
-						},
-					},
-					"form_elements": datasource_schema.ListNestedAttribute{
-						Description: "Nested form elements (for containers like SECTION).",
-						Computed:    true,
-						NestedObject: datasource_schema.NestedAttributeObject{
-							Attributes: map[string]datasource_schema.Attribute{
-								"id": datasource_schema.StringAttribute{
-									Description: "The unique identifier of the nested form element.",
-									Computed:    true,
-								},
-								"element_type": datasource_schema.StringAttribute{
-									Description: "The type of the nested form element.",
-									Computed:    true,
-								},
-								"key": datasource_schema.StringAttribute{
-									Description: "The key identifier for the nested form element.",
-									Computed:    true,
-								},
-								"config": datasource_schema.StringAttribute{
-									Description: "Configuration for the nested form element as JSON.",
-									Computed:    true,
-									CustomType:  jsontypes.NormalizedType{},
-								},
-								"validations": datasource_schema.ListNestedAttribute{
-									Description: "Validation rules for the nested form element.",
-									Computed:    true,
-									NestedObject: datasource_schema.NestedAttributeObject{
-										Attributes: map[string]datasource_schema.Attribute{
-											"validation_type": datasource_schema.StringAttribute{
-												Description: "The type of validation.",
-												Computed:    true,
-											},
-											"config": datasource_schema.SingleNestedAttribute{
-												Description: "Validation configuration.",
-												Computed:    true,
-												Attributes:  map[string]datasource_schema.Attribute{},
-											},
-										},
-									},
 								},
 							},
 						},

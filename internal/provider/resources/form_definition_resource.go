@@ -89,6 +89,9 @@ func (r *formDefinitionResource) Create(ctx context.Context, req resource.Create
 		return
 	}
 
+	// Store the planned validations state before converting
+	plannedFormElements := plan.FormElements
+
 	// Convert API response back to Terraform model
 	if err := plan.ConvertFromSailPointForResource(ctx, createdForm); err != nil {
 		resp.Diagnostics.AddError(
@@ -96,6 +99,14 @@ func (r *formDefinitionResource) Create(ctx context.Context, req resource.Create
 			fmt.Sprintf("Could not convert form definition response: %s", err.Error()),
 		)
 		return
+	}
+
+	// Preserve null validations from plan for optional fields
+	// If the plan had validations as nil, keep it nil even if API returns []
+	for i := range plan.FormElements {
+		if i < len(plannedFormElements) && plannedFormElements[i].Validations == nil {
+			plan.FormElements[i].Validations = nil
+		}
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
@@ -183,6 +194,9 @@ func (r *formDefinitionResource) Update(ctx context.Context, req resource.Update
 		return
 	}
 
+	// Store the planned validations state before converting
+	plannedFormElements := plan.FormElements
+
 	// Convert API response back to Terraform model
 	if err := plan.ConvertFromSailPointForResource(ctx, updatedForm); err != nil {
 		resp.Diagnostics.AddError(
@@ -190,6 +204,14 @@ func (r *formDefinitionResource) Update(ctx context.Context, req resource.Update
 			fmt.Sprintf("Could not convert form definition response: %s", err.Error()),
 		)
 		return
+	}
+
+	// Preserve null validations from plan for optional fields
+	// If the plan had validations as nil, keep it nil even if API returns []
+	for i := range plan.FormElements {
+		if i < len(plannedFormElements) && plannedFormElements[i].Validations == nil {
+			plan.FormElements[i].Validations = nil
+		}
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)

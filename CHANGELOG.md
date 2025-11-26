@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.2] - 2025-11-26
+
+### Fixed
+
+- **Form Definition**: Fixed "Provider produced inconsistent result after apply" error for `validations` field in form elements
+  - Preserve null vs empty array distinction for optional `validations` field
+  - When `validations` is not specified in Terraform config, it remains null even if API returns empty array
+  - When `validations` is explicitly set to `[]`, it's properly maintained as empty array
+  - Added plan preservation logic to maintain user intent for optional fields
+
+### Changed
+
+- **Form Definition**: Refactored form_elements from JSON string to structured nested objects
+  - `form_elements` is now a list of typed objects with `id`, `element_type`, `key`, `config`, and `validations` fields
+  - Improved type safety and validation for form element configurations
+  - Better schema documentation and Terraform plan output
+- **Form Conditions**: Cleaned up unnecessary empty slice initializations in conversion logic
+
 ## [0.6.1] - 2025-01-18
 
 ### Fixed

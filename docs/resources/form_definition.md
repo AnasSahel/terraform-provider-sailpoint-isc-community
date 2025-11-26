@@ -267,7 +267,7 @@ resource "sailpoint_form_definition" "onboarding_form" {
 
 ### Required
 
-- `form_elements` (String) **Required.** Form elements configuration defining sections and fields for data collection, represented as a JSON string. Forms are composed of sections that split the form into logical groups, and fields that are the data collection points. At minimum, a form must contain one section with at least one field.
+- `form_elements` (Attributes List) **Required.** Form elements configuration defining sections and fields for data collection, represented as a JSON string. Forms are composed of sections that split the form into logical groups, and fields that are the data collection points. At minimum, a form must contain one section with at least one field. (see [below for nested schema](#nestedatt--form_elements))
 - `name` (String) Name of the form as it appears in the UI.
 - `owner` (Attributes) **Required.** Owner reference containing the identity who owns this form. Must include type (e.g., 'IDENTITY') and id fields. (see [below for nested schema](#nestedatt--owner))
 
@@ -283,6 +283,29 @@ resource "sailpoint_form_definition" "onboarding_form" {
 - `created` (String) ISO 8601 timestamp indicating when the form definition was created.
 - `id` (String) Unique identifier (UUID) of the form definition.
 - `modified` (String) ISO 8601 timestamp indicating when the form definition was last modified.
+
+<a id="nestedatt--form_elements"></a>
+### Nested Schema for `form_elements`
+
+Required:
+
+- `element_type` (String) The type of the form element (e.g., SECTION, TEXT, SELECT, DATE, COLUMN_SET).
+- `id` (String) The unique identifier of the form element.
+
+Optional:
+
+- `config` (String) Complex configuration for the form element as JSON.
+- `key` (String) The key identifier for the form element.
+- `validations` (Attributes List) Validation rules for the form element. (see [below for nested schema](#nestedatt--form_elements--validations))
+
+<a id="nestedatt--form_elements--validations"></a>
+### Nested Schema for `form_elements.validations`
+
+Required:
+
+- `validation_type` (String) The type of validation (e.g., REQUIRED, MIN_LENGTH, MAX_LENGTH).
+
+
 
 <a id="nestedatt--owner"></a>
 ### Nested Schema for `owner`

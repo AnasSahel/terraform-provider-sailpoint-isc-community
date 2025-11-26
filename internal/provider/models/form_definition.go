@@ -15,17 +15,15 @@ import (
 // FormElementValidation represents a validation rule for a form element.
 type FormElementValidation struct {
 	ValidationType types.String `tfsdk:"validation_type"`
-	Config         types.Object `tfsdk:"config"` // Optional config for the validation
 }
 
 // FormElement represents a single form element (field, section, etc).
 type FormElement struct {
-	ID           types.String            `tfsdk:"id"`
-	ElementType  types.String            `tfsdk:"element_type"`
-	Key          types.String            `tfsdk:"key"`
-	Config       jsontypes.Normalized    `tfsdk:"config"` // Complex config as JSON
-	Validations  []FormElementValidation `tfsdk:"validations"`
-	FormElements []FormElement           `tfsdk:"form_elements"` // Nested elements for sections
+	ID          types.String            `tfsdk:"id"`
+	ElementType types.String            `tfsdk:"element_type"`
+	Key         types.String            `tfsdk:"key"`
+	Config      jsontypes.Normalized    `tfsdk:"config"` // Complex config as JSON
+	Validations []FormElementValidation `tfsdk:"validations"`
 }
 
 // FormDefinition represents the Terraform model for a SailPoint Form Definition.
@@ -454,28 +452,16 @@ func (fe *FormElement) ConvertToSailPoint(ctx context.Context) map[string]interf
 		}
 	}
 
-	// Validations
-	if len(fe.Validations) > 0 {
+	// Validations - include if explicitly set (either with values or as empty array)
+	// Only exclude if nil (not set in Terraform config)
+	if fe.Validations != nil {
 		validationMaps := make([]map[string]interface{}, len(fe.Validations))
 		for i, val := range fe.Validations {
 			validationMaps[i] = map[string]interface{}{
 				"validationType": val.ValidationType.ValueString(),
 			}
-			// TODO: Handle validation config if needed
 		}
 		element["validations"] = validationMaps
-	}
-
-	// Nested form elements (for sections)
-	if len(fe.FormElements) > 0 {
-		nestedElementMaps := make([]map[string]interface{}, len(fe.FormElements))
-		for i, nestedElem := range fe.FormElements {
-			nestedElementMaps[i] = nestedElem.ConvertToSailPoint(ctx)
-		}
-		// Put nested elements in config.formElements
-		if configMap, ok := element["config"].(map[string]interface{}); ok {
-			configMap["formElements"] = nestedElementMaps
-		}
 	}
 
 	return element
@@ -502,10 +488,6 @@ func formElementsEqual(a, b []FormElement) bool {
 				return false
 			}
 		}
-		// Recursively compare nested form elements
-		if !formElementsEqual(a[i].FormElements, b[i].FormElements) {
-			return false
-		}
 	}
 	return true
 }
@@ -524,39 +506,29 @@ func (fe *FormElement) ConvertFromSailPoint(ctx context.Context, elem map[string
 		fe.Key = types.StringValue(keyVal)
 	}
 
-	// Handle config
+	// Handle config as JSON
 	if configVal, ok := elem["config"].(map[string]interface{}); ok {
-		// Remove formElements from config before storing as JSON
-		configMap := make(map[string]interface{})
-		for k, v := range configVal {
-			if k != "formElements" {
-				configMap[k] = v
-			}
-		}
-		configJSON, _ := json.Marshal(configMap)
+		configJSON, _ := json.Marshal(configVal)
 		fe.Config = jsontypes.NewNormalizedValue(string(configJSON))
-
-		// Handle nested formElements if present
-		if nestedElements, ok := configVal["formElements"].([]interface{}); ok {
-			fe.FormElements = make([]FormElement, len(nestedElements))
-			for i, nestedElem := range nestedElements {
-				if nestedMap, ok := nestedElem.(map[string]interface{}); ok {
-					fe.FormElements[i].ConvertFromSailPoint(ctx, nestedMap)
-				}
-			}
-		}
 	}
 
 	// Handle validations
+	// If API returns validations (either empty array or with values), set it accordingly
+	// Only leave as nil if validations key is not present in the API response
 	if validationsVal, ok := elem["validations"].([]interface{}); ok {
-		fe.Validations = make([]FormElementValidation, len(validationsVal))
-		for i, valItem := range validationsVal {
-			if valMap, ok := valItem.(map[string]interface{}); ok {
-				if typeVal, ok := valMap["validationType"].(string); ok {
-					fe.Validations[i].ValidationType = types.StringValue(typeVal)
+		if len(validationsVal) > 0 {
+			fe.Validations = make([]FormElementValidation, len(validationsVal))
+			for i, valItem := range validationsVal {
+				if valMap, ok := valItem.(map[string]interface{}); ok {
+					if typeVal, ok := valMap["validationType"].(string); ok {
+						fe.Validations[i].ValidationType = types.StringValue(typeVal)
+					}
 				}
-				// TODO: Handle validation config if needed
 			}
+		} else {
+			// API explicitly returned an empty array, so set to empty slice
+			fe.Validations = []FormElementValidation{}
 		}
 	}
+	// If validations key is not in API response at all, leave as nil
 }

@@ -53,7 +53,7 @@ output "form_elements" {
 - `created` (String) ISO 8601 timestamp indicating when the form definition was created.
 - `description` (String) Description text that explains the purpose of this form.
 - `form_conditions` (Attributes List) Form conditions configuration defining conditional logic that modifies the form dynamically, represented as a JSON string. (see [below for nested schema](#nestedatt--form_conditions))
-- `form_elements` (String) **Required.** Form elements configuration defining sections and fields for data collection, represented as a JSON string. Forms are composed of sections that split the form into logical groups, and fields that are the data collection points. At minimum, a form must contain one section with at least one field.
+- `form_elements` (Attributes List) **Required.** Form elements configuration defining sections and fields for data collection, represented as a JSON string. Forms are composed of sections that split the form into logical groups, and fields that are the data collection points. At minimum, a form must contain one section with at least one field. (see [below for nested schema](#nestedatt--form_elements))
 - `form_input` (Attributes List) Form input configuration defining the data sources and inputs for the form, represented as a JSON string. (see [below for nested schema](#nestedatt--form_input))
 - `modified` (String) ISO 8601 timestamp indicating when the form definition was last modified.
 - `name` (String) Name of the form as it appears in the UI.
@@ -97,6 +97,26 @@ Read-Only:
 - `source_type` (String) The type of the source (e.g., ELEMENT, INPUT).
 - `value` (String) The value to compare against.
 - `value_type` (String) The type of the value being compared (STRING, NUMBER, BOOLEAN).
+
+
+
+<a id="nestedatt--form_elements"></a>
+### Nested Schema for `form_elements`
+
+Read-Only:
+
+- `config` (String) Complex configuration for the form element as JSON.
+- `element_type` (String) The type of the form element (e.g., SECTION, TEXT, SELECT, DATE, COLUMN_SET).
+- `id` (String) The unique identifier of the form element.
+- `key` (String) The key identifier for the form element.
+- `validations` (Attributes List) Validation rules for the form element. (see [below for nested schema](#nestedatt--form_elements--validations))
+
+<a id="nestedatt--form_elements--validations"></a>
+### Nested Schema for `form_elements.validations`
+
+Read-Only:
+
+- `validation_type` (String) The type of validation (e.g., REQUIRED, MIN_LENGTH, MAX_LENGTH).
 
 
 
