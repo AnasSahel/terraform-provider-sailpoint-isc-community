@@ -20,26 +20,26 @@ type FormElementValidation struct {
 
 // FormElement represents a single form element (field, section, etc).
 type FormElement struct {
-	ID           types.String                    `tfsdk:"id"`
-	ElementType  types.String                    `tfsdk:"element_type"`
-	Key          types.String                    `tfsdk:"key"`
-	Config       jsontypes.Normalized            `tfsdk:"config"` // Complex config as JSON
-	Validations  []FormElementValidation         `tfsdk:"validations"`
-	FormElements []FormElement                   `tfsdk:"form_elements"` // Nested elements for sections
+	ID           types.String            `tfsdk:"id"`
+	ElementType  types.String            `tfsdk:"element_type"`
+	Key          types.String            `tfsdk:"key"`
+	Config       jsontypes.Normalized    `tfsdk:"config"` // Complex config as JSON
+	Validations  []FormElementValidation `tfsdk:"validations"`
+	FormElements []FormElement           `tfsdk:"form_elements"` // Nested elements for sections
 }
 
 // FormDefinition represents the Terraform model for a SailPoint Form Definition.
 type FormDefinition struct {
-	ID             types.String         `tfsdk:"id"`
-	Name           types.String         `tfsdk:"name"`
-	Description    types.String         `tfsdk:"description"`
-	Owner          *ObjectRef           `tfsdk:"owner"`
-	UsedBy         []ObjectRef          `tfsdk:"used_by"`         // List of object references
-	FormInput      []FormInput          `tfsdk:"form_input"`      // List of form inputs
-	FormElements   []FormElement        `tfsdk:"form_elements"`   // Structured list of form elements
-	FormConditions []FormCondition      `tfsdk:"form_conditions"` // List of form conditions
-	Created        types.String         `tfsdk:"created"`
-	Modified       types.String         `tfsdk:"modified"`
+	ID             types.String    `tfsdk:"id"`
+	Name           types.String    `tfsdk:"name"`
+	Description    types.String    `tfsdk:"description"`
+	Owner          *ObjectRef      `tfsdk:"owner"`
+	UsedBy         []ObjectRef     `tfsdk:"used_by"`         // List of object references
+	FormInput      []FormInput     `tfsdk:"form_input"`      // List of form inputs
+	FormElements   []FormElement   `tfsdk:"form_elements"`   // Structured list of form elements
+	FormConditions []FormCondition `tfsdk:"form_conditions"` // List of form conditions
+	Created        types.String    `tfsdk:"created"`
+	Modified       types.String    `tfsdk:"modified"`
 }
 
 // ConvertToSailPoint converts the Terraform model to a SailPoint API FormDefinition.
@@ -324,58 +324,6 @@ func (f *FormDefinition) GeneratePatchOperations(ctx context.Context, newForm Fo
 	}
 
 	return operations, nil
-}
-
-// normalizeFormElements removes empty arrays and API-added fields from form elements
-// to prevent state inconsistency errors. The SailPoint API adds empty "validations"
-// arrays to form elements even when not provided, which causes Terraform to detect
-// a diff between the plan and the actual state.
-func normalizeFormElements(elements []map[string]interface{}) []map[string]interface{} {
-	normalized := make([]map[string]interface{}, len(elements))
-
-	for i, element := range elements {
-		normalizedElement := make(map[string]interface{})
-
-		for key, value := range element {
-			// Skip empty validations arrays
-			if key == "validations" {
-				if arr, ok := value.([]interface{}); ok && len(arr) == 0 {
-					continue
-				}
-			}
-
-			// Recursively normalize nested formElements (for sections)
-			if key == "config" {
-				if configMap, ok := value.(map[string]interface{}); ok {
-					normalizedConfig := make(map[string]interface{})
-					for configKey, configValue := range configMap {
-						if configKey == "formElements" {
-							if nestedElements, ok := configValue.([]interface{}); ok {
-								// Convert to []map[string]interface{} for recursion
-								nestedMaps := make([]map[string]interface{}, len(nestedElements))
-								for j, ne := range nestedElements {
-									if neMap, ok := ne.(map[string]interface{}); ok {
-										nestedMaps[j] = neMap
-									}
-								}
-								normalizedConfig[configKey] = normalizeFormElements(nestedMaps)
-								continue
-							}
-						}
-						normalizedConfig[configKey] = configValue
-					}
-					normalizedElement[key] = normalizedConfig
-					continue
-				}
-			}
-
-			normalizedElement[key] = value
-		}
-
-		normalized[i] = normalizedElement
-	}
-
-	return normalized
 }
 
 // usedByEqual compares two UsedBy slices to determine if they are equal.
