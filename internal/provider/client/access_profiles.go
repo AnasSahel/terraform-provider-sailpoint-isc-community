@@ -16,20 +16,20 @@ const (
 // AccessProfile represents a SailPoint Access Profile object.
 // Access Profiles are collections of entitlements from a source that can be requested by users.
 type AccessProfile struct {
-	ID                   string                 `json:"id,omitempty"`
-	Name                 string                 `json:"name"`
-	Description          *string                `json:"description,omitempty"`
-	Created              *string                `json:"created,omitempty"`
-	Modified             *string                `json:"modified,omitempty"`
-	Enabled              *bool                  `json:"enabled,omitempty"`
-	Requestable          *bool                  `json:"requestable,omitempty"`
-	Owner                *ObjectRef             `json:"owner"`
-	Source               *ObjectRef             `json:"source"`
-	Entitlements         []ObjectRef            `json:"entitlements,omitempty"`
-	Segments             []string               `json:"segments,omitempty"`
-	AccessRequestConfig  map[string]interface{} `json:"accessRequestConfig,omitempty"`
-	RevokeRequestConfig  map[string]interface{} `json:"revokeRequestConfig,omitempty"`
-	ProvisioningCriteria map[string]interface{} `json:"provisioningCriteria,omitempty"`
+	ID                      string                   `json:"id,omitempty"`
+	Name                    string                   `json:"name"`
+	Description             *string                  `json:"description,omitempty"`
+	Created                 *string                  `json:"created,omitempty"`
+	Modified                *string                  `json:"modified,omitempty"`
+	Enabled                 *bool                    `json:"enabled,omitempty"`
+	Requestable             *bool                    `json:"requestable,omitempty"`
+	Owner                   *ObjectRef               `json:"owner"`
+	Source                  *ObjectRef               `json:"source"`
+	Entitlements            []ObjectRef              `json:"entitlements,omitempty"`
+	Segments                []string                 `json:"segments,omitempty"`
+	AccessRequestConfig     *AccessRequestConfig     `json:"accessRequestConfig,omitempty"`
+	RevocationRequestConfig *RevocationRequestConfig `json:"revocationRequestConfig,omitempty"`
+	ProvisioningCriteria    *ProvisioningCriteria    `json:"provisioningCriteria,omitempty"`
 }
 
 // CreateAccessProfile creates a new access profile.
@@ -50,10 +50,10 @@ func (c *Client) CreateAccessProfile(ctx context.Context, accessProfile *AccessP
 		return &result, nil
 	}
 
-	return nil, c.formatError(ErrorContext{
+	return nil, c.formatErrorWithBody(ErrorContext{
 		Operation: "create",
 		Resource:  "access_profile",
-	}, nil, resp.StatusCode())
+	}, resp.StatusCode(), resp.String())
 }
 
 // GetAccessProfile retrieves a single access profile by ID.
@@ -74,11 +74,11 @@ func (c *Client) GetAccessProfile(ctx context.Context, id string) (*AccessProfil
 		return &result, nil
 	}
 
-	return nil, c.formatError(ErrorContext{
+	return nil, c.formatErrorWithBody(ErrorContext{
 		Operation:  "get",
 		Resource:   "access_profile",
 		ResourceID: id,
-	}, nil, resp.StatusCode())
+	}, resp.StatusCode(), resp.String())
 }
 
 // PatchAccessProfile updates an existing access profile using JSON Patch operations.
@@ -102,11 +102,11 @@ func (c *Client) PatchAccessProfile(ctx context.Context, id string, operations [
 		return &result, nil
 	}
 
-	return nil, c.formatError(ErrorContext{
+	return nil, c.formatErrorWithBody(ErrorContext{
 		Operation:  "update",
 		Resource:   "access_profile",
 		ResourceID: id,
-	}, nil, resp.StatusCode())
+	}, resp.StatusCode(), resp.String())
 }
 
 // DeleteAccessProfile deletes an access profile by ID.
@@ -126,9 +126,9 @@ func (c *Client) DeleteAccessProfile(ctx context.Context, id string) error {
 		return nil
 	}
 
-	return c.formatError(ErrorContext{
+	return c.formatErrorWithBody(ErrorContext{
 		Operation:  "delete",
 		Resource:   "access_profile",
 		ResourceID: id,
-	}, nil, resp.StatusCode())
+	}, resp.StatusCode(), resp.String())
 }

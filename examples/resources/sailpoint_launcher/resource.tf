@@ -7,7 +7,7 @@ resource "sailpoint_launcher" "group_creation" {
 
   reference = {
     type = "WORKFLOW"
-    id   = "2c91808a7b5c3e1d017b5c4a8f6d0001"
+    id   = "00000000000000000000000000000001"
   }
 
   config = jsonencode({
@@ -47,7 +47,7 @@ resource "sailpoint_launcher" "user_onboarding" {
 
   reference = {
     type = "WORKFLOW"
-    id   = "2c91808568c529c60168cca6f90c1314"
+    id   = "00000000000000000000000000000002"
   }
 
   config = jsonencode({
@@ -106,7 +106,7 @@ resource "sailpoint_launcher" "access_request" {
 
   reference = {
     type = "WORKFLOW"
-    id   = "2c91808568c529c60168cca6f90c1315"
+    id   = "00000000000000000000000000000003"
   }
 
   config = jsonencode({

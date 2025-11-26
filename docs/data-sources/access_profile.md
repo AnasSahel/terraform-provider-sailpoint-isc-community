@@ -121,19 +121,39 @@ output "has_access_request_config" {
 
 ### Read-Only
 
-- `access_request_config` (String) Configuration for access request approval workflows as a JSON string. Defines how requests for this access profile are approved.
+- `access_request_config` (Attributes) Configuration for access request approval workflows. Defines how requests for this access profile are approved, including required comments, reauthorization, and approval schemes. (see [below for nested schema](#nestedatt--access_request_config))
 - `created` (String) ISO-8601 timestamp when the access profile was created.
 - `description` (String) Description of the access profile (maximum 2000 characters).
 - `enabled` (Boolean) Whether the access profile is enabled. Defaults to true.
-- `entitlements` (Attributes List) List of entitlement references included in this access profile. Entitlements must exist on the access profile's source. Use the [list entitlements endpoint](https://developer.sailpoint.com/docs/api/v2025/list-entitlements) with filters to find available entitlements. (see [below for nested schema](#nestedatt--entitlements))
+- `entitlements` (Attributes List) **Required.** List of entitlement references included in this access profile. At least one entitlement must be specified. Entitlements must exist on the access profile's source. Use the [list entitlements endpoint](https://developer.sailpoint.com/docs/api/v2025/list-entitlements) with filters to find available entitlements. (see [below for nested schema](#nestedatt--entitlements))
 - `modified` (String) ISO-8601 timestamp when the access profile was last modified.
 - `name` (String) Name of the access profile as it appears in the UI.
 - `owner` (Attributes) Reference to the identity that owns this access profile. The user must have ROLE_SUBADMIN or SOURCE_SUBADMIN authority. (see [below for nested schema](#nestedatt--owner))
-- `provisioning_criteria` (String) Provisioning criteria for multi-account selection as a JSON string. Defines logic for selecting which account to provision when multiple exist.
+- `provisioning_criteria` (Attributes) Provisioning criteria for multi-account selection. Defines logic for selecting which account to provision when multiple accounts exist. Supports up to 3 levels of nested criteria using logical operators (AND/OR) and comparison operators (EQUALS, NOT_EQUALS, CONTAINS, HAS). (see [below for nested schema](#nestedatt--provisioning_criteria))
 - `requestable` (Boolean) Whether users can request this access profile. Defaults to true.
-- `revoke_request_config` (String) Configuration for revocation approval workflows as a JSON string. Defines how revocations of this access profile are processed.
+- `revocation_request_config` (Attributes) Configuration for revocation approval workflows. Defines how revocations of this access profile are processed through approval schemes. (see [below for nested schema](#nestedatt--revocation_request_config))
 - `segments` (List of String) List of segment identifiers (UUIDs) associated with this access profile for governance segmentation.
 - `source` (Attributes) Reference to the source that this access profile is attached to. The source determines which entitlements are available. (see [below for nested schema](#nestedatt--source))
+
+<a id="nestedatt--access_request_config"></a>
+### Nested Schema for `access_request_config`
+
+Read-Only:
+
+- `approval_schemes` (Attributes List) List of approval schemes that define who must approve access requests. (see [below for nested schema](#nestedatt--access_request_config--approval_schemes))
+- `comments_required` (Boolean) Whether comments are required when requesting this access.
+- `denial_comments_required` (Boolean) Whether comments are required when denying a request.
+- `reauthorization_required` (Boolean) Whether periodic reauthorization is required for this access.
+
+<a id="nestedatt--access_request_config--approval_schemes"></a>
+### Nested Schema for `access_request_config.approval_schemes`
+
+Read-Only:
+
+- `approver_id` (String) ID of the approver. Required for `GOVERNANCE_GROUP` and `WORKFLOW` approver types.
+- `approver_type` (String) Type of approver. Valid values: `MANAGER`, `OWNER`, `SOURCE_OWNER`, `APP_OWNER`, `GOVERNANCE_GROUP`, `WORKFLOW`.
+
+
 
 <a id="nestedatt--entitlements"></a>
 ### Nested Schema for `entitlements`
@@ -153,6 +173,56 @@ Read-Only:
 - `id` (String) The unique identifier (UUID) of the identity.
 - `name` (String) The name of the identity.
 - `type` (String) The type of the referenced object (IDENTITY).
+
+
+<a id="nestedatt--provisioning_criteria"></a>
+### Nested Schema for `provisioning_criteria`
+
+Read-Only:
+
+- `attribute` (String) The attribute name to compare (used with `EQUALS`, `NOT_EQUALS`, `CONTAINS`, `HAS`).
+- `children` (Attributes List) Child criteria for logical operations like `AND`/`OR`. Supports up to 3 levels of nesting. (see [below for nested schema](#nestedatt--provisioning_criteria--children))
+- `operation` (String) The operation to perform. Valid values: `EQUALS`, `NOT_EQUALS`, `CONTAINS`, `HAS`, `AND`, `OR`.
+- `value` (String) The value to compare the attribute against.
+
+<a id="nestedatt--provisioning_criteria--children"></a>
+### Nested Schema for `provisioning_criteria.children`
+
+Read-Only:
+
+- `attribute` (String) The attribute name to compare.
+- `children` (Attributes List) Child criteria for logical operations. This is the maximum nesting level (3). (see [below for nested schema](#nestedatt--provisioning_criteria--children--children))
+- `operation` (String) The operation to perform. Valid values: `EQUALS`, `NOT_EQUALS`, `CONTAINS`, `HAS`, `AND`, `OR`.
+- `value` (String) The value to compare the attribute against.
+
+<a id="nestedatt--provisioning_criteria--children--children"></a>
+### Nested Schema for `provisioning_criteria.children.children`
+
+Read-Only:
+
+- `attribute` (String) The attribute name to compare.
+- `children` (String) Not used at this nesting level.
+- `operation` (String) The operation to perform. Valid values: `EQUALS`, `NOT_EQUALS`, `CONTAINS`, `HAS`.
+- `value` (String) The value to compare the attribute against.
+
+
+
+
+<a id="nestedatt--revocation_request_config"></a>
+### Nested Schema for `revocation_request_config`
+
+Read-Only:
+
+- `approval_schemes` (Attributes List) List of approval schemes that define who must approve revocation requests. (see [below for nested schema](#nestedatt--revocation_request_config--approval_schemes))
+
+<a id="nestedatt--revocation_request_config--approval_schemes"></a>
+### Nested Schema for `revocation_request_config.approval_schemes`
+
+Read-Only:
+
+- `approver_id` (String) ID of the approver. Required for `GOVERNANCE_GROUP` and `WORKFLOW` approver types.
+- `approver_type` (String) Type of approver. Valid values: `MANAGER`, `OWNER`, `SOURCE_OWNER`, `APP_OWNER`, `GOVERNANCE_GROUP`, `WORKFLOW`.
+
 
 
 <a id="nestedatt--source"></a>

@@ -17,7 +17,7 @@ resource "sailpoint_form_definition" "basic_form" {
 
   owner = {
     type = "IDENTITY"
-    id   = "2c9180867624cbd7017642d8c8c81f67"
+    id   = "00000000000000000000000000000001"
     name = "John Doe"
   }
 
@@ -57,7 +57,7 @@ resource "sailpoint_form_definition" "advanced_form" {
 
   owner = {
     type = "IDENTITY"
-    id   = "2c9180867624cbd7017642d8c8c81f67"
+    id   = "00000000000000000000000000000001"
     name = "Admin User"
   }
 
@@ -144,7 +144,7 @@ resource "sailpoint_form_definition" "conditional_form" {
 
   owner = {
     type = "IDENTITY"
-    id   = "2c9180867624cbd7017642d8c8c81f67"
+    id   = "00000000000000000000000000000001"
     name = "Form Administrator"
   }
 

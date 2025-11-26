@@ -5,31 +5,29 @@ package models
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/client"
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // AccessProfile represents the Terraform model for a SailPoint Access Profile.
 type AccessProfile struct {
-	ID                   types.String         `tfsdk:"id"`
-	Name                 types.String         `tfsdk:"name"`
-	Description          types.String         `tfsdk:"description"`
-	Created              types.String         `tfsdk:"created"`
-	Modified             types.String         `tfsdk:"modified"`
-	Enabled              types.Bool           `tfsdk:"enabled"`
-	Requestable          types.Bool           `tfsdk:"requestable"`
-	Owner                *ObjectRef           `tfsdk:"owner"`
-	Source               *ObjectRef           `tfsdk:"source"`
-	Entitlements         types.List           `tfsdk:"entitlements"` // List of ObjectRef
-	Segments             types.List           `tfsdk:"segments"`     // List of String (UUIDs)
-	AccessRequestConfig  jsontypes.Normalized `tfsdk:"access_request_config"`
-	RevokeRequestConfig  jsontypes.Normalized `tfsdk:"revoke_request_config"`
-	ProvisioningCriteria jsontypes.Normalized `tfsdk:"provisioning_criteria"`
+	ID                      types.String             `tfsdk:"id"`
+	Name                    types.String             `tfsdk:"name"`
+	Description             types.String             `tfsdk:"description"`
+	Created                 types.String             `tfsdk:"created"`
+	Modified                types.String             `tfsdk:"modified"`
+	Enabled                 types.Bool               `tfsdk:"enabled"`
+	Requestable             types.Bool               `tfsdk:"requestable"`
+	Owner                   *ObjectRef               `tfsdk:"owner"`
+	Source                  *ObjectRef               `tfsdk:"source"`
+	Entitlements            types.List               `tfsdk:"entitlements"` // List of ObjectRef
+	Segments                types.List               `tfsdk:"segments"`     // List of String (UUIDs)
+	AccessRequestConfig     *AccessRequestConfig     `tfsdk:"access_request_config"`
+	RevocationRequestConfig *RevocationRequestConfig `tfsdk:"revocation_request_config"`
+	ProvisioningCriteria    *ProvisioningCriteria    `tfsdk:"provisioning_criteria"`
 }
 
 // ConvertToSailPoint converts the Terraform model to a SailPoint API AccessProfile.
@@ -94,29 +92,17 @@ func (a *AccessProfile) ConvertToSailPoint(ctx context.Context) (*client.AccessP
 		accessProfile.Segments = segments
 	}
 
-	// Convert JSON config objects
-	if !a.AccessRequestConfig.IsNull() && !a.AccessRequestConfig.IsUnknown() {
-		var config map[string]interface{}
-		if err := json.Unmarshal([]byte(a.AccessRequestConfig.ValueString()), &config); err != nil {
-			return nil, err
-		}
-		accessProfile.AccessRequestConfig = config
+	// Convert config objects using new nested type conversion functions
+	if a.AccessRequestConfig != nil {
+		accessProfile.AccessRequestConfig = ConvertAccessRequestConfigToSailPoint(ctx, a.AccessRequestConfig)
 	}
 
-	if !a.RevokeRequestConfig.IsNull() && !a.RevokeRequestConfig.IsUnknown() {
-		var config map[string]interface{}
-		if err := json.Unmarshal([]byte(a.RevokeRequestConfig.ValueString()), &config); err != nil {
-			return nil, err
-		}
-		accessProfile.RevokeRequestConfig = config
+	if a.RevocationRequestConfig != nil {
+		accessProfile.RevocationRequestConfig = ConvertRevocationRequestConfigToSailPoint(ctx, a.RevocationRequestConfig)
 	}
 
-	if !a.ProvisioningCriteria.IsNull() && !a.ProvisioningCriteria.IsUnknown() {
-		var criteria map[string]interface{}
-		if err := json.Unmarshal([]byte(a.ProvisioningCriteria.ValueString()), &criteria); err != nil {
-			return nil, err
-		}
-		accessProfile.ProvisioningCriteria = criteria
+	if a.ProvisioningCriteria != nil {
+		accessProfile.ProvisioningCriteria = ConvertProvisioningCriteriaToSailPoint(ctx, a.ProvisioningCriteria)
 	}
 
 	return accessProfile, nil
@@ -220,14 +206,25 @@ func (a *AccessProfile) ConvertFromSailPoint(ctx context.Context, accessProfile 
 			return fmt.Errorf("error creating entitlements list: %v", diags)
 		}
 		a.Entitlements = listVal
-	} else if includeNull {
-		a.Entitlements = types.ListNull(types.ObjectType{
+	} else {
+		// Create empty list for data sources or null list for resources
+		objectType := types.ObjectType{
 			AttrTypes: map[string]attr.Type{
 				"type": types.StringType,
 				"id":   types.StringType,
 				"name": types.StringType,
 			},
-		})
+		}
+		if includeNull {
+			a.Entitlements = types.ListNull(objectType)
+		} else {
+			// For data sources, create an empty list instead of null to avoid type mismatches
+			listVal, diags := types.ListValue(objectType, []attr.Value{})
+			if diags.HasError() {
+				return fmt.Errorf("error creating empty entitlements list: %v", diags)
+			}
+			a.Entitlements = listVal
+		}
 	}
 
 	// Convert segments list
@@ -242,39 +239,37 @@ func (a *AccessProfile) ConvertFromSailPoint(ctx context.Context, accessProfile 
 			return fmt.Errorf("error creating segments list: %v", diags)
 		}
 		a.Segments = listVal
-	} else if includeNull {
-		a.Segments = types.ListNull(types.StringType)
+	} else {
+		// Create empty list for data sources or null list for resources
+		if includeNull {
+			a.Segments = types.ListNull(types.StringType)
+		} else {
+			// For data sources, create an empty list instead of null to avoid type mismatches
+			listVal, diags := types.ListValue(types.StringType, []attr.Value{})
+			if diags.HasError() {
+				return fmt.Errorf("error creating empty segments list: %v", diags)
+			}
+			a.Segments = listVal
+		}
 	}
 
-	// Convert JSON config objects
-	if accessProfile.AccessRequestConfig != nil {
-		configJSON, err := json.Marshal(accessProfile.AccessRequestConfig)
-		if err != nil {
-			return err
+	// For config objects, only populate them if they were already set in state (not nil)
+	// This prevents the "inconsistent result" error when API returns default values that weren't in the plan
+	if includeNull {
+		// For resources: only update config fields if they were already set
+		// Keep existing values (don't overwrite with API defaults)
+		// These fields are user-configured and should not be updated from API responses
+	} else {
+		// For data sources: read from API
+		if accessProfile.AccessRequestConfig != nil {
+			a.AccessRequestConfig = ConvertAccessRequestConfigFromSailPoint(ctx, accessProfile.AccessRequestConfig)
 		}
-		a.AccessRequestConfig = jsontypes.NewNormalizedValue(string(configJSON))
-	} else if includeNull {
-		a.AccessRequestConfig = jsontypes.NewNormalizedNull()
-	}
-
-	if accessProfile.RevokeRequestConfig != nil {
-		configJSON, err := json.Marshal(accessProfile.RevokeRequestConfig)
-		if err != nil {
-			return err
+		if accessProfile.RevocationRequestConfig != nil {
+			a.RevocationRequestConfig = ConvertRevocationRequestConfigFromSailPoint(ctx, accessProfile.RevocationRequestConfig)
 		}
-		a.RevokeRequestConfig = jsontypes.NewNormalizedValue(string(configJSON))
-	} else if includeNull {
-		a.RevokeRequestConfig = jsontypes.NewNormalizedNull()
-	}
-
-	if accessProfile.ProvisioningCriteria != nil {
-		criteriaJSON, err := json.Marshal(accessProfile.ProvisioningCriteria)
-		if err != nil {
-			return err
+		if accessProfile.ProvisioningCriteria != nil {
+			a.ProvisioningCriteria = ConvertProvisioningCriteriaFromSailPoint(ctx, accessProfile.ProvisioningCriteria)
 		}
-		a.ProvisioningCriteria = jsontypes.NewNormalizedValue(string(criteriaJSON))
-	} else if includeNull {
-		a.ProvisioningCriteria = jsontypes.NewNormalizedNull()
 	}
 
 	return nil
@@ -437,61 +432,55 @@ func (a *AccessProfile) GeneratePatchOperations(ctx context.Context, newAccessPr
 	}
 
 	// Compare and generate patch for accessRequestConfig
-	if !a.AccessRequestConfig.Equal(newAccessProfile.AccessRequestConfig) {
-		if newAccessProfile.AccessRequestConfig.IsNull() {
+	oldAccessReqConfigNil := a.AccessRequestConfig == nil
+	newAccessReqConfigNil := newAccessProfile.AccessRequestConfig == nil
+	if oldAccessReqConfigNil != newAccessReqConfigNil || (!oldAccessReqConfigNil && !newAccessReqConfigNil) {
+		if newAccessReqConfigNil {
 			operations = append(operations, map[string]interface{}{
 				"op":   "remove",
 				"path": "/accessRequestConfig",
 			})
 		} else {
-			var config map[string]interface{}
-			if err := json.Unmarshal([]byte(newAccessProfile.AccessRequestConfig.ValueString()), &config); err != nil {
-				return nil, err
-			}
 			operations = append(operations, map[string]interface{}{
 				"op":    "replace",
 				"path":  "/accessRequestConfig",
-				"value": config,
+				"value": ConvertAccessRequestConfigToSailPoint(ctx, newAccessProfile.AccessRequestConfig),
 			})
 		}
 	}
 
-	// Compare and generate patch for revokeRequestConfig
-	if !a.RevokeRequestConfig.Equal(newAccessProfile.RevokeRequestConfig) {
-		if newAccessProfile.RevokeRequestConfig.IsNull() {
+	// Compare and generate patch for revocationRequestConfig
+	oldRevocationReqConfigNil := a.RevocationRequestConfig == nil
+	newRevocationReqConfigNil := newAccessProfile.RevocationRequestConfig == nil
+	if oldRevocationReqConfigNil != newRevocationReqConfigNil || (!oldRevocationReqConfigNil && !newRevocationReqConfigNil) {
+		if newRevocationReqConfigNil {
 			operations = append(operations, map[string]interface{}{
 				"op":   "remove",
-				"path": "/revokeRequestConfig",
+				"path": "/revocationRequestConfig",
 			})
 		} else {
-			var config map[string]interface{}
-			if err := json.Unmarshal([]byte(newAccessProfile.RevokeRequestConfig.ValueString()), &config); err != nil {
-				return nil, err
-			}
 			operations = append(operations, map[string]interface{}{
 				"op":    "replace",
-				"path":  "/revokeRequestConfig",
-				"value": config,
+				"path":  "/revocationRequestConfig",
+				"value": ConvertRevocationRequestConfigToSailPoint(ctx, newAccessProfile.RevocationRequestConfig),
 			})
 		}
 	}
 
 	// Compare and generate patch for provisioningCriteria
-	if !a.ProvisioningCriteria.Equal(newAccessProfile.ProvisioningCriteria) {
-		if newAccessProfile.ProvisioningCriteria.IsNull() {
+	oldProvisioningCriteriaNil := a.ProvisioningCriteria == nil
+	newProvisioningCriteriaNil := newAccessProfile.ProvisioningCriteria == nil
+	if oldProvisioningCriteriaNil != newProvisioningCriteriaNil || (!oldProvisioningCriteriaNil && !newProvisioningCriteriaNil) {
+		if newProvisioningCriteriaNil {
 			operations = append(operations, map[string]interface{}{
 				"op":   "remove",
 				"path": "/provisioningCriteria",
 			})
 		} else {
-			var criteria map[string]interface{}
-			if err := json.Unmarshal([]byte(newAccessProfile.ProvisioningCriteria.ValueString()), &criteria); err != nil {
-				return nil, err
-			}
 			operations = append(operations, map[string]interface{}{
 				"op":    "replace",
 				"path":  "/provisioningCriteria",
-				"value": criteria,
+				"value": ConvertProvisioningCriteriaToSailPoint(ctx, newAccessProfile.ProvisioningCriteria),
 			})
 		}
 	}

@@ -6,7 +6,7 @@
 
 A Terraform provider for managing [SailPoint Identity Security Cloud (ISC)](https://www.sailpoint.com/) resources. This community-maintained provider enables infrastructure-as-code management of SailPoint ISC configurations.
 
-**Current Version:** v0.6.0
+**Current Version:** v0.7.0
 
 ## Features
 
@@ -49,12 +49,25 @@ A Terraform provider for managing [SailPoint Identity Security Cloud (ISC)](http
   - Enable/disable launcher state management
   - Import existing launchers
 
+- ✅ **Access Profiles** - Manage access profile configurations
+  - Full CRUD operations with PATCH-based updates
+  - Required entitlements field (at least one must be specified)
+  - Support for access request and revocation approval workflows
+  - Nested configuration for approval schemes (manager, owner, governance group, workflow)
+  - Multi-account provisioning criteria (up to 3 levels of nesting)
+  - Governance segmentation support
+  - Import existing access profiles
+
 ### Data Sources
 
 - ✅ **Entitlements** - Read entitlement details from SailPoint
   - Access entitlement metadata and properties
   - Support for complex nested structures (access model metadata)
   - Query by entitlement ID
+
+- ✅ **Access Profiles** - Read existing access profile configurations
+  - Query by access profile ID
+  - Access full profile configuration including entitlements and approval settings
 
 ## Requirements
 
@@ -204,7 +217,7 @@ resource "sailpoint_transform" "full_name" {
 
 ```hcl
 data "sailpoint_transform" "existing" {
-  id = "2c91808a7190d06e01719938fcd20792"
+  id = "00000000000000000000000000000001"
 }
 
 output "transform_details" {
@@ -240,7 +253,7 @@ resource "sailpoint_transform" "imported" {
 
 ```hcl
 data "sailpoint_entitlement" "ad_group" {
-  id = "2c91808874ff91550175097daaec161c"
+  id = "00000000000000000000000000000001"
 }
 
 output "entitlement_details" {
@@ -267,6 +280,7 @@ For more examples, see the [examples directory](./examples).
 - ✅ `sailpoint_identity_attribute` - Manage Identity Attributes
 - ✅ `sailpoint_identity_profile` - Manage Identity Profiles
 - ✅ `sailpoint_launcher` - Manage Interactive Process Launchers
+- ✅ `sailpoint_access_profile` - Manage Access Profiles
 
 ### Data Sources
 
@@ -277,12 +291,13 @@ For more examples, see the [examples directory](./examples).
 - ✅ `sailpoint_identity_profile` - Read existing Identity Profile by ID
 - ✅ `sailpoint_launcher` - Read existing Launcher by ID
 - ✅ `sailpoint_entitlement` - Read existing Entitlement by ID
+- ✅ `sailpoint_access_profile` - Read existing Access Profile by ID
 
 ## SailPoint v2025 API Coverage
 
 This provider is actively implementing resources for the SailPoint v2025 API. Below is the current coverage status:
 
-### ✅ Implemented (7 endpoint groups)
+### ✅ Implemented (8 endpoint groups)
 
 | API Endpoint Group | Status | Resource | Data Source |
 |-------------------|--------|----------|-------------|
@@ -293,6 +308,7 @@ This provider is actively implementing resources for the SailPoint v2025 API. Be
 | Identity Profiles | ✅ Implemented | `sailpoint_identity_profile` | `sailpoint_identity_profile` |
 | Launchers | ✅ Implemented | `sailpoint_launcher` | `sailpoint_launcher` |
 | Entitlements | ✅ Implemented | - | `sailpoint_entitlement` |
+| Access Profiles | ✅ Implemented | `sailpoint_access_profile` | `sailpoint_access_profile` |
 
 ### 📋 Available SailPoint v2025 API Endpoints
 
@@ -451,7 +467,7 @@ The following endpoint groups are available in the SailPoint v2025 API and could
 </details>
 
 **Total API Endpoint Groups**: ~95+
-**Currently Implemented**: 7 (7.4%)
+**Currently Implemented**: 8 (8.4%)
 
 > **Note**: Implementation priorities are based on community feedback and common use cases. If you need a specific endpoint, please [open an issue](https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/issues) or contribute!
 
@@ -535,7 +551,6 @@ Please follow the Git workflow documented in `.claude/workflow.md`.
 
 ### High Priority
 - [ ] **Sources** - Manage source connections (critical for identity aggregation)
-- [ ] **Access Profiles** - Manage access profile definitions
 - [ ] **Roles** - Manage role definitions and assignments
 - [ ] Publish to Terraform Registry
 - [ ] Add comprehensive acceptance tests

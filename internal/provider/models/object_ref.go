@@ -38,11 +38,17 @@ func NewObjectRefFromTerraform(ref *ObjectRef) *client.ObjectRef {
 		return nil
 	}
 
-	return &client.ObjectRef{
+	objRef := &client.ObjectRef{
 		Type: ref.Type.ValueString(),
 		ID:   ref.ID.ValueString(),
-		Name: ref.Name.ValueString(),
 	}
+
+	// Only include Name if it's not null/unknown
+	if !ref.Name.IsNull() && !ref.Name.IsUnknown() {
+		objRef.Name = ref.Name.ValueString()
+	}
+
+	return objRef
 }
 
 // ConvertToSailPoint implements ModelWithSailPointConversionMethods.
@@ -51,11 +57,17 @@ func (o *ObjectRef) ConvertToSailPoint(ctx context.Context) client.ObjectRef {
 		return client.ObjectRef{}
 	}
 
-	return client.ObjectRef{
+	ref := client.ObjectRef{
 		Type: o.Type.ValueString(),
 		ID:   o.ID.ValueString(),
-		Name: o.Name.ValueString(),
 	}
+
+	// Only include Name if it's not null/unknown
+	if !o.Name.IsNull() && !o.Name.IsUnknown() {
+		ref.Name = o.Name.ValueString()
+	}
+
+	return ref
 }
 
 // ConvertFromSailPointForDataSource implements ModelWithSourceConversionMethods.

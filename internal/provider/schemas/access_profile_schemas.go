@@ -4,7 +4,6 @@
 package schemas
 
 import (
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	datasource_schema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	resource_schema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -116,7 +115,7 @@ func (sb *AccessProfileSchemaBuilder) GetResourceSchema() map[string]resource_sc
 		"entitlements": resource_schema.ListNestedAttribute{
 			Description:         desc["entitlements"].description,
 			MarkdownDescription: desc["entitlements"].markdown,
-			Optional:            true,
+			Required:            true,
 			NestedObject: resource_schema.NestedAttributeObject{
 				Attributes: map[string]resource_schema.Attribute{
 					"type": resource_schema.StringAttribute{
@@ -143,23 +142,148 @@ func (sb *AccessProfileSchemaBuilder) GetResourceSchema() map[string]resource_sc
 			Optional:            true,
 			ElementType:         types.StringType,
 		},
-		"access_request_config": resource_schema.StringAttribute{
+		"access_request_config": resource_schema.SingleNestedAttribute{
 			Description:         desc["access_request_config"].description,
 			MarkdownDescription: desc["access_request_config"].markdown,
 			Optional:            true,
-			CustomType:          jsontypes.NormalizedType{},
+			Attributes: map[string]resource_schema.Attribute{
+				"comments_required": resource_schema.BoolAttribute{
+					Description:         "Whether comments are required when requesting this access.",
+					MarkdownDescription: "Whether comments are required when requesting this access.",
+					Optional:            true,
+				},
+				"denial_comments_required": resource_schema.BoolAttribute{
+					Description:         "Whether comments are required when denying a request.",
+					MarkdownDescription: "Whether comments are required when denying a request.",
+					Optional:            true,
+				},
+				"reauthorization_required": resource_schema.BoolAttribute{
+					Description:         "Whether periodic reauthorization is required.",
+					MarkdownDescription: "Whether periodic reauthorization is required for this access.",
+					Optional:            true,
+				},
+				"approval_schemes": resource_schema.ListNestedAttribute{
+					Description:         "List of approval schemes for access requests.",
+					MarkdownDescription: "List of approval schemes that define who must approve access requests.",
+					Optional:            true,
+					NestedObject: resource_schema.NestedAttributeObject{
+						Attributes: map[string]resource_schema.Attribute{
+							"approver_type": resource_schema.StringAttribute{
+								Description:         "Type of approver (e.g., MANAGER, OWNER, SOURCE_OWNER, APP_OWNER, GOVERNANCE_GROUP, WORKFLOW).",
+								MarkdownDescription: "Type of approver. Valid values: `MANAGER`, `OWNER`, `SOURCE_OWNER`, `APP_OWNER`, `GOVERNANCE_GROUP`, `WORKFLOW`.",
+								Required:            true,
+							},
+							"approver_id": resource_schema.StringAttribute{
+								Description:         "ID of the approver (required for GOVERNANCE_GROUP and WORKFLOW types).",
+								MarkdownDescription: "ID of the approver. Required for `GOVERNANCE_GROUP` and `WORKFLOW` approver types.",
+								Optional:            true,
+							},
+						},
+					},
+				},
+			},
 		},
-		"revoke_request_config": resource_schema.StringAttribute{
-			Description:         desc["revoke_request_config"].description,
-			MarkdownDescription: desc["revoke_request_config"].markdown,
+		"revocation_request_config": resource_schema.SingleNestedAttribute{
+			Description:         desc["revocation_request_config"].description,
+			MarkdownDescription: desc["revocation_request_config"].markdown,
 			Optional:            true,
-			CustomType:          jsontypes.NormalizedType{},
+			Attributes: map[string]resource_schema.Attribute{
+				"approval_schemes": resource_schema.ListNestedAttribute{
+					Description:         "List of approval schemes for revocation requests.",
+					MarkdownDescription: "List of approval schemes that define who must approve revocation requests.",
+					Optional:            true,
+					NestedObject: resource_schema.NestedAttributeObject{
+						Attributes: map[string]resource_schema.Attribute{
+							"approver_type": resource_schema.StringAttribute{
+								Description:         "Type of approver (e.g., MANAGER, OWNER, SOURCE_OWNER, APP_OWNER, GOVERNANCE_GROUP, WORKFLOW).",
+								MarkdownDescription: "Type of approver. Valid values: `MANAGER`, `OWNER`, `SOURCE_OWNER`, `APP_OWNER`, `GOVERNANCE_GROUP`, `WORKFLOW`.",
+								Required:            true,
+							},
+							"approver_id": resource_schema.StringAttribute{
+								Description:         "ID of the approver (required for GOVERNANCE_GROUP and WORKFLOW types).",
+								MarkdownDescription: "ID of the approver. Required for `GOVERNANCE_GROUP` and `WORKFLOW` approver types.",
+								Optional:            true,
+							},
+						},
+					},
+				},
+			},
 		},
-		"provisioning_criteria": resource_schema.StringAttribute{
+		"provisioning_criteria": resource_schema.SingleNestedAttribute{
 			Description:         desc["provisioning_criteria"].description,
 			MarkdownDescription: desc["provisioning_criteria"].markdown,
 			Optional:            true,
-			CustomType:          jsontypes.NormalizedType{},
+			Attributes: map[string]resource_schema.Attribute{
+				"operation": resource_schema.StringAttribute{
+					Description:         "The operation to perform (e.g., EQUALS, NOT_EQUALS, CONTAINS, HAS, AND, OR).",
+					MarkdownDescription: "The operation to perform. Valid values: `EQUALS`, `NOT_EQUALS`, `CONTAINS`, `HAS`, `AND`, `OR`.",
+					Required:            true,
+				},
+				"attribute": resource_schema.StringAttribute{
+					Description:         "The attribute name for comparison operations.",
+					MarkdownDescription: "The attribute name to compare (used with `EQUALS`, `NOT_EQUALS`, `CONTAINS`, `HAS`).",
+					Optional:            true,
+				},
+				"value": resource_schema.StringAttribute{
+					Description:         "The value to compare against.",
+					MarkdownDescription: "The value to compare the attribute against.",
+					Optional:            true,
+				},
+				"children": resource_schema.ListNestedAttribute{
+					Description:         "Child criteria for logical operations (supports up to 3 levels of nesting).",
+					MarkdownDescription: "Child criteria for logical operations like `AND`/`OR`. Supports up to 3 levels of nesting.",
+					Optional:            true,
+					NestedObject: resource_schema.NestedAttributeObject{
+						Attributes: map[string]resource_schema.Attribute{
+							"operation": resource_schema.StringAttribute{
+								Description:         "The operation to perform (level 2).",
+								MarkdownDescription: "The operation to perform. Valid values: `EQUALS`, `NOT_EQUALS`, `CONTAINS`, `HAS`, `AND`, `OR`.",
+								Required:            true,
+							},
+							"attribute": resource_schema.StringAttribute{
+								Description:         "The attribute name for comparison operations (level 2).",
+								MarkdownDescription: "The attribute name to compare.",
+								Optional:            true,
+							},
+							"value": resource_schema.StringAttribute{
+								Description:         "The value to compare against (level 2).",
+								MarkdownDescription: "The value to compare the attribute against.",
+								Optional:            true,
+							},
+							"children": resource_schema.ListNestedAttribute{
+								Description:         "Child criteria for logical operations (level 3, max depth).",
+								MarkdownDescription: "Child criteria for logical operations. This is the maximum nesting level (3).",
+								Optional:            true,
+								NestedObject: resource_schema.NestedAttributeObject{
+									Attributes: map[string]resource_schema.Attribute{
+										"operation": resource_schema.StringAttribute{
+											Description:         "The operation to perform (level 3).",
+											MarkdownDescription: "The operation to perform. Valid values: `EQUALS`, `NOT_EQUALS`, `CONTAINS`, `HAS`.",
+											Required:            true,
+										},
+										"attribute": resource_schema.StringAttribute{
+											Description:         "The attribute name for comparison operations (level 3).",
+											MarkdownDescription: "The attribute name to compare.",
+											Optional:            true,
+										},
+										"value": resource_schema.StringAttribute{
+											Description:         "The value to compare against (level 3).",
+											MarkdownDescription: "The value to compare the attribute against.",
+											Optional:            true,
+										},
+										"children": resource_schema.StringAttribute{
+											Description:         "Placeholder - level 3 does not support children.",
+											MarkdownDescription: "Not used at this nesting level.",
+											Optional:            true,
+											Computed:            true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 }
@@ -278,23 +402,147 @@ func (sb *AccessProfileSchemaBuilder) GetDataSourceSchema() map[string]datasourc
 			Computed:            true,
 			ElementType:         types.StringType,
 		},
-		"access_request_config": datasource_schema.StringAttribute{
+		"access_request_config": datasource_schema.SingleNestedAttribute{
 			Description:         desc["access_request_config"].description,
 			MarkdownDescription: desc["access_request_config"].markdown,
 			Computed:            true,
-			CustomType:          jsontypes.NormalizedType{},
+			Attributes: map[string]datasource_schema.Attribute{
+				"comments_required": datasource_schema.BoolAttribute{
+					Description:         "Whether comments are required when requesting this access.",
+					MarkdownDescription: "Whether comments are required when requesting this access.",
+					Computed:            true,
+				},
+				"denial_comments_required": datasource_schema.BoolAttribute{
+					Description:         "Whether comments are required when denying a request.",
+					MarkdownDescription: "Whether comments are required when denying a request.",
+					Computed:            true,
+				},
+				"reauthorization_required": datasource_schema.BoolAttribute{
+					Description:         "Whether periodic reauthorization is required.",
+					MarkdownDescription: "Whether periodic reauthorization is required for this access.",
+					Computed:            true,
+				},
+				"approval_schemes": datasource_schema.ListNestedAttribute{
+					Description:         "List of approval schemes for access requests.",
+					MarkdownDescription: "List of approval schemes that define who must approve access requests.",
+					Computed:            true,
+					NestedObject: datasource_schema.NestedAttributeObject{
+						Attributes: map[string]datasource_schema.Attribute{
+							"approver_type": datasource_schema.StringAttribute{
+								Description:         "Type of approver (e.g., MANAGER, OWNER, SOURCE_OWNER, APP_OWNER, GOVERNANCE_GROUP, WORKFLOW).",
+								MarkdownDescription: "Type of approver. Valid values: `MANAGER`, `OWNER`, `SOURCE_OWNER`, `APP_OWNER`, `GOVERNANCE_GROUP`, `WORKFLOW`.",
+								Computed:            true,
+							},
+							"approver_id": datasource_schema.StringAttribute{
+								Description:         "ID of the approver (required for GOVERNANCE_GROUP and WORKFLOW types).",
+								MarkdownDescription: "ID of the approver. Required for `GOVERNANCE_GROUP` and `WORKFLOW` approver types.",
+								Computed:            true,
+							},
+						},
+					},
+				},
+			},
 		},
-		"revoke_request_config": datasource_schema.StringAttribute{
-			Description:         desc["revoke_request_config"].description,
-			MarkdownDescription: desc["revoke_request_config"].markdown,
+		"revocation_request_config": datasource_schema.SingleNestedAttribute{
+			Description:         desc["revocation_request_config"].description,
+			MarkdownDescription: desc["revocation_request_config"].markdown,
 			Computed:            true,
-			CustomType:          jsontypes.NormalizedType{},
+			Attributes: map[string]datasource_schema.Attribute{
+				"approval_schemes": datasource_schema.ListNestedAttribute{
+					Description:         "List of approval schemes for revocation requests.",
+					MarkdownDescription: "List of approval schemes that define who must approve revocation requests.",
+					Computed:            true,
+					NestedObject: datasource_schema.NestedAttributeObject{
+						Attributes: map[string]datasource_schema.Attribute{
+							"approver_type": datasource_schema.StringAttribute{
+								Description:         "Type of approver (e.g., MANAGER, OWNER, SOURCE_OWNER, APP_OWNER, GOVERNANCE_GROUP, WORKFLOW).",
+								MarkdownDescription: "Type of approver. Valid values: `MANAGER`, `OWNER`, `SOURCE_OWNER`, `APP_OWNER`, `GOVERNANCE_GROUP`, `WORKFLOW`.",
+								Computed:            true,
+							},
+							"approver_id": datasource_schema.StringAttribute{
+								Description:         "ID of the approver (required for GOVERNANCE_GROUP and WORKFLOW types).",
+								MarkdownDescription: "ID of the approver. Required for `GOVERNANCE_GROUP` and `WORKFLOW` approver types.",
+								Computed:            true,
+							},
+						},
+					},
+				},
+			},
 		},
-		"provisioning_criteria": datasource_schema.StringAttribute{
+		"provisioning_criteria": datasource_schema.SingleNestedAttribute{
 			Description:         desc["provisioning_criteria"].description,
 			MarkdownDescription: desc["provisioning_criteria"].markdown,
 			Computed:            true,
-			CustomType:          jsontypes.NormalizedType{},
+			Attributes: map[string]datasource_schema.Attribute{
+				"operation": datasource_schema.StringAttribute{
+					Description:         "The operation to perform (e.g., EQUALS, NOT_EQUALS, CONTAINS, HAS, AND, OR).",
+					MarkdownDescription: "The operation to perform. Valid values: `EQUALS`, `NOT_EQUALS`, `CONTAINS`, `HAS`, `AND`, `OR`.",
+					Computed:            true,
+				},
+				"attribute": datasource_schema.StringAttribute{
+					Description:         "The attribute name for comparison operations.",
+					MarkdownDescription: "The attribute name to compare (used with `EQUALS`, `NOT_EQUALS`, `CONTAINS`, `HAS`).",
+					Computed:            true,
+				},
+				"value": datasource_schema.StringAttribute{
+					Description:         "The value to compare against.",
+					MarkdownDescription: "The value to compare the attribute against.",
+					Computed:            true,
+				},
+				"children": datasource_schema.ListNestedAttribute{
+					Description:         "Child criteria for logical operations (supports up to 3 levels of nesting).",
+					MarkdownDescription: "Child criteria for logical operations like `AND`/`OR`. Supports up to 3 levels of nesting.",
+					Computed:            true,
+					NestedObject: datasource_schema.NestedAttributeObject{
+						Attributes: map[string]datasource_schema.Attribute{
+							"operation": datasource_schema.StringAttribute{
+								Description:         "The operation to perform (level 2).",
+								MarkdownDescription: "The operation to perform. Valid values: `EQUALS`, `NOT_EQUALS`, `CONTAINS`, `HAS`, `AND`, `OR`.",
+								Computed:            true,
+							},
+							"attribute": datasource_schema.StringAttribute{
+								Description:         "The attribute name for comparison operations (level 2).",
+								MarkdownDescription: "The attribute name to compare.",
+								Computed:            true,
+							},
+							"value": datasource_schema.StringAttribute{
+								Description:         "The value to compare against (level 2).",
+								MarkdownDescription: "The value to compare the attribute against.",
+								Computed:            true,
+							},
+							"children": datasource_schema.ListNestedAttribute{
+								Description:         "Child criteria for logical operations (level 3, max depth).",
+								MarkdownDescription: "Child criteria for logical operations. This is the maximum nesting level (3).",
+								Computed:            true,
+								NestedObject: datasource_schema.NestedAttributeObject{
+									Attributes: map[string]datasource_schema.Attribute{
+										"operation": datasource_schema.StringAttribute{
+											Description:         "The operation to perform (level 3).",
+											MarkdownDescription: "The operation to perform. Valid values: `EQUALS`, `NOT_EQUALS`, `CONTAINS`, `HAS`.",
+											Computed:            true,
+										},
+										"attribute": datasource_schema.StringAttribute{
+											Description:         "The attribute name for comparison operations (level 3).",
+											MarkdownDescription: "The attribute name to compare.",
+											Computed:            true,
+										},
+										"value": datasource_schema.StringAttribute{
+											Description:         "The value to compare against (level 3).",
+											MarkdownDescription: "The value to compare the attribute against.",
+											Computed:            true,
+										},
+										"children": datasource_schema.StringAttribute{
+											Description:         "Placeholder - level 3 does not support children.",
+											MarkdownDescription: "Not used at this nesting level.",
+											Computed:            true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 }
@@ -345,24 +593,24 @@ func (sb *AccessProfileSchemaBuilder) fieldDescriptions() map[string]struct {
 			markdown:    "Reference to the source that this access profile is attached to. The source determines which entitlements are available.",
 		},
 		"entitlements": {
-			description: "List of entitlements included in this access profile.",
-			markdown:    "List of entitlement references included in this access profile. Entitlements must exist on the access profile's source. Use the [list entitlements endpoint](https://developer.sailpoint.com/docs/api/v2025/list-entitlements) with filters to find available entitlements.",
+			description: "List of entitlements included in this access profile (required - at least one entitlement must be specified).",
+			markdown:    "**Required.** List of entitlement references included in this access profile. At least one entitlement must be specified. Entitlements must exist on the access profile's source. Use the [list entitlements endpoint](https://developer.sailpoint.com/docs/api/v2025/list-entitlements) with filters to find available entitlements.",
 		},
 		"segments": {
 			description: "List of segment IDs associated with this access profile.",
 			markdown:    "List of segment identifiers (UUIDs) associated with this access profile for governance segmentation.",
 		},
 		"access_request_config": {
-			description: "Access request approval configuration as a JSON string.",
-			markdown:    "Configuration for access request approval workflows as a JSON string. Defines how requests for this access profile are approved.",
+			description: "Access request approval configuration (Requestability).",
+			markdown:    "Configuration for access request approval workflows. Defines how requests for this access profile are approved, including required comments, reauthorization, and approval schemes.",
 		},
-		"revoke_request_config": {
-			description: "Revoke request approval configuration as a JSON string.",
-			markdown:    "Configuration for revocation approval workflows as a JSON string. Defines how revocations of this access profile are processed.",
+		"revocation_request_config": {
+			description: "Revocation request approval configuration (Revocability).",
+			markdown:    "Configuration for revocation approval workflows. Defines how revocations of this access profile are processed through approval schemes.",
 		},
 		"provisioning_criteria": {
-			description: "Provisioning criteria configuration as a JSON string.",
-			markdown:    "Provisioning criteria for multi-account selection as a JSON string. Defines logic for selecting which account to provision when multiple exist.",
+			description: "Provisioning criteria configuration for multi-account selection.",
+			markdown:    "Provisioning criteria for multi-account selection. Defines logic for selecting which account to provision when multiple accounts exist. Supports up to 3 levels of nested criteria using logical operators (AND/OR) and comparison operators (EQUALS, NOT_EQUALS, CONTAINS, HAS).",
 		},
 	}
 }
