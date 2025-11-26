@@ -15,7 +15,7 @@ Use this data source to retrieve detailed information about a specific SailPoint
 ```terraform
 # Example: Read an existing workflow by ID
 data "sailpoint_workflow" "existing_workflow" {
-  id = "2c91808a7b5c3e1d017b5c4a8f6d0001"
+  id = "00000000000000000000000000000001"
 }
 
 # Use the workflow data
