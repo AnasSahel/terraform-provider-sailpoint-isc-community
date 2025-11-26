@@ -12,6 +12,22 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
+// FormElementValidation represents a validation rule for a form element.
+type FormElementValidation struct {
+	ValidationType types.String `tfsdk:"validation_type"`
+	Config         types.Object `tfsdk:"config"` // Optional config for the validation
+}
+
+// FormElement represents a single form element (field, section, etc).
+type FormElement struct {
+	ID           types.String                    `tfsdk:"id"`
+	ElementType  types.String                    `tfsdk:"element_type"`
+	Key          types.String                    `tfsdk:"key"`
+	Config       jsontypes.Normalized            `tfsdk:"config"` // Complex config as JSON
+	Validations  []FormElementValidation         `tfsdk:"validations"`
+	FormElements []FormElement                   `tfsdk:"form_elements"` // Nested elements for sections
+}
+
 // FormDefinition represents the Terraform model for a SailPoint Form Definition.
 type FormDefinition struct {
 	ID             types.String         `tfsdk:"id"`
@@ -20,7 +36,7 @@ type FormDefinition struct {
 	Owner          *ObjectRef           `tfsdk:"owner"`
 	UsedBy         []ObjectRef          `tfsdk:"used_by"`         // List of object references
 	FormInput      []FormInput          `tfsdk:"form_input"`      // List of form inputs
-	FormElements   jsontypes.Normalized `tfsdk:"form_elements"`   // JSON string with normalization
+	FormElements   []FormElement        `tfsdk:"form_elements"`   // Structured list of form elements
 	FormConditions []FormCondition      `tfsdk:"form_conditions"` // List of form conditions
 	Created        types.String         `tfsdk:"created"`
 	Modified       types.String         `tfsdk:"modified"`
@@ -63,13 +79,13 @@ func (f *FormDefinition) ConvertToSailPoint(ctx context.Context) (*client.FormDe
 		form.UsedBy = usedByMaps
 	}
 
-	// Parse FormElements JSON string to slice of maps
-	if !f.FormElements.IsNull() && !f.FormElements.IsUnknown() {
-		var elements []map[string]interface{}
-		if err := json.Unmarshal([]byte(f.FormElements.ValueString()), &elements); err != nil {
-			return nil, err
+	// Convert FormElements array to slice of maps for API
+	if len(f.FormElements) > 0 {
+		elementMaps := make([]map[string]interface{}, len(f.FormElements))
+		for i, elem := range f.FormElements {
+			elementMaps[i] = elem.ConvertToSailPoint(ctx)
 		}
-		form.FormElements = elements
+		form.FormElements = elementMaps
 	}
 
 	// Convert FormInput array to slice of maps
@@ -149,17 +165,13 @@ func (f *FormDefinition) ConvertFromSailPoint(ctx context.Context, form *client.
 	}
 	// If nil or empty, leave FormInput as nil to preserve null vs [] distinction
 
-	// FormElements - with JSON normalization
+	// FormElements - convert to structured format
 	if len(form.FormElements) > 0 {
-		// Normalize form elements by removing empty validations arrays that the API adds
-		normalizedElements := normalizeFormElements(form.FormElements)
-		elementsJSON, err := json.Marshal(normalizedElements)
-		if err != nil {
-			return err
+		formElements := make([]FormElement, len(form.FormElements))
+		for i, elemMap := range form.FormElements {
+			formElements[i].ConvertFromSailPoint(ctx, elemMap)
 		}
-		f.FormElements = jsontypes.NewNormalizedValue(string(elementsJSON))
-	} else if includeNull {
-		f.FormElements = jsontypes.NewNormalizedNull()
+		f.FormElements = formElements
 	}
 
 	// FormConditions
@@ -266,21 +278,21 @@ func (f *FormDefinition) GeneratePatchOperations(ctx context.Context, newForm Fo
 	}
 
 	// FormElements
-	if !f.FormElements.Equal(newForm.FormElements) {
-		if newForm.FormElements.IsNull() {
+	if !formElementsEqual(f.FormElements, newForm.FormElements) {
+		if len(newForm.FormElements) == 0 {
 			operations = append(operations, map[string]interface{}{
 				"op":   "remove",
 				"path": "/formElements",
 			})
 		} else {
-			var elements []map[string]interface{}
-			if err := json.Unmarshal([]byte(newForm.FormElements.ValueString()), &elements); err != nil {
-				return nil, err
+			elementMaps := make([]map[string]interface{}, len(newForm.FormElements))
+			for i, elem := range newForm.FormElements {
+				elementMaps[i] = elem.ConvertToSailPoint(ctx)
 			}
 			operations = append(operations, map[string]interface{}{
 				"op":    "replace",
 				"path":  "/formElements",
-				"value": elements,
+				"value": elementMaps,
 			})
 		}
 	}
@@ -468,4 +480,135 @@ func formConditionsEqual(a, b []FormCondition) bool {
 	}
 
 	return true
+}
+
+// ConvertToSailPoint converts a FormElement to a map[string]interface{} for the API.
+func (fe *FormElement) ConvertToSailPoint(ctx context.Context) map[string]interface{} {
+	element := make(map[string]interface{})
+
+	if !fe.ID.IsNull() && !fe.ID.IsUnknown() {
+		element["id"] = fe.ID.ValueString()
+	}
+
+	if !fe.ElementType.IsNull() && !fe.ElementType.IsUnknown() {
+		element["elementType"] = fe.ElementType.ValueString()
+	}
+
+	if !fe.Key.IsNull() && !fe.Key.IsUnknown() {
+		element["key"] = fe.Key.ValueString()
+	}
+
+	// Config is JSON, parse it to get the actual config object
+	if !fe.Config.IsNull() && !fe.Config.IsUnknown() {
+		var configMap map[string]interface{}
+		if err := json.Unmarshal([]byte(fe.Config.ValueString()), &configMap); err == nil {
+			element["config"] = configMap
+		}
+	}
+
+	// Validations
+	if len(fe.Validations) > 0 {
+		validationMaps := make([]map[string]interface{}, len(fe.Validations))
+		for i, val := range fe.Validations {
+			validationMaps[i] = map[string]interface{}{
+				"validationType": val.ValidationType.ValueString(),
+			}
+			// TODO: Handle validation config if needed
+		}
+		element["validations"] = validationMaps
+	}
+
+	// Nested form elements (for sections)
+	if len(fe.FormElements) > 0 {
+		nestedElementMaps := make([]map[string]interface{}, len(fe.FormElements))
+		for i, nestedElem := range fe.FormElements {
+			nestedElementMaps[i] = nestedElem.ConvertToSailPoint(ctx)
+		}
+		// Put nested elements in config.formElements
+		if configMap, ok := element["config"].(map[string]interface{}); ok {
+			configMap["formElements"] = nestedElementMaps
+		}
+	}
+
+	return element
+}
+
+// formElementsEqual compares two FormElement slices for equality.
+func formElementsEqual(a, b []FormElement) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !a[i].ID.Equal(b[i].ID) ||
+			!a[i].ElementType.Equal(b[i].ElementType) ||
+			!a[i].Key.Equal(b[i].Key) ||
+			!a[i].Config.Equal(b[i].Config) {
+			return false
+		}
+		// Compare validations
+		if len(a[i].Validations) != len(b[i].Validations) {
+			return false
+		}
+		for j := range a[i].Validations {
+			if !a[i].Validations[j].ValidationType.Equal(b[i].Validations[j].ValidationType) {
+				return false
+			}
+		}
+		// Recursively compare nested form elements
+		if !formElementsEqual(a[i].FormElements, b[i].FormElements) {
+			return false
+		}
+	}
+	return true
+}
+
+// ConvertFromSailPoint converts an API form element map to a Terraform FormElement.
+func (fe *FormElement) ConvertFromSailPoint(ctx context.Context, elem map[string]interface{}) {
+	if idVal, ok := elem["id"].(string); ok {
+		fe.ID = types.StringValue(idVal)
+	}
+
+	if typeVal, ok := elem["elementType"].(string); ok {
+		fe.ElementType = types.StringValue(typeVal)
+	}
+
+	if keyVal, ok := elem["key"].(string); ok {
+		fe.Key = types.StringValue(keyVal)
+	}
+
+	// Handle config
+	if configVal, ok := elem["config"].(map[string]interface{}); ok {
+		// Remove formElements from config before storing as JSON
+		configMap := make(map[string]interface{})
+		for k, v := range configVal {
+			if k != "formElements" {
+				configMap[k] = v
+			}
+		}
+		configJSON, _ := json.Marshal(configMap)
+		fe.Config = jsontypes.NewNormalizedValue(string(configJSON))
+
+		// Handle nested formElements if present
+		if nestedElements, ok := configVal["formElements"].([]interface{}); ok {
+			fe.FormElements = make([]FormElement, len(nestedElements))
+			for i, nestedElem := range nestedElements {
+				if nestedMap, ok := nestedElem.(map[string]interface{}); ok {
+					fe.FormElements[i].ConvertFromSailPoint(ctx, nestedMap)
+				}
+			}
+		}
+	}
+
+	// Handle validations
+	if validationsVal, ok := elem["validations"].([]interface{}); ok {
+		fe.Validations = make([]FormElementValidation, len(validationsVal))
+		for i, valItem := range validationsVal {
+			if valMap, ok := valItem.(map[string]interface{}); ok {
+				if typeVal, ok := valMap["validationType"].(string); ok {
+					fe.Validations[i].ValidationType = types.StringValue(typeVal)
+				}
+				// TODO: Handle validation config if needed
+			}
+		}
+	}
 }
