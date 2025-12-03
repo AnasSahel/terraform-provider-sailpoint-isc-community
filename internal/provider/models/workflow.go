@@ -49,7 +49,9 @@ func (w *Workflow) ConvertToSailPoint(ctx context.Context) (*client.Workflow, er
 	}
 
 	// Convert trigger WorkflowTrigger
-	if w.Trigger != nil {
+	// Note: Trigger is now computed and managed by sailpoint_workflow_trigger resource,
+	// so it should be nil during Create/Update operations. Only include if explicitly provided.
+	if w.Trigger != nil && !w.Trigger.Type.IsNull() && !w.Trigger.Type.IsUnknown() {
 		trigger, err := w.Trigger.ConvertToSailPoint(ctx)
 		if err != nil {
 			return nil, err
