@@ -5,22 +5,24 @@ package models
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/client"
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // Workflow represents the Terraform model for a SailPoint Workflow.
 type Workflow struct {
-	ID          types.String        `tfsdk:"id"`
-	Name        types.String        `tfsdk:"name"`
-	Owner       *ObjectRef          `tfsdk:"owner"`
-	Description types.String        `tfsdk:"description"`
-	Definition  *WorkflowDefinition `tfsdk:"definition"`
-	Trigger     *WorkflowTrigger    `tfsdk:"trigger"`
-	Enabled     types.Bool          `tfsdk:"enabled"`
-	Created     types.String        `tfsdk:"created"`
-	Modified    types.String        `tfsdk:"modified"`
+	ID          types.String         `tfsdk:"id"`
+	Name        types.String         `tfsdk:"name"`
+	Owner       *ObjectRef           `tfsdk:"owner"`
+	Description types.String         `tfsdk:"description"`
+	Definition  *WorkflowDefinition  `tfsdk:"definition"`
+	Trigger     jsontypes.Normalized `tfsdk:"trigger"` // Computed field as JSON string to handle unknown values
+	Enabled     types.Bool           `tfsdk:"enabled"`
+	Created     types.String         `tfsdk:"created"`
+	Modified    types.String         `tfsdk:"modified"`
 }
 
 // ConvertToSailPoint converts the Terraform model to a SailPoint API Workflow.
@@ -48,16 +50,9 @@ func (w *Workflow) ConvertToSailPoint(ctx context.Context) (*client.Workflow, er
 		workflow.Definition = definition
 	}
 
-	// Convert trigger WorkflowTrigger
 	// Note: Trigger is now computed and managed by sailpoint_workflow_trigger resource,
-	// so it should be nil during Create/Update operations. Only include if explicitly provided.
-	if w.Trigger != nil && !w.Trigger.Type.IsNull() && !w.Trigger.Type.IsUnknown() {
-		trigger, err := w.Trigger.ConvertToSailPoint(ctx)
-		if err != nil {
-			return nil, err
-		}
-		workflow.Trigger = trigger
-	}
+	// so it should not be included during Create/Update operations.
+	// The trigger field is read-only and only populated on Read operations.
 
 	// Set optional fields
 	if !w.Description.IsNull() && !w.Description.IsUnknown() {
@@ -111,20 +106,16 @@ func (w *Workflow) ConvertFromSailPoint(ctx context.Context, workflow *client.Wo
 		w.Definition = nil
 	}
 
-	// Convert trigger WorkflowTrigger
+	// Convert trigger - now stored as JSON string
+	// Trigger is computed and managed by sailpoint_workflow_trigger resource
 	if workflow.Trigger != nil {
-		w.Trigger = &WorkflowTrigger{}
-		var err error
-		if includeNull {
-			err = w.Trigger.ConvertFromSailPointForResource(ctx, workflow.Trigger)
-		} else {
-			err = w.Trigger.ConvertFromSailPointForDataSource(ctx, workflow.Trigger)
-		}
+		triggerJSON, err := json.Marshal(workflow.Trigger)
 		if err != nil {
 			return err
 		}
+		w.Trigger = jsontypes.NewNormalizedValue(string(triggerJSON))
 	} else if includeNull {
-		w.Trigger = nil
+		w.Trigger = jsontypes.NewNormalizedNull()
 	}
 
 	// Handle optional fields

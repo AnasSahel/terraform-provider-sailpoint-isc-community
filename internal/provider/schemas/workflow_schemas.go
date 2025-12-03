@@ -77,25 +77,11 @@ func (sb *WorkflowSchemaBuilder) GetResourceSchema() map[string]resource_schema.
 				},
 			},
 		},
-		"trigger": resource_schema.SingleNestedAttribute{
+		"trigger": resource_schema.StringAttribute{
 			Description:         desc["trigger"].description,
 			MarkdownDescription: desc["trigger"].markdown,
 			Computed:            true,
-			Attributes: map[string]resource_schema.Attribute{
-				"type": resource_schema.StringAttribute{
-					Description: "The type of trigger (e.g., EVENT, SCHEDULED, REQUEST_RESPONSE).",
-					Computed:    true,
-				},
-				"display_name": resource_schema.StringAttribute{
-					Description: "Display name for the trigger.",
-					Computed:    true,
-				},
-				"attributes": resource_schema.StringAttribute{
-					Description: "Trigger-specific attributes as a JSON string. Structure varies by trigger type.",
-					Computed:    true,
-					CustomType:  jsontypes.NormalizedType{},
-				},
-			},
+			CustomType:          jsontypes.NormalizedType{},
 		},
 		"enabled": resource_schema.BoolAttribute{
 			Description:         desc["enabled"].description,
@@ -177,25 +163,11 @@ func (sb *WorkflowSchemaBuilder) GetDataSourceSchema() map[string]datasource_sch
 				},
 			},
 		},
-		"trigger": datasource_schema.SingleNestedAttribute{
+		"trigger": datasource_schema.StringAttribute{
 			Description:         desc["trigger"].description,
 			MarkdownDescription: desc["trigger"].markdown,
 			Computed:            true,
-			Attributes: map[string]datasource_schema.Attribute{
-				"type": datasource_schema.StringAttribute{
-					Description: "The type of trigger (e.g., EVENT, SCHEDULED, REQUEST_RESPONSE).",
-					Computed:    true,
-				},
-				"display_name": datasource_schema.StringAttribute{
-					Description: "Display name for the trigger.",
-					Computed:    true,
-				},
-				"attributes": datasource_schema.StringAttribute{
-					Description: "Trigger-specific attributes as a JSON string. Structure varies by trigger type.",
-					Computed:    true,
-					CustomType:  jsontypes.NormalizedType{},
-				},
-			},
+			CustomType:          jsontypes.NormalizedType{},
 		},
 		"enabled": datasource_schema.BoolAttribute{
 			Description:         desc["enabled"].description,
