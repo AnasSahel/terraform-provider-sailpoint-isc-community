@@ -172,6 +172,7 @@ func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resou
 		resources.NewTransformResource,
 		resources.NewFormDefinitionResource,
 		resources.NewWorkflowResource,
+		resources.NewWorkflowTriggerResource,
 		resources.NewIdentityAttributeResource,
 		resources.NewIdentityProfileResource,
 		resources.NewLauncherResource,

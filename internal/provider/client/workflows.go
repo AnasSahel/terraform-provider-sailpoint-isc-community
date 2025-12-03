@@ -142,3 +142,71 @@ func (c *Client) DeleteWorkflow(ctx context.Context, id string) error {
 
 	return nil
 }
+
+// SetWorkflowTrigger sets the trigger for a workflow using a PATCH operation.
+func (c *Client) SetWorkflowTrigger(ctx context.Context, workflowID string, trigger *WorkflowTrigger) (*Workflow, error) {
+	var result Workflow
+	path := fmt.Sprintf("/v2025/workflows/%s", workflowID)
+
+	// Create a PATCH operation to set the trigger field
+	patchOps := []map[string]interface{}{
+		{
+			"op":    "replace",
+			"path":  "/trigger",
+			"value": trigger,
+		},
+	}
+
+	resp, err := c.doRequest(ctx, http.MethodPatch, path, patchOps, &result)
+	if err != nil {
+		return nil, c.formatError(ErrorContext{
+			Operation:  "update",
+			Resource:   "workflow_trigger",
+			ResourceID: workflowID,
+		}, err, 0)
+	}
+
+	if resp.IsError() {
+		return nil, c.formatError(ErrorContext{
+			Operation:  "update",
+			Resource:   "workflow_trigger",
+			ResourceID: workflowID,
+		}, nil, resp.StatusCode())
+	}
+
+	return &result, nil
+}
+
+// RemoveWorkflowTrigger removes the trigger from a workflow by setting it to null.
+func (c *Client) RemoveWorkflowTrigger(ctx context.Context, workflowID string) (*Workflow, error) {
+	var result Workflow
+	path := fmt.Sprintf("/v2025/workflows/%s", workflowID)
+
+	// Create a PATCH operation to set the trigger to null
+	patchOps := []map[string]interface{}{
+		{
+			"op":    "replace",
+			"path":  "/trigger",
+			"value": nil,
+		},
+	}
+
+	resp, err := c.doRequest(ctx, http.MethodPatch, path, patchOps, &result)
+	if err != nil {
+		return nil, c.formatError(ErrorContext{
+			Operation:  "delete",
+			Resource:   "workflow_trigger",
+			ResourceID: workflowID,
+		}, err, 0)
+	}
+
+	if resp.IsError() {
+		return nil, c.formatError(ErrorContext{
+			Operation:  "delete",
+			Resource:   "workflow_trigger",
+			ResourceID: workflowID,
+		}, nil, resp.StatusCode())
+	}
+
+	return &result, nil
+}

@@ -63,7 +63,7 @@ resource "sailpoint_workflow" "cloned_workflow" {
 - `modified` (String) ISO-8601 timestamp when the workflow was last modified (computed).
 - `name` (String) Name of the workflow as it appears in the UI.
 - `owner` (Attributes) Owner of the workflow. Must be a valid identity reference with `type` (typically 'IDENTITY'), `id` (UUID), and optionally `name`. (see [below for nested schema](#nestedatt--owner))
-- `trigger` (Attributes) Trigger configuration defining what initiates the workflow. Must include `type` (e.g., EVENT, SCHEDULED, REQUEST_RESPONSE) and optional `attributes` (trigger-specific configuration as JSON string). (see [below for nested schema](#nestedatt--trigger))
+- `trigger` (String) Trigger configuration defining what initiates the workflow. This is a computed field managed by the `sailpoint_workflow_trigger` resource. Do not configure this directly in the workflow resource.
 
 <a id="nestedatt--definition"></a>
 ### Nested Schema for `definition`
@@ -82,13 +82,3 @@ Read-Only:
 - `id` (String) The unique identifier (UUID) of the owner identity.
 - `name` (String) The name of the owner identity.
 - `type` (String) The type of the referenced object (e.g., IDENTITY).
-
-
-<a id="nestedatt--trigger"></a>
-### Nested Schema for `trigger`
-
-Read-Only:
-
-- `attributes` (String) Trigger-specific attributes as a JSON string. Structure varies by trigger type.
-- `display_name` (String) Display name for the trigger.
-- `type` (String) The type of trigger (e.g., EVENT, SCHEDULED, REQUEST_RESPONSE).

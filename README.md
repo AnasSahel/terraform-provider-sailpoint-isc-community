@@ -6,7 +6,7 @@
 
 A Terraform provider for managing [SailPoint Identity Security Cloud (ISC)](https://www.sailpoint.com/) resources. This community-maintained provider enables infrastructure-as-code management of SailPoint ISC configurations.
 
-**Current Version:** v0.7.0
+**Current Version:** v0.7.2
 
 ## Features
 
@@ -20,14 +20,23 @@ A Terraform provider for managing [SailPoint Identity Security Cloud (ISC)](http
 
 - ✅ **Form Definitions** - Manage custom forms for access requests and workflows
   - Full CRUD operations
+  - Structured form_elements as typed nested objects for better type safety
   - Support for nested fields, conditions, and inputs
+  - Proper handling of optional validations (null vs empty array)
   - Import existing form definitions
 
 - ✅ **Workflows** - Manage custom automation workflows
   - Complete workflow lifecycle management
-  - Support for definitions, triggers, and execution
+  - Support for definitions and execution
   - Automatic disabling before deletion
   - Import existing workflows
+  - Triggers managed separately via `sailpoint_workflow_trigger` resource
+
+- ✅ **Workflow Triggers** - Manage workflow trigger configurations separately
+  - Attach triggers to workflows independently
+  - Support for all trigger types (EVENT, SCHEDULED, REQUEST_RESPONSE)
+  - Trigger attributes can reference the workflow ID without circular dependencies
+  - Update or remove triggers without modifying the workflow
 
 - ✅ **Identity Attributes** - Manage identity attribute configurations
   - Full CRUD operations
@@ -89,14 +98,14 @@ cd terraform-provider-sailpoint-isc-community
 go build -o terraform-provider-sailpoint
 
 # Install locally (macOS/Linux example - adjust path for your OS/architecture)
-mkdir -p ~/.terraform.d/plugins/github.com/AnasSahel/sailpoint-isc-community/0.3.0/darwin_arm64/
-cp terraform-provider-sailpoint ~/.terraform.d/plugins/github.com/AnasSahel/sailpoint-isc-community/0.3.0/darwin_arm64/
+mkdir -p ~/.terraform.d/plugins/github.com/AnasSahel/sailpoint-isc-community/0.7.2/darwin_arm64/
+cp terraform-provider-sailpoint ~/.terraform.d/plugins/github.com/AnasSahel/sailpoint-isc-community/0.7.2/darwin_arm64/
 ```
 
 For Linux amd64:
 ```bash
-mkdir -p ~/.terraform.d/plugins/github.com/AnasSahel/sailpoint-isc-community/0.3.0/linux_amd64/
-cp terraform-provider-sailpoint ~/.terraform.d/plugins/github.com/AnasSahel/sailpoint-isc-community/0.3.0/linux_amd64/
+mkdir -p ~/.terraform.d/plugins/github.com/AnasSahel/sailpoint-isc-community/0.7.2/linux_amd64/
+cp terraform-provider-sailpoint ~/.terraform.d/plugins/github.com/AnasSahel/sailpoint-isc-community/0.7.2/linux_amd64/
 ```
 
 ### Option 2: Using the Terraform Registry (Coming Soon)
@@ -108,7 +117,7 @@ terraform {
   required_providers {
     sailpoint = {
       source  = "AnasSahel/sailpoint-isc-community"
-      version = "~> 0.3.0"
+      version = "~> 0.7.2"
     }
   }
 }
@@ -178,6 +187,54 @@ terraform apply
 ```
 
 ## Usage Examples
+
+### Create a Form Definition
+
+```hcl
+resource "sailpoint_form_definition" "employee_form" {
+  name        = "Employee Information Form"
+  description = "Collect employee details"
+
+  owner = {
+    type = "IDENTITY"
+    id   = "2c9180867624cbd7017642d8c8c81f67"
+  }
+
+  form_elements = [
+    {
+      id           = "section1"
+      element_type = "SECTION"
+      config = jsonencode({
+        label = "Personal Information"
+        formElements = [
+          {
+            id          = "firstName"
+            elementType = "TEXT"
+            key         = "firstName"
+            config = {
+              label    = "First Name"
+              required = true
+            }
+            validations = [
+              {
+                validationType = "REQUIRED"
+              }
+            ]
+          },
+          {
+            id          = "email"
+            elementType = "TEXT"
+            key         = "email"
+            config = {
+              label = "Email Address"
+            }
+          }
+        ]
+      })
+    }
+  ]
+}
+```
 
 ### Create a Concatenation Transform
 
@@ -249,6 +306,56 @@ resource "sailpoint_transform" "imported" {
 }
 ```
 
+### Create a Workflow with Trigger
+
+```hcl
+# Create a workflow
+resource "sailpoint_workflow" "my_workflow" {
+  name        = "My Custom Workflow"
+  description = "A workflow triggered by identity events"
+
+  owner = {
+    type = "IDENTITY"
+    id   = "2c9180867624cbd7017642d8c8c81f67"
+  }
+
+  definition = {
+    start = "Do Something"
+    steps = jsonencode({
+      "Do Something" : {
+        "actionId" : "sp:operator-success",
+        "displayName" : "Success",
+        "type" : "success"
+      }
+    })
+  }
+}
+
+# Create a trigger for the workflow
+# This is separate from the workflow definition, preventing circular references
+resource "sailpoint_workflow_trigger" "my_trigger" {
+  workflow_id = sailpoint_workflow.my_workflow.id
+
+  type         = "EVENT"
+  display_name = "Identity Created"
+
+  attributes = jsonencode({
+    "id" : "idn:identity-created"
+  })
+}
+
+# The trigger can now reference the workflow ID without issues!
+resource "sailpoint_workflow_trigger" "api_trigger" {
+  workflow_id = sailpoint_workflow.my_workflow.id
+
+  type = "REQUEST_RESPONSE"
+
+  attributes = jsonencode({
+    "workflowId" : sailpoint_workflow.my_workflow.id
+  })
+}
+```
+
 ### Read an Existing Entitlement
 
 ```hcl
@@ -277,6 +384,7 @@ For more examples, see the [examples directory](./examples).
 - ✅ `sailpoint_transform` - Manage SailPoint Transforms
 - ✅ `sailpoint_form_definition` - Manage Form Definitions
 - ✅ `sailpoint_workflow` - Manage Workflows
+- ✅ `sailpoint_workflow_trigger` - Manage Workflow Triggers
 - ✅ `sailpoint_identity_attribute` - Manage Identity Attributes
 - ✅ `sailpoint_identity_profile` - Manage Identity Profiles
 - ✅ `sailpoint_launcher` - Manage Interactive Process Launchers
@@ -474,10 +582,13 @@ The following endpoint groups are available in the SailPoint v2025 API and could
 ## Documentation
 
 - [Quick Start Guide](./examples/QUICKSTART.md) - Detailed deployment guide
-- [Transform Resource Examples](./examples/resources/transform/resource.tf) - 15+ comprehensive examples
-- [Transform Data Source Examples](./examples/data-sources/transform/data-source.tf) - Data source usage patterns
+- [Transform Resource Examples](./examples/resources/sailpoint_transform/resource.tf) - 15+ comprehensive examples
+- [Transform Data Source Examples](./examples/data-sources/sailpoint_transform/data-source.tf) - Data source usage patterns
+- [Workflow Resource Examples](./examples/resources/sailpoint_workflow/resource.tf) - Workflow usage patterns
+- [Workflow Trigger Resource Examples](./examples/resources/sailpoint_workflow_trigger/resource.tf) - Trigger configuration examples
 - [Provider Configuration](./examples/provider/provider.tf) - Authentication options
 - [Development Guide](./CLAUDE.md) - Contributing and development workflow
+- [SailPoint Workflow Documentation](https://developer.sailpoint.com/docs/extensibility/workflows/)
 - [SailPoint Transform Documentation](https://developer.sailpoint.com/docs/extensibility/transforms/)
 
 ## Supported Transform Types

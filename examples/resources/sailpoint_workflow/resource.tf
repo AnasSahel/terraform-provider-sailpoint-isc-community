@@ -1,4 +1,5 @@
 # Example: Basic workflow with email notification
+# Note: Triggers are now managed separately using sailpoint_workflow_trigger resource
 resource "sailpoint_workflow" "send_email_notification" {
   name        = "Send Email Notification"
   description = "Send an email notification when identity attributes change"
@@ -8,17 +9,6 @@ resource "sailpoint_workflow" "send_email_notification" {
     type = "IDENTITY"
     id   = "00000000000000000000000000000001"
     name = "John Doe"
-  }
-
-  trigger = {
-    type         = "EVENT"
-    display_name = "Identity Attributes Changed"
-    attributes = jsonencode({
-      id                = "idn:identity-attributes-changed"
-      filter            = "$.changes[?(@.attribute == 'manager')]"
-      description       = "Triggered when an identity's manager attribute changes"
-      attributeToFilter = "manager"
-    })
   }
 
   definition = {
@@ -43,7 +33,23 @@ resource "sailpoint_workflow" "send_email_notification" {
   }
 }
 
+# Manage the trigger separately to avoid circular references
+resource "sailpoint_workflow_trigger" "send_email_notification_trigger" {
+  workflow_id = sailpoint_workflow.send_email_notification.id
+
+  type         = "EVENT"
+  display_name = "Identity Attributes Changed"
+
+  attributes = jsonencode({
+    id                = "idn:identity-attributes-changed"
+    filter            = "$.changes[?(@.attribute == 'manager')]"
+    description       = "Triggered when an identity's manager attribute changes"
+    attributeToFilter = "manager"
+  })
+}
+
 # Example: Workflow with approval step
+# Note: Triggers are now managed separately using sailpoint_workflow_trigger resource
 resource "sailpoint_workflow" "access_request_approval" {
   name        = "Access Request Approval"
   description = "Workflow for approving access requests"
@@ -52,14 +58,6 @@ resource "sailpoint_workflow" "access_request_approval" {
   owner = {
     type = "IDENTITY"
     id   = "00000000000000000000000000000001"
-  }
-
-  trigger = {
-    type = "EVENT"
-    attributes = jsonencode({
-      id          = "idn:access-request-submitted"
-      description = "Triggered when an access request is submitted"
-    })
   }
 
   definition = {
@@ -127,7 +125,20 @@ resource "sailpoint_workflow" "access_request_approval" {
   }
 }
 
+# Add a trigger for the approval workflow
+resource "sailpoint_workflow_trigger" "access_request_approval_trigger" {
+  workflow_id = sailpoint_workflow.access_request_approval.id
+
+  type = "EVENT"
+
+  attributes = jsonencode({
+    id          = "idn:access-request-submitted"
+    description = "Triggered when an access request is submitted"
+  })
+}
+
 # Example: Scheduled workflow
+# Note: Triggers are now managed separately using sailpoint_workflow_trigger resource
 resource "sailpoint_workflow" "daily_report" {
   name        = "Daily Identity Report"
   description = "Generate and email a daily identity report"
@@ -137,15 +148,6 @@ resource "sailpoint_workflow" "daily_report" {
     type = "IDENTITY"
     id   = "00000000000000000000000000000001"
     name = "Admin User"
-  }
-
-  trigger = {
-    type         = "SCHEDULED"
-    display_name = "Daily at 9 AM"
-    attributes = jsonencode({
-      cronExpression = "0 0 9 * * ?"
-      timezone       = "America/New_York"
-    })
   }
 
   definition = {
@@ -175,4 +177,17 @@ resource "sailpoint_workflow" "daily_report" {
       }
     })
   }
+}
+
+# Add a scheduled trigger for the daily report workflow
+resource "sailpoint_workflow_trigger" "daily_report_trigger" {
+  workflow_id = sailpoint_workflow.daily_report.id
+
+  type         = "SCHEDULED"
+  display_name = "Daily at 9 AM"
+
+  attributes = jsonencode({
+    cronExpression = "0 0 9 * * ?"
+    timezone       = "America/New_York"
+  })
 }
