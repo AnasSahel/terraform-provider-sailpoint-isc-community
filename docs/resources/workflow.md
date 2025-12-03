@@ -212,7 +212,7 @@ resource "sailpoint_workflow" "daily_report" {
 - `created` (String) ISO-8601 timestamp when the workflow was created (computed).
 - `id` (String) Unique identifier (UUID) of the workflow.
 - `modified` (String) ISO-8601 timestamp when the workflow was last modified (computed).
-- `trigger` (Attributes) Trigger configuration defining what initiates the workflow. This is a computed field managed by the `sailpoint_workflow_trigger` resource. Do not configure this directly in the workflow resource. (see [below for nested schema](#nestedatt--trigger))
+- `trigger` (String) Trigger configuration defining what initiates the workflow. This is a computed field managed by the `sailpoint_workflow_trigger` resource. Do not configure this directly in the workflow resource.
 
 <a id="nestedatt--definition"></a>
 ### Nested Schema for `definition`
@@ -234,13 +234,3 @@ Required:
 Optional:
 
 - `name` (String) The name of the owner identity.
-
-
-<a id="nestedatt--trigger"></a>
-### Nested Schema for `trigger`
-
-Read-Only:
-
-- `attributes` (String) Trigger-specific attributes as a JSON string. Structure varies by trigger type.
-- `display_name` (String) Display name for the trigger.
-- `type` (String) The type of trigger (e.g., EVENT, SCHEDULED, REQUEST_RESPONSE).
