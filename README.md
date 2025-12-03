@@ -6,7 +6,7 @@
 
 A Terraform provider for managing [SailPoint Identity Security Cloud (ISC)](https://www.sailpoint.com/) resources. This community-maintained provider enables infrastructure-as-code management of SailPoint ISC configurations.
 
-**Current Version:** v0.7.0
+**Current Version:** v0.7.2
 
 ## Features
 
@@ -20,7 +20,9 @@ A Terraform provider for managing [SailPoint Identity Security Cloud (ISC)](http
 
 - ✅ **Form Definitions** - Manage custom forms for access requests and workflows
   - Full CRUD operations
+  - Structured form_elements as typed nested objects for better type safety
   - Support for nested fields, conditions, and inputs
+  - Proper handling of optional validations (null vs empty array)
   - Import existing form definitions
 
 - ✅ **Workflows** - Manage custom automation workflows
@@ -89,14 +91,14 @@ cd terraform-provider-sailpoint-isc-community
 go build -o terraform-provider-sailpoint
 
 # Install locally (macOS/Linux example - adjust path for your OS/architecture)
-mkdir -p ~/.terraform.d/plugins/github.com/AnasSahel/sailpoint-isc-community/0.3.0/darwin_arm64/
-cp terraform-provider-sailpoint ~/.terraform.d/plugins/github.com/AnasSahel/sailpoint-isc-community/0.3.0/darwin_arm64/
+mkdir -p ~/.terraform.d/plugins/github.com/AnasSahel/sailpoint-isc-community/0.7.2/darwin_arm64/
+cp terraform-provider-sailpoint ~/.terraform.d/plugins/github.com/AnasSahel/sailpoint-isc-community/0.7.2/darwin_arm64/
 ```
 
 For Linux amd64:
 ```bash
-mkdir -p ~/.terraform.d/plugins/github.com/AnasSahel/sailpoint-isc-community/0.3.0/linux_amd64/
-cp terraform-provider-sailpoint ~/.terraform.d/plugins/github.com/AnasSahel/sailpoint-isc-community/0.3.0/linux_amd64/
+mkdir -p ~/.terraform.d/plugins/github.com/AnasSahel/sailpoint-isc-community/0.7.2/linux_amd64/
+cp terraform-provider-sailpoint ~/.terraform.d/plugins/github.com/AnasSahel/sailpoint-isc-community/0.7.2/linux_amd64/
 ```
 
 ### Option 2: Using the Terraform Registry (Coming Soon)
@@ -108,7 +110,7 @@ terraform {
   required_providers {
     sailpoint = {
       source  = "AnasSahel/sailpoint-isc-community"
-      version = "~> 0.3.0"
+      version = "~> 0.7.2"
     }
   }
 }
@@ -178,6 +180,54 @@ terraform apply
 ```
 
 ## Usage Examples
+
+### Create a Form Definition
+
+```hcl
+resource "sailpoint_form_definition" "employee_form" {
+  name        = "Employee Information Form"
+  description = "Collect employee details"
+
+  owner = {
+    type = "IDENTITY"
+    id   = "2c9180867624cbd7017642d8c8c81f67"
+  }
+
+  form_elements = [
+    {
+      id           = "section1"
+      element_type = "SECTION"
+      config = jsonencode({
+        label = "Personal Information"
+        formElements = [
+          {
+            id          = "firstName"
+            elementType = "TEXT"
+            key         = "firstName"
+            config = {
+              label    = "First Name"
+              required = true
+            }
+            validations = [
+              {
+                validationType = "REQUIRED"
+              }
+            ]
+          },
+          {
+            id          = "email"
+            elementType = "TEXT"
+            key         = "email"
+            config = {
+              label = "Email Address"
+            }
+          }
+        ]
+      })
+    }
+  ]
+}
+```
 
 ### Create a Concatenation Transform
 

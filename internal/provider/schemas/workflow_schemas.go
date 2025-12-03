@@ -80,19 +80,19 @@ func (sb *WorkflowSchemaBuilder) GetResourceSchema() map[string]resource_schema.
 		"trigger": resource_schema.SingleNestedAttribute{
 			Description:         desc["trigger"].description,
 			MarkdownDescription: desc["trigger"].markdown,
-			Required:            true,
+			Computed:            true,
 			Attributes: map[string]resource_schema.Attribute{
 				"type": resource_schema.StringAttribute{
 					Description: "The type of trigger (e.g., EVENT, SCHEDULED, REQUEST_RESPONSE).",
-					Required:    true,
+					Computed:    true,
 				},
 				"display_name": resource_schema.StringAttribute{
 					Description: "Display name for the trigger.",
-					Optional:    true,
+					Computed:    true,
 				},
 				"attributes": resource_schema.StringAttribute{
 					Description: "Trigger-specific attributes as a JSON string. Structure varies by trigger type.",
-					Optional:    true,
+					Computed:    true,
 					CustomType:  jsontypes.NormalizedType{},
 				},
 			},
@@ -245,8 +245,8 @@ func (sb *WorkflowSchemaBuilder) fieldDescriptions() map[string]struct {
 			markdown:    "Workflow definition containing the workflow logic. Must include `start` (name of first step to execute) and `steps` (JSON string with all workflow steps and their configurations).",
 		},
 		"trigger": {
-			description: "Trigger configuration.",
-			markdown:    "Trigger configuration defining what initiates the workflow. Must include `type` (e.g., EVENT, SCHEDULED, REQUEST_RESPONSE) and optional `attributes` (trigger-specific configuration as JSON string).",
+			description: "Trigger configuration (computed, managed by sailpoint_workflow_trigger resource).",
+			markdown:    "Trigger configuration defining what initiates the workflow. This is a computed field managed by the `sailpoint_workflow_trigger` resource. Do not configure this directly in the workflow resource.",
 		},
 		"enabled": {
 			description: "Whether the workflow is enabled.",

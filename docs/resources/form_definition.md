@@ -18,14 +18,15 @@ Manages a SailPoint Form Definition. Forms are composed of sections and fields f
 # IMPORTANT NOTES:
 # - REQUIRED FIELDS: name, owner (with type and id), form_elements
 # - Forms are composed of sections and fields for data collection
-# - Form elements, inputs, and conditions are specified as JSON strings
-# - Each form element MUST have an 'id' field
+# - Form elements are now structured objects (not JSON strings)
+# - Each form element MUST have an 'id' and 'element_type'
+# - The 'config' field within elements uses jsonencode() for complex configurations
 # - The 'owner' field references an identity who owns this form
 #
 # For more information, see:
 # https://developer.sailpoint.com/docs/api/v2025/custom-forms/
 
-# Example 1: Basic Form with Single Section and Text Field
+# Example 1: Basic Form with Single Section
 resource "sailpoint_form_definition" "basic_form" {
   name        = "Employee Information Form"
   description = "Basic form to collect employee information"
@@ -36,11 +37,11 @@ resource "sailpoint_form_definition" "basic_form" {
     name = "John Doe"
   }
 
-  form_elements = jsonencode([
+  form_elements = [
     {
-      id          = "section1"
-      elementType = "SECTION"
-      config = {
+      id           = "section1"
+      element_type = "SECTION"
+      config = jsonencode({
         label = "Personal Information"
         formElements = [
           {
@@ -60,12 +61,12 @@ resource "sailpoint_form_definition" "basic_form" {
             }
           }
         ]
-      }
+      })
     }
-  ])
+  ]
 }
 
-# Example 2: Form with Multiple Sections and Field Types
+# Example 2: Form with Multiple Sections and Validations
 resource "sailpoint_form_definition" "advanced_form" {
   name        = "Access Request Form"
   description = "Comprehensive form for requesting system access"
@@ -76,16 +77,16 @@ resource "sailpoint_form_definition" "advanced_form" {
     name = "Admin User"
   }
 
-  form_elements = jsonencode([
+  form_elements = [
     {
-      id          = "section1"
-      elementType = "SECTION"
-      config = {
+      id           = "section1"
+      element_type = "SECTION"
+      config = jsonencode({
         label = "Requestor Information"
         formElements = [
           {
             id          = "email"
-            elementType = "EMAIL"
+            elementType = "TEXT"
             key         = "requesterEmail"
             config = {
               label = "Email Address"
@@ -93,19 +94,20 @@ resource "sailpoint_form_definition" "advanced_form" {
           },
           {
             id          = "phone"
-            elementType = "PHONE"
+            elementType = "TEXT"
             key         = "requesterPhone"
             config = {
               label = "Phone Number"
             }
           }
         ]
-      }
+      })
     },
     {
-      id          = "section2"
-      elementType = "SECTION"
-      config = {
+      id           = "section2"
+      element_type = "SECTION"
+      validations  = []
+      config = jsonencode({
         label = "Access Details"
         formElements = [
           {
@@ -114,11 +116,16 @@ resource "sailpoint_form_definition" "advanced_form" {
             key         = "accessType"
             config = {
               label = "Access Type"
-              options = [
-                { label = "Read Only", value = "read" },
-                { label = "Read/Write", value = "write" },
-                { label = "Admin", value = "admin" }
-              ]
+              dataSource = {
+                dataSourceType = "STATIC"
+                config = {
+                  options = [
+                    { label = "Read Only", value = "read" },
+                    { label = "Read/Write", value = "write" },
+                    { label = "Admin", value = "admin" }
+                  ]
+                }
+              }
             }
           },
           {
@@ -139,17 +146,17 @@ resource "sailpoint_form_definition" "advanced_form" {
             }
           }
         ]
-      }
+      })
     }
-  ])
+  ]
 
-  form_input = jsonencode([
+  form_input = [
     {
       id    = "requesterIdentity"
       type  = "IDENTITY"
       label = "Requester Identity"
     }
-  ])
+  ]
 }
 
 # Example 3: Form with Conditional Logic
@@ -163,11 +170,11 @@ resource "sailpoint_form_definition" "conditional_form" {
     name = "Form Administrator"
   }
 
-  form_elements = jsonencode([
+  form_elements = [
     {
-      id          = "section1"
-      elementType = "SECTION"
-      config = {
+      id           = "section1"
+      element_type = "SECTION"
+      config = jsonencode({
         label = "Account Details"
         formElements = [
           {
@@ -176,10 +183,15 @@ resource "sailpoint_form_definition" "conditional_form" {
             key         = "accountType"
             config = {
               label = "Account Type"
-              options = [
-                { label = "Standard", value = "standard" },
-                { label = "Privileged", value = "privileged" }
-              ]
+              dataSource = {
+                dataSourceType = "STATIC"
+                config = {
+                  options = [
+                    { label = "Standard", value = "standard" },
+                    { label = "Privileged", value = "privileged" }
+                  ]
+                }
+              }
             }
           },
           {
@@ -191,44 +203,54 @@ resource "sailpoint_form_definition" "conditional_form" {
             }
           }
         ]
-      }
+      })
     }
-  ])
+  ]
 
-  form_conditions = jsonencode([
+  form_conditions = [
     {
-      ruleOperator = "AND"
+      rule_operator = "AND"
       rules = [
         {
-          sourceType = "ELEMENT"
-          source     = "accountType"
-          operator   = "EQ"
-          valueType  = "STRING"
-          value      = "privileged"
+          source_type = "ELEMENT"
+          source      = "accountType"
+          operator    = "EQ"
+          value_type  = "STRING"
+          value       = "privileged"
         }
       ]
       effects = [
         {
-          effectType = "SHOW"
+          effect_type = "SHOW"
           config = {
             element = "approverField"
           }
         }
       ]
     }
-  ])
+  ]
 }
 
-# Example 4: Simple Onboarding Form
+# Example 4: Form with Required Validations
 resource "sailpoint_form_definition" "onboarding_form" {
   name        = "New Hire Onboarding"
   description = "Collect information for new employee onboarding"
 
-  form_elements = jsonencode([
+  owner = {
+    type = "IDENTITY"
+    id   = "00000000000000000000000000000001"
+  }
+
+  form_elements = [
     {
-      id          = "section1"
-      elementType = "SECTION"
-      config = {
+      id           = "section1"
+      element_type = "SECTION"
+      validations = [
+        {
+          validation_type = "REQUIRED"
+        }
+      ]
+      config = jsonencode({
         label = "New Hire Information"
         formElements = [
           {
@@ -236,7 +258,8 @@ resource "sailpoint_form_definition" "onboarding_form" {
             elementType = "DATE"
             key         = "hireDate"
             config = {
-              label = "Start Date"
+              label    = "Start Date"
+              required = true
             }
           },
           {
@@ -244,7 +267,8 @@ resource "sailpoint_form_definition" "onboarding_form" {
             elementType = "TEXT"
             key         = "department"
             config = {
-              label = "Department"
+              label    = "Department"
+              required = true
             }
           },
           {
@@ -256,9 +280,9 @@ resource "sailpoint_form_definition" "onboarding_form" {
             }
           }
         ]
-      }
+      })
     }
-  ])
+  ]
 }
 ```
 

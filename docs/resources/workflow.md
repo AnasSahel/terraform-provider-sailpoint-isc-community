@@ -201,7 +201,6 @@ resource "sailpoint_workflow" "daily_report" {
 - `definition` (Attributes) Workflow definition containing the workflow logic. Must include `start` (name of first step to execute) and `steps` (JSON string with all workflow steps and their configurations). (see [below for nested schema](#nestedatt--definition))
 - `name` (String) Name of the workflow as it appears in the UI.
 - `owner` (Attributes) Owner of the workflow. Must be a valid identity reference with `type` (typically 'IDENTITY'), `id` (UUID), and optionally `name`. (see [below for nested schema](#nestedatt--owner))
-- `trigger` (Attributes) Trigger configuration defining what initiates the workflow. Must include `type` (e.g., EVENT, SCHEDULED, REQUEST_RESPONSE) and optional `attributes` (trigger-specific configuration as JSON string). (see [below for nested schema](#nestedatt--trigger))
 
 ### Optional
 
@@ -213,6 +212,7 @@ resource "sailpoint_workflow" "daily_report" {
 - `created` (String) ISO-8601 timestamp when the workflow was created (computed).
 - `id` (String) Unique identifier (UUID) of the workflow.
 - `modified` (String) ISO-8601 timestamp when the workflow was last modified (computed).
+- `trigger` (Attributes) Trigger configuration defining what initiates the workflow. This is a computed field managed by the `sailpoint_workflow_trigger` resource. Do not configure this directly in the workflow resource. (see [below for nested schema](#nestedatt--trigger))
 
 <a id="nestedatt--definition"></a>
 ### Nested Schema for `definition`
@@ -239,11 +239,8 @@ Optional:
 <a id="nestedatt--trigger"></a>
 ### Nested Schema for `trigger`
 
-Required:
-
-- `type` (String) The type of trigger (e.g., EVENT, SCHEDULED, REQUEST_RESPONSE).
-
-Optional:
+Read-Only:
 
 - `attributes` (String) Trigger-specific attributes as a JSON string. Structure varies by trigger type.
 - `display_name` (String) Display name for the trigger.
+- `type` (String) The type of trigger (e.g., EVENT, SCHEDULED, REQUEST_RESPONSE).
