@@ -7,6 +7,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 // Workflow represents a SailPoint Workflow.
@@ -182,17 +184,28 @@ func (c *Client) RemoveWorkflowTrigger(ctx context.Context, workflowID string) (
 	var result Workflow
 	path := fmt.Sprintf("/v2025/workflows/%s", workflowID)
 
-	// Create a PATCH operation to set the trigger to null
+	// Create a PATCH operation to set the trigger to an empty object
+	// Note: SailPoint API requires an empty object {} instead of null to remove the trigger
 	patchOps := []map[string]interface{}{
 		{
 			"op":    "replace",
 			"path":  "/trigger",
-			"value": nil,
+			"value": map[string]interface{}{},
 		},
 	}
 
+	tflog.Debug(ctx, "RemoveWorkflowTrigger: Sending PATCH request", map[string]interface{}{
+		"workflow_id": workflowID,
+		"path":        path,
+		"operation":   "replace /trigger with empty object",
+	})
+
 	resp, err := c.doRequest(ctx, http.MethodPatch, path, patchOps, &result)
 	if err != nil {
+		tflog.Error(ctx, "RemoveWorkflowTrigger: Request failed", map[string]interface{}{
+			"workflow_id": workflowID,
+			"error":       err.Error(),
+		})
 		return nil, c.formatError(ErrorContext{
 			Operation:  "delete",
 			Resource:   "workflow_trigger",
@@ -201,12 +214,23 @@ func (c *Client) RemoveWorkflowTrigger(ctx context.Context, workflowID string) (
 	}
 
 	if resp.IsError() {
+		tflog.Error(ctx, "RemoveWorkflowTrigger: API returned error", map[string]interface{}{
+			"workflow_id":   workflowID,
+			"status_code":   resp.StatusCode(),
+			"response_body": resp.String(),
+		})
 		return nil, c.formatError(ErrorContext{
 			Operation:  "delete",
 			Resource:   "workflow_trigger",
 			ResourceID: workflowID,
 		}, nil, resp.StatusCode())
 	}
+
+	tflog.Debug(ctx, "RemoveWorkflowTrigger: Request succeeded", map[string]interface{}{
+		"workflow_id":    workflowID,
+		"status_code":    resp.StatusCode(),
+		"result_trigger": result.Trigger == nil,
+	})
 
 	return &result, nil
 }

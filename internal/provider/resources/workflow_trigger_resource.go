@@ -210,16 +210,59 @@ func (r *workflowTriggerResource) Delete(ctx context.Context, req resource.Delet
 	}
 
 	workflowID := state.WorkflowID.ValueString()
+	triggerType := state.Type.ValueString()
 
-	// Remove the trigger from the workflow (set to null)
-	_, err := r.client.RemoveWorkflowTrigger(ctx, workflowID)
+	tflog.Debug(ctx, "Workflow Trigger deletion starting", map[string]interface{}{
+		"workflow_id":   workflowID,
+		"trigger_type":  triggerType,
+		"trigger_state": state,
+	})
+
+	// Get the current workflow state before removing trigger
+	workflow, err := r.client.GetWorkflow(ctx, workflowID)
 	if err != nil {
+		tflog.Error(ctx, "Failed to get workflow state before trigger removal", map[string]interface{}{
+			"workflow_id": workflowID,
+			"error":       err.Error(),
+		})
+		resp.Diagnostics.AddError(
+			"Error Getting Workflow State",
+			fmt.Sprintf("Could not get workflow %s before removing trigger: %s", workflowID, err.Error()),
+		)
+		return
+	}
+
+	tflog.Debug(ctx, "Current workflow state before trigger removal", map[string]interface{}{
+		"workflow_id": workflowID,
+		"enabled":     workflow.Enabled,
+		"has_trigger": workflow.Trigger != nil,
+	})
+
+	// Remove the trigger from the workflow (set to empty object)
+	tflog.Info(ctx, "Sending PATCH request to remove workflow trigger", map[string]interface{}{
+		"workflow_id": workflowID,
+		"operation":   "PATCH /v2025/workflows/{id}",
+		"patch_op":    "replace trigger field with empty object",
+	})
+
+	updatedWorkflow, err := r.client.RemoveWorkflowTrigger(ctx, workflowID)
+	if err != nil {
+		tflog.Error(ctx, "Failed to remove trigger from workflow", map[string]interface{}{
+			"workflow_id": workflowID,
+			"error":       err.Error(),
+		})
 		resp.Diagnostics.AddError(
 			"Error Deleting Workflow Trigger",
 			fmt.Sprintf("Could not remove trigger from workflow %s: %s", workflowID, err.Error()),
 		)
 		return
 	}
+
+	tflog.Debug(ctx, "Workflow state after trigger removal", map[string]interface{}{
+		"workflow_id": workflowID,
+		"has_trigger": updatedWorkflow.Trigger != nil,
+		"enabled":     updatedWorkflow.Enabled,
+	})
 
 	tflog.Info(ctx, "Workflow Trigger resource deleted successfully", map[string]interface{}{
 		"workflow_id": workflowID,
