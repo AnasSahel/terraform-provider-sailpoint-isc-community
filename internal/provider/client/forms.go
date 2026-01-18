@@ -39,18 +39,18 @@ func (c *Client) GetFormDefinition(ctx context.Context, id string) (*FormDefinit
 			Operation:  "get",
 			Resource:   "form_definition",
 			ResourceID: id,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.StatusCode() == http.StatusOK {
 		return &result, nil
 	}
 
-	return nil, c.formatError(ErrorContext{
+	return nil, c.formatErrorWithBody(ErrorContext{
 		Operation:  "get",
 		Resource:   "form_definition",
 		ResourceID: id,
-	}, nil, resp.StatusCode())
+	}, resp.StatusCode(), resp.String())
 }
 
 // CreateFormDefinition creates a new form definition.
@@ -63,7 +63,7 @@ func (c *Client) CreateFormDefinition(ctx context.Context, form *FormDefinition)
 		return nil, c.formatError(ErrorContext{
 			Operation: "create",
 			Resource:  "form_definition",
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.StatusCode() == http.StatusCreated {
@@ -87,18 +87,18 @@ func (c *Client) PatchFormDefinition(ctx context.Context, id string, operations 
 			Operation:  "patch",
 			Resource:   "form_definition",
 			ResourceID: id,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.StatusCode() == http.StatusOK {
 		return &result, nil
 	}
 
-	return nil, c.formatError(ErrorContext{
+	return nil, c.formatErrorWithBody(ErrorContext{
 		Operation:  "patch",
 		Resource:   "form_definition",
 		ResourceID: id,
-	}, nil, resp.StatusCode())
+	}, resp.StatusCode(), resp.String())
 }
 
 // DeleteFormDefinition deletes a form definition by ID.
@@ -110,16 +110,16 @@ func (c *Client) DeleteFormDefinition(ctx context.Context, id string) error {
 			Operation:  "delete",
 			Resource:   "form_definition",
 			ResourceID: id,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.StatusCode() == http.StatusNoContent {
 		return nil
 	}
 
-	return c.formatError(ErrorContext{
+	return c.formatErrorWithBody(ErrorContext{
 		Operation:  "delete",
 		Resource:   "form_definition",
 		ResourceID: id,
-	}, nil, resp.StatusCode())
+	}, resp.StatusCode(), resp.String())
 }

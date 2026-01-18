@@ -81,17 +81,17 @@ func (c *Client) ListIdentityProfiles(ctx context.Context) ([]IdentityProfile, e
 		return nil, c.formatError(ErrorContext{
 			Operation: "list",
 			Resource:  "identity_profiles",
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.StatusCode() == http.StatusOK {
 		return result, nil
 	}
 
-	return nil, c.formatError(ErrorContext{
+	return nil, c.formatErrorWithBody(ErrorContext{
 		Operation: "list",
 		Resource:  "identity_profiles",
-	}, nil, resp.StatusCode())
+	}, resp.StatusCode(), resp.String())
 }
 
 // GetIdentityProfile retrieves a single identity profile by ID.
@@ -105,44 +105,41 @@ func (c *Client) GetIdentityProfile(ctx context.Context, id string) (*IdentityPr
 			Operation:  "get",
 			Resource:   "identity_profile",
 			ResourceID: id,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.StatusCode() == http.StatusOK {
 		return &result, nil
 	}
 
-	return nil, c.formatError(ErrorContext{
+	return nil, c.formatErrorWithBody(ErrorContext{
 		Operation:  "get",
 		Resource:   "identity_profile",
 		ResourceID: id,
-	}, nil, resp.StatusCode())
+	}, resp.StatusCode(), resp.String())
 }
 
 // CreateIdentityProfile creates a new identity profile.
 func (c *Client) CreateIdentityProfile(ctx context.Context, profile *IdentityProfile) (*IdentityProfile, error) {
 	var result IdentityProfile
 
-	resp, err := c.HTTPClient.R().
-		SetContext(ctx).
-		SetBody(profile).
-		SetResult(&result).
-		Post(identityProfilesEndpoint)
-
-	// Check status code first before handling errors
-	if resp != nil && resp.StatusCode() != http.StatusCreated {
-		return nil, fmt.Errorf("create identity_profile failed: status=%d, body=%s",
-			resp.StatusCode(), resp.String())
-	}
+	resp, err := c.doRequest(ctx, http.MethodPost, identityProfilesEndpoint, profile, &result)
 
 	if err != nil {
 		return nil, c.formatError(ErrorContext{
 			Operation: "create",
 			Resource:  "identity_profile",
-		}, err, 0)
+		}, err)
 	}
 
-	return &result, nil
+	if resp.StatusCode() == http.StatusCreated {
+		return &result, nil
+	}
+
+	return nil, c.formatErrorWithBody(ErrorContext{
+		Operation: "create",
+		Resource:  "identity_profile",
+	}, resp.StatusCode(), resp.String())
 }
 
 // UpdateIdentityProfile updates an existing identity profile using JSON Patch.
@@ -150,6 +147,7 @@ func (c *Client) CreateIdentityProfile(ctx context.Context, profile *IdentityPro
 func (c *Client) UpdateIdentityProfile(ctx context.Context, id string, operations []map[string]interface{}) (*IdentityProfile, error) {
 	var result IdentityProfile
 
+	// Note: Using HTTPClient.R() directly to set custom Content-Type header for JSON Patch
 	resp, err := c.HTTPClient.R().
 		SetContext(ctx).
 		SetHeader("Content-Type", "application/json-patch+json").
@@ -157,21 +155,23 @@ func (c *Client) UpdateIdentityProfile(ctx context.Context, id string, operation
 		SetResult(&result).
 		Patch(fmt.Sprintf("%s/%s", identityProfilesEndpoint, id))
 
-	// Check status code first before handling errors
-	if resp != nil && resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("update identity_profile failed: status=%d, body=%s",
-			resp.StatusCode(), resp.String())
-	}
-
 	if err != nil {
 		return nil, c.formatError(ErrorContext{
 			Operation:  "update",
 			Resource:   "identity_profile",
 			ResourceID: id,
-		}, err, 0)
+		}, err)
 	}
 
-	return &result, nil
+	if resp.StatusCode() == http.StatusOK {
+		return &result, nil
+	}
+
+	return nil, c.formatErrorWithBody(ErrorContext{
+		Operation:  "update",
+		Resource:   "identity_profile",
+		ResourceID: id,
+	}, resp.StatusCode(), resp.String())
 }
 
 // DeleteIdentityProfile deletes an identity profile by ID.
@@ -183,7 +183,7 @@ func (c *Client) DeleteIdentityProfile(ctx context.Context, id string) error {
 			Operation:  "delete",
 			Resource:   "identity_profile",
 			ResourceID: id,
-		}, err, 0)
+		}, err)
 	}
 
 	// Accept both 202 (Accepted - async delete) and 204 (No Content - sync delete)
@@ -191,9 +191,9 @@ func (c *Client) DeleteIdentityProfile(ctx context.Context, id string) error {
 		return nil
 	}
 
-	return c.formatError(ErrorContext{
+	return c.formatErrorWithBody(ErrorContext{
 		Operation:  "delete",
 		Resource:   "identity_profile",
 		ResourceID: id,
-	}, nil, resp.StatusCode())
+	}, resp.StatusCode(), resp.String())
 }

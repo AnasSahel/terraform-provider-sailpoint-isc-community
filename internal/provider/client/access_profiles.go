@@ -43,7 +43,7 @@ func (c *Client) CreateAccessProfile(ctx context.Context, accessProfile *AccessP
 		return nil, c.formatError(ErrorContext{
 			Operation: "create",
 			Resource:  "access_profile",
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.StatusCode() == http.StatusCreated {
@@ -67,7 +67,7 @@ func (c *Client) GetAccessProfile(ctx context.Context, id string) (*AccessProfil
 			Operation:  "get",
 			Resource:   "access_profile",
 			ResourceID: id,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.StatusCode() == http.StatusOK {
@@ -95,7 +95,7 @@ func (c *Client) PatchAccessProfile(ctx context.Context, id string, operations [
 			Operation:  "update",
 			Resource:   "access_profile",
 			ResourceID: id,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.StatusCode() == http.StatusOK {
@@ -119,7 +119,7 @@ func (c *Client) DeleteAccessProfile(ctx context.Context, id string) error {
 			Operation:  "delete",
 			Resource:   "access_profile",
 			ResourceID: id,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.StatusCode() == http.StatusNoContent {

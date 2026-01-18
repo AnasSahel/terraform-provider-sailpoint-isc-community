@@ -42,17 +42,17 @@ func (c *Client) ListIdentityAttributes(ctx context.Context) ([]IdentityAttribut
 		return nil, c.formatError(ErrorContext{
 			Operation: "list",
 			Resource:  "identity_attributes",
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.StatusCode() == http.StatusOK {
 		return result, nil
 	}
 
-	return nil, c.formatError(ErrorContext{
+	return nil, c.formatErrorWithBody(ErrorContext{
 		Operation: "list",
 		Resource:  "identity_attributes",
-	}, nil, resp.StatusCode())
+	}, resp.StatusCode(), resp.String())
 }
 
 // GetIdentityAttribute retrieves a single identity attribute by name.
@@ -66,44 +66,41 @@ func (c *Client) GetIdentityAttribute(ctx context.Context, name string) (*Identi
 			Operation:  "get",
 			Resource:   "identity_attribute",
 			ResourceID: name,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.StatusCode() == http.StatusOK {
 		return &result, nil
 	}
 
-	return nil, c.formatError(ErrorContext{
+	return nil, c.formatErrorWithBody(ErrorContext{
 		Operation:  "get",
 		Resource:   "identity_attribute",
 		ResourceID: name,
-	}, nil, resp.StatusCode())
+	}, resp.StatusCode(), resp.String())
 }
 
 // CreateIdentityAttribute creates a new identity attribute.
 func (c *Client) CreateIdentityAttribute(ctx context.Context, attribute *IdentityAttribute) (*IdentityAttribute, error) {
 	var result IdentityAttribute
 
-	resp, err := c.HTTPClient.R().
-		SetContext(ctx).
-		SetBody(attribute).
-		SetResult(&result).
-		Post(identityAttributesEndpoint)
-
-	// Check status code first before handling errors
-	if resp != nil && resp.StatusCode() != http.StatusCreated {
-		return nil, fmt.Errorf("create identity_attribute failed: status=%d, body=%s",
-			resp.StatusCode(), resp.String())
-	}
+	resp, err := c.doRequest(ctx, http.MethodPost, identityAttributesEndpoint, attribute, &result)
 
 	if err != nil {
 		return nil, c.formatError(ErrorContext{
 			Operation: "create",
 			Resource:  "identity_attribute",
-		}, err, 0)
+		}, err)
 	}
 
-	return &result, nil
+	if resp.StatusCode() == http.StatusCreated {
+		return &result, nil
+	}
+
+	return nil, c.formatErrorWithBody(ErrorContext{
+		Operation: "create",
+		Resource:  "identity_attribute",
+	}, resp.StatusCode(), resp.String())
 }
 
 // UpdateIdentityAttribute updates an existing identity attribute by replacing it with the provided attribute.
@@ -119,18 +116,18 @@ func (c *Client) UpdateIdentityAttribute(ctx context.Context, name string, attri
 			Operation:  "update",
 			Resource:   "identity_attribute",
 			ResourceID: name,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.StatusCode() == http.StatusOK {
 		return &result, nil
 	}
 
-	return nil, c.formatError(ErrorContext{
+	return nil, c.formatErrorWithBody(ErrorContext{
 		Operation:  "update",
 		Resource:   "identity_attribute",
 		ResourceID: name,
-	}, nil, resp.StatusCode())
+	}, resp.StatusCode(), resp.String())
 }
 
 // DeleteIdentityAttribute deletes an identity attribute by name.
@@ -143,16 +140,16 @@ func (c *Client) DeleteIdentityAttribute(ctx context.Context, name string) error
 			Operation:  "delete",
 			Resource:   "identity_attribute",
 			ResourceID: name,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.StatusCode() == http.StatusNoContent {
 		return nil
 	}
 
-	return c.formatError(ErrorContext{
+	return c.formatErrorWithBody(ErrorContext{
 		Operation:  "delete",
 		Resource:   "identity_attribute",
 		ResourceID: name,
-	}, nil, resp.StatusCode())
+	}, resp.StatusCode(), resp.String())
 }

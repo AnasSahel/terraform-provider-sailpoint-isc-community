@@ -37,14 +37,14 @@ func (c *Client) CreateLauncher(ctx context.Context, launcher *Launcher) (*Launc
 		return nil, c.formatError(ErrorContext{
 			Operation: "create",
 			Resource:  "launcher",
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.IsError() {
-		return nil, c.formatError(ErrorContext{
+		return nil, c.formatErrorWithBody(ErrorContext{
 			Operation: "create",
 			Resource:  "launcher",
-		}, nil, resp.StatusCode())
+		}, resp.StatusCode(), resp.String())
 	}
 
 	return &result, nil
@@ -61,15 +61,15 @@ func (c *Client) GetLauncher(ctx context.Context, id string) (*Launcher, error) 
 			Operation:  "read",
 			Resource:   "launcher",
 			ResourceID: id,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.IsError() {
-		return nil, c.formatError(ErrorContext{
+		return nil, c.formatErrorWithBody(ErrorContext{
 			Operation:  "read",
 			Resource:   "launcher",
 			ResourceID: id,
-		}, nil, resp.StatusCode())
+		}, resp.StatusCode(), resp.String())
 	}
 
 	return &result, nil
@@ -86,15 +86,15 @@ func (c *Client) UpdateLauncher(ctx context.Context, id string, launcher *Launch
 			Operation:  "update",
 			Resource:   "launcher",
 			ResourceID: id,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.IsError() {
-		return nil, c.formatError(ErrorContext{
+		return nil, c.formatErrorWithBody(ErrorContext{
 			Operation:  "update",
 			Resource:   "launcher",
 			ResourceID: id,
-		}, nil, resp.StatusCode())
+		}, resp.StatusCode(), resp.String())
 	}
 
 	return &result, nil
@@ -110,15 +110,15 @@ func (c *Client) DeleteLauncher(ctx context.Context, id string) error {
 			Operation:  "delete",
 			Resource:   "launcher",
 			ResourceID: id,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.IsError() {
-		return c.formatError(ErrorContext{
+		return c.formatErrorWithBody(ErrorContext{
 			Operation:  "delete",
 			Resource:   "launcher",
 			ResourceID: id,
-		}, nil, resp.StatusCode())
+		}, resp.StatusCode(), resp.String())
 	}
 
 	return nil

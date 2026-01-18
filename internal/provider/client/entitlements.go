@@ -78,15 +78,15 @@ func (c *Client) GetEntitlement(ctx context.Context, id string) (*Entitlement, e
 			Operation:  "read",
 			Resource:   "entitlement",
 			ResourceID: id,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.IsError() {
-		return nil, c.formatError(ErrorContext{
+		return nil, c.formatErrorWithBody(ErrorContext{
 			Operation:  "read",
 			Resource:   "entitlement",
 			ResourceID: id,
-		}, nil, resp.StatusCode())
+		}, resp.StatusCode(), resp.String())
 	}
 
 	return &result, nil

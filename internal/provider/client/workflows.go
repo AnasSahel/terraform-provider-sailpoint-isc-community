@@ -32,14 +32,14 @@ func (c *Client) CreateWorkflow(ctx context.Context, workflow *Workflow) (*Workf
 		return nil, c.formatError(ErrorContext{
 			Operation: "create",
 			Resource:  "workflow",
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.IsError() {
-		return nil, c.formatError(ErrorContext{
+		return nil, c.formatErrorWithBody(ErrorContext{
 			Operation: "create",
 			Resource:  "workflow",
-		}, nil, resp.StatusCode())
+		}, resp.StatusCode(), resp.String())
 	}
 
 	return &result, nil
@@ -56,15 +56,15 @@ func (c *Client) GetWorkflow(ctx context.Context, id string) (*Workflow, error) 
 			Operation:  "read",
 			Resource:   "workflow",
 			ResourceID: id,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.IsError() {
-		return nil, c.formatError(ErrorContext{
+		return nil, c.formatErrorWithBody(ErrorContext{
 			Operation:  "read",
 			Resource:   "workflow",
 			ResourceID: id,
-		}, nil, resp.StatusCode())
+		}, resp.StatusCode(), resp.String())
 	}
 
 	return &result, nil
@@ -81,15 +81,15 @@ func (c *Client) UpdateWorkflow(ctx context.Context, id string, workflow *Workfl
 			Operation:  "update",
 			Resource:   "workflow",
 			ResourceID: id,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.IsError() {
-		return nil, c.formatError(ErrorContext{
+		return nil, c.formatErrorWithBody(ErrorContext{
 			Operation:  "update",
 			Resource:   "workflow",
 			ResourceID: id,
-		}, nil, resp.StatusCode())
+		}, resp.StatusCode(), resp.String())
 	}
 
 	return &result, nil
@@ -106,15 +106,15 @@ func (c *Client) PatchWorkflow(ctx context.Context, id string, operations []map[
 			Operation:  "patch",
 			Resource:   "workflow",
 			ResourceID: id,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.IsError() {
-		return nil, c.formatError(ErrorContext{
+		return nil, c.formatErrorWithBody(ErrorContext{
 			Operation:  "patch",
 			Resource:   "workflow",
 			ResourceID: id,
-		}, nil, resp.StatusCode())
+		}, resp.StatusCode(), resp.String())
 	}
 
 	return &result, nil
@@ -131,15 +131,15 @@ func (c *Client) DeleteWorkflow(ctx context.Context, id string) error {
 			Operation:  "delete",
 			Resource:   "workflow",
 			ResourceID: id,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.IsError() {
-		return c.formatError(ErrorContext{
+		return c.formatErrorWithBody(ErrorContext{
 			Operation:  "delete",
 			Resource:   "workflow",
 			ResourceID: id,
-		}, nil, resp.StatusCode())
+		}, resp.StatusCode(), resp.String())
 	}
 
 	return nil
@@ -165,15 +165,15 @@ func (c *Client) SetWorkflowTrigger(ctx context.Context, workflowID string, trig
 			Operation:  "update",
 			Resource:   "workflow_trigger",
 			ResourceID: workflowID,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.IsError() {
-		return nil, c.formatError(ErrorContext{
+		return nil, c.formatErrorWithBody(ErrorContext{
 			Operation:  "update",
 			Resource:   "workflow_trigger",
 			ResourceID: workflowID,
-		}, nil, resp.StatusCode())
+		}, resp.StatusCode(), resp.String())
 	}
 
 	return &result, nil
@@ -210,7 +210,7 @@ func (c *Client) RemoveWorkflowTrigger(ctx context.Context, workflowID string) (
 			Operation:  "delete",
 			Resource:   "workflow_trigger",
 			ResourceID: workflowID,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.IsError() {
@@ -219,11 +219,11 @@ func (c *Client) RemoveWorkflowTrigger(ctx context.Context, workflowID string) (
 			"status_code":   resp.StatusCode(),
 			"response_body": resp.String(),
 		})
-		return nil, c.formatError(ErrorContext{
+		return nil, c.formatErrorWithBody(ErrorContext{
 			Operation:  "delete",
 			Resource:   "workflow_trigger",
 			ResourceID: workflowID,
-		}, nil, resp.StatusCode())
+		}, resp.StatusCode(), resp.String())
 	}
 
 	tflog.Debug(ctx, "RemoveWorkflowTrigger: Request succeeded", map[string]interface{}{

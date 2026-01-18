@@ -33,17 +33,17 @@ func (c *Client) ListTransforms(ctx context.Context) ([]Transform, error) {
 		return nil, c.formatError(ErrorContext{
 			Operation: "list",
 			Resource:  "transforms",
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.StatusCode() == http.StatusOK {
 		return result, nil
 	}
 
-	return nil, c.formatError(ErrorContext{
+	return nil, c.formatErrorWithBody(ErrorContext{
 		Operation: "list",
 		Resource:  "transforms",
-	}, nil, resp.StatusCode())
+	}, resp.StatusCode(), resp.String())
 }
 
 // GetTransform retrieves a single transform by ID.
@@ -57,18 +57,18 @@ func (c *Client) GetTransform(ctx context.Context, id string) (*Transform, error
 			Operation:  "get",
 			Resource:   "transform",
 			ResourceID: id,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.StatusCode() == http.StatusOK {
 		return &result, nil
 	}
 
-	return nil, c.formatError(ErrorContext{
+	return nil, c.formatErrorWithBody(ErrorContext{
 		Operation:  "get",
 		Resource:   "transform",
 		ResourceID: id,
-	}, nil, resp.StatusCode())
+	}, resp.StatusCode(), resp.String())
 }
 
 // CreateTransform creates a new transform.
@@ -81,17 +81,17 @@ func (c *Client) CreateTransform(ctx context.Context, transform *Transform) (*Tr
 		return nil, c.formatError(ErrorContext{
 			Operation: "create",
 			Resource:  "transform",
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.StatusCode() == http.StatusCreated {
 		return &result, nil
 	}
 
-	return nil, c.formatError(ErrorContext{
+	return nil, c.formatErrorWithBody(ErrorContext{
 		Operation: "create",
 		Resource:  "transform",
-	}, nil, resp.StatusCode())
+	}, resp.StatusCode(), resp.String())
 }
 
 // UpdateTransform updates an existing transform by replacing it with the provided transform.
@@ -107,18 +107,18 @@ func (c *Client) UpdateTransform(ctx context.Context, id string, transform *Tran
 			Operation:  "update",
 			Resource:   "transform",
 			ResourceID: id,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.StatusCode() == http.StatusOK {
 		return &result, nil
 	}
 
-	return nil, c.formatError(ErrorContext{
+	return nil, c.formatErrorWithBody(ErrorContext{
 		Operation:  "update",
 		Resource:   "transform",
 		ResourceID: id,
-	}, nil, resp.StatusCode())
+	}, resp.StatusCode(), resp.String())
 }
 
 // DeleteTransform deletes a transform by ID.
@@ -131,16 +131,16 @@ func (c *Client) DeleteTransform(ctx context.Context, id string) error {
 			Operation:  "delete",
 			Resource:   "transform",
 			ResourceID: id,
-		}, err, 0)
+		}, err)
 	}
 
 	if resp.StatusCode() == http.StatusNoContent {
 		return nil
 	}
 
-	return c.formatError(ErrorContext{
+	return c.formatErrorWithBody(ErrorContext{
 		Operation:  "delete",
 		Resource:   "transform",
 		ResourceID: id,
-	}, nil, resp.StatusCode())
+	}, resp.StatusCode(), resp.String())
 }
