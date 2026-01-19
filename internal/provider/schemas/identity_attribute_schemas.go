@@ -4,6 +4,7 @@
 package schemas
 
 import (
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	datasource_schema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	resource_schema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -83,6 +84,7 @@ func (sb *IdentityAttributeSchemaBuilder) GetResourceSchema() map[string]resourc
 						Description:         desc["sources.properties"].description,
 						MarkdownDescription: desc["sources.properties"].markdown,
 						Optional:            true,
+						CustomType:          jsontypes.NormalizedType{},
 					},
 				},
 			},
@@ -145,6 +147,7 @@ func (sb *IdentityAttributeSchemaBuilder) GetDataSourceSchema() map[string]datas
 						Description:         desc["sources.properties"].description,
 						MarkdownDescription: desc["sources.properties"].markdown,
 						Computed:            true,
+						CustomType:          jsontypes.NormalizedType{},
 					},
 				},
 			},
