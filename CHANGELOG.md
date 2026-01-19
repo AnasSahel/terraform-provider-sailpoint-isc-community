@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2025-01-19
+
+### Fixed
+
+- **Identity Attribute**: Fixed "Provider produced inconsistent result after apply" error for `properties` field in sources
+  - Applied `jsontypes.Normalized` to the `properties` field for semantic JSON comparison
+  - Prevents state drift when API normalizes JSON casing (e.g., `ruleType: "identityAttribute"` → `"IdentityAttribute"`)
+
 ## [0.7.2] - 2025-11-26
 
 ### Fixed
@@ -262,6 +270,11 @@ This release ensures all documentation and examples match the actual provider ca
 
 ---
 
+[1.0.2]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v1.0.1...v1.0.2
+[0.7.2]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v0.6.1...v0.7.2
+[0.6.1]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v0.5.1...v0.6.1
+[0.5.1]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v0.3.0...v0.5.0
 [0.3.0]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v0.2.0...v0.2.1
