@@ -8,13 +8,14 @@ import (
 	"encoding/json"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/client"
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // IdentityAttributeSource represents the Terraform model for an identity attribute source.
 type IdentityAttributeSource struct {
-	Type       types.String `tfsdk:"type"`
-	Properties types.String `tfsdk:"properties"` // JSON string
+	Type       types.String         `tfsdk:"type"`
+	Properties jsontypes.Normalized `tfsdk:"properties"` // JSON string with normalization
 }
 
 // IdentityAttribute represents the Terraform model for a SailPoint Identity Attribute.
@@ -152,9 +153,9 @@ func (ia *IdentityAttribute) ConvertFromSailPoint(ctx context.Context, attribute
 				if err != nil {
 					return err
 				}
-				tfSource.Properties = types.StringValue(string(propertiesJSON))
+				tfSource.Properties = jsontypes.NewNormalizedValue(string(propertiesJSON))
 			} else if includeNull {
-				tfSource.Properties = types.StringNull()
+				tfSource.Properties = jsontypes.NewNormalizedNull()
 			}
 
 			sources = append(sources, tfSource)
