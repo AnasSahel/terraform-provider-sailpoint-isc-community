@@ -162,6 +162,7 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 		datasources.NewIdentityProfileDataSource,
 		datasources.NewLauncherDataSource,
 		datasources.NewEntitlementDataSource,
+		datasources.NewLifecycleStateDataSource,
 	}
 }
 
@@ -176,5 +177,6 @@ func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resou
 		resources.NewIdentityAttributeResource,
 		resources.NewIdentityProfileResource,
 		resources.NewLauncherResource,
+		resources.NewLifecycleStateResource,
 	}
 }

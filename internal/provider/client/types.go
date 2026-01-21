@@ -52,3 +52,24 @@ type ProvisioningCriteria struct {
 	Value     *string                 `json:"value,omitempty"`
 	Children  *[]ProvisioningCriteria `json:"children,omitempty"`
 }
+
+// EmailNotificationOption represents email notification settings for a lifecycle state.
+type EmailNotificationOption struct {
+	NotifyManagers      *bool    `json:"notifyManagers,omitempty"`
+	NotifyAllAdmins     *bool    `json:"notifyAllAdmins,omitempty"`
+	NotifySpecificUsers *bool    `json:"notifySpecificUsers,omitempty"`
+	EmailAddressList    []string `json:"emailAddressList,omitempty"`
+}
+
+// AccountAction represents an account action configuration for a lifecycle state.
+type AccountAction struct {
+	Action           string   `json:"action"` // ENABLE, DISABLE, DELETE
+	SourceIds        []string `json:"sourceIds,omitempty"`
+	ExcludeSourceIds []string `json:"excludeSourceIds,omitempty"`
+	AllSources       *bool    `json:"allSources,omitempty"`
+}
+
+// AccessActionConfiguration represents access action settings for a lifecycle state.
+type AccessActionConfiguration struct {
+	RemoveAllAccessEnabled *bool `json:"removeAllAccessEnabled,omitempty"`
+}
