@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-02-07
+
+### BREAKING CHANGES
+
+- Complete provider restructure from monolithic layout (`internal/provider/{models,schemas,resources,datasources}/`) to service-based architecture (`internal/services/<resource>/`)
+- Client package moved from `internal/provider/client/` to `internal/client/`
+- Removed `sailpoint_access_profile` resource and data source
+- Removed `sailpoint_entitlement` data source
+- Removed legacy schema builder pattern in favor of inline schemas
+
+### Added
+
+- **Identity Profile**: New `sailpoint_identity_profile` resource and data source for managing identity profiles and attribute mappings
+- Common helpers package at `internal/common/`
+- Scenario-based example files for all resources (e.g., `basic.tf`, `access_request.tf`, `conditional_form.tf`)
+
+### Changed
+
+- All resources reorganized into `internal/services/<resource>/` packages where model, data source, and resource live together
+- Workflow steps documentation updated with vault reference guidance for secrets (`$.secrets.<uid>`)
+- All examples updated from single `resource.tf`/`data-source.tf` files to clearer scenario-based files
+- Documentation and README updated with current API coverage (8/83 endpoints)
+
+### Removed
+
+- `sailpoint_access_profile` resource, data source, and all related code (schemas, models, examples, docs)
+- `sailpoint_entitlement` data source and all related code (schemas, models, examples, docs)
+- Legacy schema builder interfaces and pattern (`internal/provider/schemas/`)
+- Legacy model package (`internal/provider/models/`)
+- Old-style example files replaced by scenario-based examples
+
 ## [1.0.2] - 2025-01-19
 
 ### Fixed
@@ -268,8 +299,50 @@ This release ensures all documentation and examples match the actual provider ca
    }
    ```
 
+### Upgrading to v2.0.0 from v1.x
+
+**Breaking Changes:**
+- The `sailpoint_access_profile` resource and data source have been removed. If you were using these, you must remove them from your state before upgrading.
+- The `sailpoint_entitlement` data source has been removed. If you were using it, you must remove it from your state before upgrading.
+
+**No HCL Changes Required for Remaining Resources:**
+- The HCL configuration syntax for `sailpoint_transform`, `sailpoint_form_definition`, and `sailpoint_workflow` remains unchanged. Existing configurations will continue to work as-is.
+
+**New Features:**
+- `sailpoint_identity_profile` resource and data source are now available for managing identity profiles.
+
+**Migration Steps:**
+
+1. **If using Access Profile or Entitlement resources**, remove them from your Terraform state:
+   ```bash
+   terraform state rm sailpoint_access_profile.<resource_name>
+   terraform state rm data.sailpoint_access_profile.<data_source_name>
+   terraform state rm data.sailpoint_entitlement.<data_source_name>
+   ```
+
+2. **Remove** any `sailpoint_access_profile` or `sailpoint_entitlement` blocks from your `.tf` files.
+
+3. **Update provider version** in your configuration:
+   ```hcl
+   terraform {
+     required_providers {
+       sailpoint = {
+         source  = "AnasSahel/sailpoint-isc-community"
+         version = "~> 2.0.0"
+       }
+     }
+   }
+   ```
+
+4. **Run init and plan**:
+   ```bash
+   terraform init -upgrade
+   terraform plan
+   ```
+
 ---
 
+[2.0.0]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v1.1.0...v2.0.0
 [1.0.2]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v1.0.1...v1.0.2
 [0.7.2]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v0.6.1...v0.7.2
 [0.6.1]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v0.5.1...v0.6.1

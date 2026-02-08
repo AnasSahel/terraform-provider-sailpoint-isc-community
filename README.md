@@ -6,7 +6,7 @@
 
 A Terraform provider for managing [SailPoint Identity Security Cloud (ISC)](https://www.sailpoint.com/) resources. This community-maintained provider enables infrastructure-as-code management of SailPoint ISC configurations.
 
-**Current Version:** v0.7.2
+**Current Version:** v2.0.0
 
 ## Implemented Resources
 
