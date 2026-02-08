@@ -1,0 +1,111 @@
+# SailPoint Identity Attribute Data Source Examples
+#
+# The Identity Attribute data source allows you to retrieve information about an existing identity attribute by name.
+# Use this to reference identity attributes configured in SailPoint or to read their configurations.
+
+# Example 1: Get a standard identity attribute
+data "sailpoint_identity_attribute" "email" {
+  name = "email"
+}
+
+# Example 2: Get a custom identity attribute
+data "sailpoint_identity_attribute" "department_code" {
+  name = "departmentCode"
+}
+
+# Example 3: Use identity attribute data in outputs
+output "email_attribute_details" {
+  description = "Details of the email identity attribute"
+  value = {
+    name         = data.sailpoint_identity_attribute.email.name
+    display_name = data.sailpoint_identity_attribute.email.display_name
+    type         = data.sailpoint_identity_attribute.email.type
+    standard     = data.sailpoint_identity_attribute.email.standard
+    system       = data.sailpoint_identity_attribute.email.system
+    searchable   = data.sailpoint_identity_attribute.email.searchable
+    multi        = data.sailpoint_identity_attribute.email.multi
+  }
+}
+
+# Example 4: Check if an attribute is searchable
+output "is_email_searchable" {
+  description = "Check if the email attribute is searchable"
+  value       = data.sailpoint_identity_attribute.email.searchable
+}
+
+# Example 5: Conditional logic based on attribute properties
+locals {
+  # Determine if the attribute can be used for searching
+  can_use_for_search = (
+    data.sailpoint_identity_attribute.email.searchable &&
+    !data.sailpoint_identity_attribute.email.system
+  )
+
+  # Categorize attribute by type
+  attribute_category = (
+    data.sailpoint_identity_attribute.email.standard ? "standard" :
+    data.sailpoint_identity_attribute.email.system ? "system" :
+    "custom"
+  )
+}
+
+output "email_usage_info" {
+  description = "Usage information for email attribute"
+  value = {
+    can_search        = local.can_use_for_search
+    category          = local.attribute_category
+    supports_multiple = data.sailpoint_identity_attribute.email.multi
+  }
+}
+
+# Example 6: Access source mappings
+output "email_sources" {
+  description = "Source mappings for the email attribute"
+  value       = data.sailpoint_identity_attribute.email.sources
+  sensitive   = true # Mark as sensitive since it may contain mapping rules
+}
+
+# Example 7: Compare multiple identity attributes
+data "sailpoint_identity_attribute" "firstname" {
+  name = "firstname"
+}
+
+data "sailpoint_identity_attribute" "lastname" {
+  name = "lastname"
+}
+
+output "name_attributes_comparison" {
+  description = "Comparison of name-related attributes"
+  value = {
+    firstname = {
+      display_name = data.sailpoint_identity_attribute.firstname.display_name
+      searchable   = data.sailpoint_identity_attribute.firstname.searchable
+      type         = data.sailpoint_identity_attribute.firstname.type
+    }
+    lastname = {
+      display_name = data.sailpoint_identity_attribute.lastname.display_name
+      searchable   = data.sailpoint_identity_attribute.lastname.searchable
+      type         = data.sailpoint_identity_attribute.lastname.type
+    }
+  }
+}
+
+# Example 8: Use in validation or checks
+locals {
+  # Verify that critical attributes are searchable
+  critical_attributes = {
+    email     = data.sailpoint_identity_attribute.email.searchable
+    firstname = data.sailpoint_identity_attribute.firstname.searchable
+    lastname  = data.sailpoint_identity_attribute.lastname.searchable
+  }
+
+  all_searchable = alltrue(values(local.critical_attributes))
+}
+
+output "critical_attributes_searchable" {
+  description = "Verify all critical attributes are searchable"
+  value = {
+    status            = local.all_searchable ? "✓ All searchable" : "✗ Some not searchable"
+    individual_status = local.critical_attributes
+  }
+}

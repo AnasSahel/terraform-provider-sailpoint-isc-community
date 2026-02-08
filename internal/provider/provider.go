@@ -8,9 +8,16 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/client"
-	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/datasources"
-	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/provider/resources"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/form_definition"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/identity_attribute"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/identity_profile"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/launcher"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/lifecycle_state"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/transform"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/workflow"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/workflow_trigger"
+
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -154,29 +161,26 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 // DataSources defines the data sources implemented in the provider.
 func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		datasources.NewAccessProfileDataSource,
-		datasources.NewTransformDataSource,
-		datasources.NewFormDefinitionDataSource,
-		datasources.NewWorkflowDataSource,
-		datasources.NewIdentityAttributeDataSource,
-		datasources.NewIdentityProfileDataSource,
-		datasources.NewLauncherDataSource,
-		datasources.NewEntitlementDataSource,
-		datasources.NewLifecycleStateDataSource,
+		form_definition.NewFormDefinitionDataSource,
+		identity_attribute.NewIdentityAttributeDataSource,
+		identity_profile.NewIdentityProfileDataSource,
+		launcher.NewLauncherDataSource,
+		lifecycle_state.NewLifecycleStateDataSource,
+		transform.NewTransformDataSource,
+		workflow.NewWorkflowDataSource,
 	}
 }
 
 // Resources defines the resources implemented in the provider.
 func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		resources.NewAccessProfileResource,
-		resources.NewTransformResource,
-		resources.NewFormDefinitionResource,
-		resources.NewWorkflowResource,
-		resources.NewWorkflowTriggerResource,
-		resources.NewIdentityAttributeResource,
-		resources.NewIdentityProfileResource,
-		resources.NewLauncherResource,
-		resources.NewLifecycleStateResource,
+		form_definition.NewFormDefinitionResource,
+		identity_attribute.NewIdentityAttributeResource,
+		identity_profile.NewIdentityProfileResource,
+		launcher.NewLauncherResource,
+		lifecycle_state.NewLifecycleStateResource,
+		transform.NewTransformResource,
+		workflow.NewWorkflowResource,
+		workflow_trigger.NewWorkflowTriggerResource,
 	}
 }

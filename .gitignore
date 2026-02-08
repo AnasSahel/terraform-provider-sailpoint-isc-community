@@ -44,3 +44,4 @@ local/*
 infrastructure/
 _ignore/
 .claude
+*_ignore

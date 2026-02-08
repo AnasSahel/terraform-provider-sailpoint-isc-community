@@ -3,12 +3,12 @@
 page_title: "sailpoint_lifecycle_state Resource - sailpoint"
 subcategory: ""
 description: |-
-  Manages a SailPoint Lifecycle State within an Identity Profile. Lifecycle states define different stages in an identity's lifecycle (e.g., onboarding, active, termination) and associated actions. See Lifecycle State Documentation https://developer.sailpoint.com/docs/api/v2025/lifecycle-states/ for more information.
+  Resource for SailPoint Lifecycle State. Lifecycle states define the different stages an identity can be in within an identity profile.
 ---
 
 # sailpoint_lifecycle_state (Resource)
 
-Manages a SailPoint Lifecycle State within an Identity Profile. Lifecycle states define different stages in an identity's lifecycle (e.g., onboarding, active, termination) and associated actions. See [Lifecycle State Documentation](https://developer.sailpoint.com/docs/api/v2025/lifecycle-states/) for more information.
+Resource for SailPoint Lifecycle State. Lifecycle states define the different stages an identity can be in within an identity profile.
 
 
 
@@ -17,34 +17,34 @@ Manages a SailPoint Lifecycle State within an Identity Profile. Lifecycle states
 
 ### Required
 
-- `identity_profile_id` (String) The unique identifier (UUID) of the identity profile that this lifecycle state belongs to. **Changing this forces recreation of the resource.**
-- `name` (String) The display name of the lifecycle state as it appears in the UI.
-- `technical_name` (String) The technical name used for referencing the lifecycle state programmatically. Must be unique within the identity profile. **Changing this forces recreation of the resource.**
+- `identity_profile_id` (String) The ID of the identity profile this lifecycle state belongs to.
+- `name` (String) The name of the lifecycle state. Cannot be changed after creation.
+- `technical_name` (String) The technical name of the lifecycle state. This is used for internal purposes and cannot be changed after creation.
 
 ### Optional
 
-- `access_action_configuration` (Attributes) Configuration for access-related actions to perform when entering this lifecycle state, such as removing all access. (see [below for nested schema](#nestedatt--access_action_configuration))
-- `access_profile_ids` (List of String) List of access profile IDs (UUIDs) to automatically grant to identities when they enter this lifecycle state.
-- `account_actions` (Attributes List) List of account actions to perform on identity accounts when entering this lifecycle state. Actions include ENABLE, DISABLE, or DELETE, and can target specific sources or all sources. (see [below for nested schema](#nestedatt--account_actions))
-- `description` (String) Optional description explaining the purpose and behavior of this lifecycle state.
-- `email_notification_option` (Attributes) Configuration for email notifications to send when an identity enters this lifecycle state. Allows notifying managers, administrators, or specific email addresses. (see [below for nested schema](#nestedatt--email_notification_option))
-- `enabled` (Boolean) Whether the lifecycle state is enabled (true) or disabled (false). When disabled, identities cannot enter this lifecycle state. Defaults to `false` if not specified.
-- `identity_state` (String) The identity state classification. Valid values are `ACTIVE`, `INACTIVE_SHORT_TERM`, or `INACTIVE_LONG_TERM`. This determines how the identity's access is managed.
-- `priority` (Number) Priority order for the lifecycle state. Lower numbers have higher priority. This determines the order in which lifecycle states are evaluated.
+- `access_action_configuration` (Attributes) Access action configuration for the lifecycle state. (see [below for nested schema](#nestedatt--access_action_configuration))
+- `access_profile_ids` (List of String) List of access profile IDs associated with this lifecycle state.
+- `account_actions` (Attributes List) List of account actions to perform when an identity enters this lifecycle state. (see [below for nested schema](#nestedatt--account_actions))
+- `description` (String) The description of the lifecycle state.
+- `email_notification_option` (Attributes) Email notification configuration for the lifecycle state. (see [below for nested schema](#nestedatt--email_notification_option))
+- `enabled` (Boolean) Whether the lifecycle state is enabled.
+- `identity_state` (String) The identity state associated with this lifecycle state. Possible values: `ACTIVE`, `INACTIVE_SHORT_TERM`, `INACTIVE_LONG_TERM`. Can only be set during creation.
+- `priority` (Number) The priority of the lifecycle state. Lower numbers appear first when listing with `?sorters=priority`.
 
 ### Read-Only
 
-- `created` (String) ISO-8601 timestamp when the lifecycle state was created (computed, read-only).
-- `id` (String) Unique identifier (UUID) of the lifecycle state.
-- `identity_count` (Number) The number of identities currently in this lifecycle state (computed, read-only).
-- `modified` (String) ISO-8601 timestamp when the lifecycle state was last modified (computed, read-only).
+- `created` (String) The date and time the lifecycle state was created.
+- `id` (String) The unique identifier of the lifecycle state.
+- `identity_count` (Number) The number of identities that have this lifecycle state.
+- `modified` (String) The date and time the lifecycle state was last modified.
 
 <a id="nestedatt--access_action_configuration"></a>
 ### Nested Schema for `access_action_configuration`
 
 Optional:
 
-- `remove_all_access_enabled` (Boolean) Whether to remove all access when entering this lifecycle state.
+- `remove_all_access_enabled` (Boolean) If true, all access is removed when an identity enters this lifecycle state.
 
 
 <a id="nestedatt--account_actions"></a>
@@ -52,13 +52,13 @@ Optional:
 
 Required:
 
-- `action` (String) The action to perform on accounts (ENABLE, DISABLE, or DELETE).
+- `action` (String) The action to perform. Possible values: `ENABLE`, `DISABLE`, `DELETE`.
 
 Optional:
 
-- `all_sources` (Boolean) Whether to perform the action on all sources. If true, source_ids should not be specified.
-- `exclude_source_ids` (List of String) List of source IDs to exclude from the action. Requires all_sources to be true.
-- `source_ids` (List of String) List of source IDs on which to perform the action. Mutually exclusive with exclude_source_ids and all_sources.
+- `all_sources` (Boolean) If true, the action applies to all sources. If true, `source_ids` must not be provided.
+- `exclude_source_ids` (List of String) List of source IDs to exclude from the action. Cannot be used with `source_ids`.
+- `source_ids` (List of String) List of source IDs to apply the action to. Required if `all_sources` is false.
 
 
 <a id="nestedatt--email_notification_option"></a>
@@ -66,7 +66,7 @@ Optional:
 
 Optional:
 
-- `email_address_list` (List of String) List of email addresses to notify when entering this lifecycle state (requires notify_specific_users to be true).
-- `notify_all_admins` (Boolean) Whether to notify all administrators when entering this lifecycle state.
-- `notify_managers` (Boolean) Whether to notify the identity's managers when entering this lifecycle state.
-- `notify_specific_users` (Boolean) Whether to notify specific users when entering this lifecycle state.
+- `email_address_list` (List of String) List of email addresses to notify when `notify_specific_users` is true.
+- `notify_all_admins` (Boolean) If true, all admins are notified of lifecycle state changes.
+- `notify_managers` (Boolean) If true, managers are notified of lifecycle state changes.
+- `notify_specific_users` (Boolean) If true, users specified in `email_address_list` are notified of lifecycle state changes.

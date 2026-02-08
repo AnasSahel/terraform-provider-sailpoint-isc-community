@@ -3,36 +3,233 @@
 page_title: "sailpoint_identity_attribute Resource - sailpoint"
 subcategory: ""
 description: |-
-  Manages a SailPoint Identity Attribute. Identity attributes are configurable fields on identity objects. See Identity Attributes API https://developer.sailpoint.com/docs/api/v2025/list-identity-attributes/ for more information.
+  Resource for SailPoint Identity Attribute.
 ---
 
 # sailpoint_identity_attribute (Resource)
 
-Manages a SailPoint Identity Attribute. Identity attributes are configurable fields on identity objects. See [Identity Attributes API](https://developer.sailpoint.com/docs/api/v2025/list-identity-attributes/) for more information.
+Resource for SailPoint Identity Attribute.
 
+## Example Usage
 
+```terraform
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
+# SailPoint Identity Attribute Resource Examples
+#
+# IMPORTANT NOTES:
+# - The 'name' field is IMMUTABLE after creation (RequiresReplace)
+# - The 'system' field is computed and read-only
+# - Making an attribute 'searchable' requires standard=false, multi=false, system=false
+#
+# For more information, see:
+# https://developer.sailpoint.com/docs/api/v2025/create-identity-attribute
+
+# Example 1: Basic custom identity attribute
+resource "sailpoint_identity_attribute" "department_code" {
+  name         = "departmentCode" # IMMUTABLE - changing this will recreate the resource
+  display_name = "Department Code"
+  type         = "string"
+  searchable   = true
+  multi        = false
+  standard     = false
+}
+
+# Example 2: Multi-valued identity attribute
+resource "sailpoint_identity_attribute" "certifications" {
+  name         = "certifications"
+  display_name = "Professional Certifications"
+  type         = "string"
+  multi        = true  # Supports multiple values
+  searchable   = false # Multi-valued attributes cannot be searchable
+  standard     = false
+}
+
+# Example 3: Identity attribute with source mapping
+resource "sailpoint_identity_attribute" "employee_type" {
+  name         = "employeeType"
+  display_name = "Employee Type"
+  type         = "string"
+  searchable   = true
+  multi        = false
+  standard     = false
+
+  sources = [
+    {
+      type = "rule"
+      properties = jsonencode({
+        ruleType = "IdentityAttribute"
+        ruleName = "Cloud Promote Identity Attribute"
+      })
+    }
+  ]
+}
+
+# Example 4: Identity attribute with account attribute source
+resource "sailpoint_identity_attribute" "cost_center" {
+  name         = "costCenter"
+  display_name = "Cost Center"
+  type         = "string"
+  searchable   = true
+  multi        = false
+  standard     = false
+
+  sources = [
+    {
+      type = "accountAttribute"
+      properties = jsonencode({
+        sourceName    = "HR System"
+        attributeName = "cost_center"
+      })
+    }
+  ]
+}
+
+# Example 5: Using variables for flexible configuration
+variable "custom_attributes" {
+  description = "Map of custom identity attributes to create"
+  type = map(object({
+    display_name = string
+    type         = optional(string, "string")
+    searchable   = optional(bool, false)
+    multi        = optional(bool, false)
+  }))
+  default = {
+    "locationCode" = {
+      display_name = "Location Code"
+      searchable   = true
+    }
+    "managerId" = {
+      display_name = "Manager ID"
+      searchable   = true
+    }
+    "skills" = {
+      display_name = "Skills"
+      multi        = true
+    }
+  }
+}
+
+resource "sailpoint_identity_attribute" "custom" {
+  for_each = var.custom_attributes
+
+  name         = each.key
+  display_name = each.value.display_name
+  type         = each.value.type
+  searchable   = each.value.searchable
+  multi        = each.value.multi
+  standard     = false
+}
+
+# Example 6: Outputs to demonstrate usage
+output "identity_attribute_ids" {
+  description = "Names of created identity attributes"
+  value = {
+    department_code = sailpoint_identity_attribute.department_code.name
+    certifications  = sailpoint_identity_attribute.certifications.name
+    employee_type   = sailpoint_identity_attribute.employee_type.name
+    cost_center     = sailpoint_identity_attribute.cost_center.name
+  }
+}
+
+output "custom_attributes_info" {
+  description = "Information about custom identity attributes"
+  value = {
+    for name, attr in sailpoint_identity_attribute.custom : name => {
+      display_name = attr.display_name
+      searchable   = attr.searchable
+      multi        = attr.multi
+    }
+  }
+}
+
+# Example 7: Import existing identity attribute
+# To import: terraform import sailpoint_identity_attribute.imported "existingAttributeName"
+resource "sailpoint_identity_attribute" "imported" {
+  name         = "existingAttribute"
+  display_name = "Existing Attribute"
+  type         = "string"
+  searchable   = false
+  multi        = false
+  standard     = false
+
+  lifecycle {
+    # Prevent accidental deletion of important attributes
+    prevent_destroy = true
+  }
+}
+
+# Example 8: Identity attribute with lifecycle rules
+resource "sailpoint_identity_attribute" "protected" {
+  name         = "criticalAttribute"
+  display_name = "Critical Business Attribute"
+  type         = "string"
+  searchable   = true
+  multi        = false
+  standard     = false
+
+  lifecycle {
+    # Ignore changes to sources made outside of Terraform
+    ignore_changes = [sources]
+  }
+}
+
+# ============================================================================
+# VALIDATION NOTES
+# ============================================================================
+#
+# 1. Name restrictions:
+#    - Must be unique across all identity attributes
+#    - Cannot end with "Attribute" (SailPoint restriction)
+#    - Cannot be changed after creation
+#
+# 2. Searchable requirements:
+#    - To make searchable=true, all of these must be false:
+#      - system (computed, read-only)
+#      - standard
+#      - multi
+#
+# 3. Source types:
+#    - "rule" - Uses a rule to calculate the value
+#    - "accountAttribute" - Maps from a source account attribute
+#    - Other types may be available depending on your SailPoint configuration
+#
+# COMMON ERRORS:
+#
+# 1. Name ending with "Attribute":
+#    Error: Could not create SailPoint Identity Attribute
+#    │ invalid request - check attribute properties (400)
+#
+# 2. Making multi-valued attribute searchable:
+#    Error: Could not create SailPoint Identity Attribute
+#    │ Searchable requires multi=false
+```
 
 <!-- schema generated by tfplugindocs -->
 ## Schema
 
 ### Required
 
-- `name` (String) The technical name of the identity attribute. This is used as the identifier and is immutable after creation.
-- `sources` (Attributes List) List of sources that define how the identity attribute is populated. **Note:** This field is marked as required by this provider to enforce explicit configuration, even though the SailPoint API allows creating attributes without specifying sources. This is a provider design decision to promote infrastructure-as-code best practices. (see [below for nested schema](#nestedatt--sources))
-- `type` (String) The data type of the identity attribute (e.g., `string`, `int`, `date`).
+- `name` (String) The name of the identity attribute.
 
 ### Optional
 
-- `display_name` (String) The user-friendly display name of the identity attribute shown in the UI.
-- `multi` (Boolean) Indicates whether this attribute can hold multiple values. Must be set to `false` to make the attribute searchable. Defaults to `false`.
-- `searchable` (Boolean) Indicates whether this attribute can be used in searches. Can only be `true` if `system`, `standard`, and `multi` are all `false`. Defaults to `false`.
-- `standard` (Boolean) Indicates whether this is a standard attribute. Standard attributes cannot be deleted. Must be set to `false` to make the attribute searchable or deletable. Defaults to `false`.
-- `system` (Boolean) Indicates whether this is a system-managed attribute. System attributes cannot be deleted. Must be set to `false` to make the attribute searchable or deletable. Defaults to `false`.
+- `display_name` (String) The display name of the identity attribute.
+- `multi` (Boolean) Indicates if the identity attribute supports multiple values.
+- `searchable` (Boolean) Indicates if the identity attribute is searchable.
+- `sources` (Attributes List) The sources associated with the identity attribute. (see [below for nested schema](#nestedatt--sources))
+- `standard` (Boolean) Indicates if the identity attribute is a standard attribute.
+- `type` (String) The type of the identity attribute.
+
+### Read-Only
+
+- `system` (Boolean) Indicates if the identity attribute is a system attribute.
 
 <a id="nestedatt--sources"></a>
 ### Nested Schema for `sources`
 
 Optional:
 
-- `properties` (String) Configuration properties for the source as a JSON string. The structure varies by source type.
-- `type` (String) The type of the source (e.g., `rule`, `static`).
+- `properties` (String) Attribute mapping properties.
+- `type` (String) Attribute mapping type. Mostly `rule`.

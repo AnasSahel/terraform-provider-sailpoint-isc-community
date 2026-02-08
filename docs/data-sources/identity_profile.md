@@ -3,12 +3,12 @@
 page_title: "sailpoint_identity_profile Data Source - sailpoint"
 subcategory: ""
 description: |-
-  Use this data source to retrieve detailed information about a specific SailPoint Identity Profile. Identity profiles define configurations for identities including authoritative sources and attribute mappings. See Identity Profiles API https://developer.sailpoint.com/docs/api/v2025/list-identity-profiles/ for more information.
+  Retrieves a SailPoint Identity Profile by ID. Identity profiles define the source of identities and how identity attributes are mapped.
 ---
 
 # sailpoint_identity_profile (Data Source)
 
-Use this data source to retrieve detailed information about a specific SailPoint Identity Profile. Identity profiles define configurations for identities including authoritative sources and attribute mappings. See [Identity Profiles API](https://developer.sailpoint.com/docs/api/v2025/list-identity-profiles/) for more information.
+Retrieves a SailPoint Identity Profile by ID. Identity profiles define the source of identities and how identity attributes are mapped.
 
 
 
@@ -17,31 +17,31 @@ Use this data source to retrieve detailed information about a specific SailPoint
 
 ### Required
 
-- `id` (String) The unique identifier of the identity profile. This is a system-generated ID.
+- `id` (String) The unique identifier of the identity profile.
 
 ### Read-Only
 
-- `authoritative_source` (Attributes) The authoritative source that provides the primary identity data for this profile. This is a required field. (see [below for nested schema](#nestedatt--authoritative_source))
-- `created` (String) The timestamp when the identity profile was created (ISO 8601 format).
-- `description` (String) A description of the identity profile providing additional context about its purpose and configuration.
-- `has_time_based_attr` (Boolean) Indicates the value of `requiresPeriodicRefresh` attribute for the identity profile. Set to `true` if the profile includes time-based attributes that require periodic refresh. Defaults to `false`.
-- `identity_attribute_config` (Attributes) Configuration that defines how identity attributes are mapped and transformed. This controls the attribute mapping process during identity refresh. (see [below for nested schema](#nestedatt--identity_attribute_config))
-- `identity_count` (Number) The number of identities currently associated with this profile. This is a read-only computed value.
-- `identity_exception_report_reference` (Attributes) Reference to an identity exception report if exceptions occurred during identity processing. (see [below for nested schema](#nestedatt--identity_exception_report_reference))
-- `identity_refresh_required` (Boolean) Set to `true` if an identity refresh is necessary. You would typically want to trigger an identity refresh when a change has been made on the source. Defaults to `false`.
-- `modified` (String) The timestamp when the identity profile was last modified (ISO 8601 format).
-- `name` (String) The name of the identity profile. This is the human-readable name used to identify the profile.
-- `owner` (Attributes) The owner of the identity profile. This is typically an identity that has administrative control over the profile. (see [below for nested schema](#nestedatt--owner))
-- `priority` (Number) The priority of the identity profile. Lower numbers indicate higher priority. This affects which profile takes precedence when an identity matches multiple profiles.
+- `authoritative_source` (Attributes) The authoritative source for the identity profile. (see [below for nested schema](#nestedatt--authoritative_source))
+- `created` (String) The date and time the identity profile was created.
+- `description` (String) The description of the identity profile.
+- `has_time_based_attr` (Boolean) Indicates the value of `requiresPeriodicRefresh` attribute for the identity profile.
+- `identity_attribute_config` (Attributes) The identity attribute configuration that defines how identity attributes are mapped. (see [below for nested schema](#nestedatt--identity_attribute_config))
+- `identity_count` (Number) The number of identities belonging to this identity profile.
+- `identity_exception_report_reference` (Attributes) Reference to the identity exception report. (see [below for nested schema](#nestedatt--identity_exception_report_reference))
+- `identity_refresh_required` (Boolean) Indicates whether an identity refresh is required.
+- `modified` (String) The date and time the identity profile was last modified.
+- `name` (String) The name of the identity profile.
+- `owner` (Attributes) The owner of the identity profile. (see [below for nested schema](#nestedatt--owner))
+- `priority` (Number) The priority of the identity profile.
 
 <a id="nestedatt--authoritative_source"></a>
 ### Nested Schema for `authoritative_source`
 
 Read-Only:
 
-- `id` (String) The unique identifier of the authoritative source.
-- `name` (String) The display name of the authoritative source.
-- `type` (String) The type of the authoritative source. Must be `SOURCE`.
+- `id` (String) The ID of the authoritative source.
+- `name` (String) The name of the authoritative source.
+- `type` (String) The type of the source object. Always `SOURCE`.
 
 
 <a id="nestedatt--identity_attribute_config"></a>
@@ -49,16 +49,25 @@ Read-Only:
 
 Read-Only:
 
-- `attribute_transforms` (Attributes List) List of transforms that define how to generate or collect data for each identity attribute during the identity refresh process. (see [below for nested schema](#nestedatt--identity_attribute_config--attribute_transforms))
-- `enabled` (Boolean) Backend will only promote values if the profile/mapping is enabled. Defaults to `false`.
+- `attribute_transforms` (Attributes List) List of identity attribute transforms. (see [below for nested schema](#nestedatt--identity_attribute_config--attribute_transforms))
+- `enabled` (Boolean) Whether the identity attribute configuration is enabled.
 
 <a id="nestedatt--identity_attribute_config--attribute_transforms"></a>
 ### Nested Schema for `identity_attribute_config.attribute_transforms`
 
 Read-Only:
 
-- `identity_attribute_name` (String) The name of the identity attribute to which this transform applies (e.g., `email`, `department`).
-- `transform_definition` (String) The transform definition that specifies how the attribute value should be calculated or derived.
+- `identity_attribute_name` (String) The name of the identity attribute being mapped.
+- `transform_definition` (Attributes) The transform definition for the identity attribute. (see [below for nested schema](#nestedatt--identity_attribute_config--attribute_transforms--transform_definition))
+
+<a id="nestedatt--identity_attribute_config--attribute_transforms--transform_definition"></a>
+### Nested Schema for `identity_attribute_config.attribute_transforms.transform_definition`
+
+Read-Only:
+
+- `attributes` (String) The attributes of the transform definition as a JSON string.
+- `type` (String) The type of the transform definition (e.g., `accountAttribute`, `rule`).
+
 
 
 
@@ -67,8 +76,8 @@ Read-Only:
 
 Read-Only:
 
-- `report_name` (String) The name of the exception report.
-- `task_result_id` (String) The UUID of the task result that generated the exception report.
+- `report_name` (String) The name of the identity exception report.
+- `task_result_id` (String) The task result ID of the identity exception report.
 
 
 <a id="nestedatt--owner"></a>
@@ -76,6 +85,6 @@ Read-Only:
 
 Read-Only:
 
-- `id` (String) The unique identifier of the owner identity.
-- `name` (String) The display name of the owner identity.
-- `type` (String) The type of the owner object. Must be `IDENTITY`.
+- `id` (String) The ID of the owner.
+- `name` (String) The name of the owner.
+- `type` (String) The type of the owner object. Always `IDENTITY`.

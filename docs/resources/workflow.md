@@ -3,249 +3,79 @@
 page_title: "sailpoint_workflow Resource - sailpoint"
 subcategory: ""
 description: |-
-  Manages a SailPoint Workflow. Workflows are custom automation scripts that respond to event triggers and perform a series of actions. See Workflow Documentation https://developer.sailpoint.com/docs/extensibility/workflows/ for more information.
+  Manages a SailPoint Workflow. Workflows are custom automation scripts that respond to event triggers and perform a series of actions. The trigger is managed separately using the sailpoint_workflow_trigger resource.
 ---
 
 # sailpoint_workflow (Resource)
 
-Manages a SailPoint Workflow. Workflows are custom automation scripts that respond to event triggers and perform a series of actions. See [Workflow Documentation](https://developer.sailpoint.com/docs/extensibility/workflows/) for more information.
+Manages a SailPoint Workflow. Workflows are custom automation scripts that respond to event triggers and perform a series of actions. The trigger is managed separately using the `sailpoint_workflow_trigger` resource.
 
-## Example Usage
 
-```terraform
-# Example: Basic workflow with email notification
-# Note: Triggers are now managed separately using sailpoint_workflow_trigger resource
-resource "sailpoint_workflow" "send_email_notification" {
-  name        = "Send Email Notification"
-  description = "Send an email notification when identity attributes change"
-  enabled     = false
-
-  owner = {
-    type = "IDENTITY"
-    id   = "00000000000000000000000000000001"
-    name = "John Doe"
-  }
-
-  definition = {
-    start = "Send Email"
-    steps = jsonencode({
-      "Send Email" = {
-        actionId = "sp:send-email"
-        attributes = {
-          body        = "Manager attribute has been changed for $${identity.name}"
-          from        = "noreply@example.com"
-          recipientId = "$$.identity.id"
-          subject     = "Manager Change Notification"
-        }
-        nextStep     = "success"
-        selectResult = null
-        type         = "ACTION"
-      }
-      "success" = {
-        type = "success"
-      }
-    })
-  }
-}
-
-# Manage the trigger separately to avoid circular references
-resource "sailpoint_workflow_trigger" "send_email_notification_trigger" {
-  workflow_id = sailpoint_workflow.send_email_notification.id
-
-  type         = "EVENT"
-  display_name = "Identity Attributes Changed"
-
-  attributes = jsonencode({
-    id                = "idn:identity-attributes-changed"
-    filter            = "$.changes[?(@.attribute == 'manager')]"
-    description       = "Triggered when an identity's manager attribute changes"
-    attributeToFilter = "manager"
-  })
-}
-
-# Example: Workflow with approval step
-# Note: Triggers are now managed separately using sailpoint_workflow_trigger resource
-resource "sailpoint_workflow" "access_request_approval" {
-  name        = "Access Request Approval"
-  description = "Workflow for approving access requests"
-  enabled     = true
-
-  owner = {
-    type = "IDENTITY"
-    id   = "00000000000000000000000000000001"
-  }
-
-  definition = {
-    start = "Get Manager"
-    steps = jsonencode({
-      "Get Manager" = {
-        actionId = "sp:get-identity"
-        attributes = {
-          id = "$$.identity.manager.id"
-        }
-        nextStep = "Send Approval"
-        type     = "ACTION"
-      }
-      "Send Approval" = {
-        actionId = "sp:send-approval"
-        attributes = {
-          approverIds = ["$$.Get Manager.id"]
-          message     = "Please approve access request for $${identity.name}"
-        }
-        nextStep = "Check Approval"
-        type     = "ACTION"
-      }
-      "Check Approval" = {
-        type     = "OPERATOR"
-        operator = "Comparison"
-        attributes = {
-          expression = "$$.Send Approval.approved == true"
-        }
-        children = [
-          {
-            nextStep = "Grant Access"
-            type     = "success"
-          },
-          {
-            nextStep = "Deny Access"
-            type     = "failure"
-          }
-        ]
-      }
-      "Grant Access" = {
-        actionId = "sp:provision-access"
-        attributes = {
-          requestId = "$$.trigger.requestId"
-        }
-        nextStep = "success"
-        type     = "ACTION"
-      }
-      "Deny Access" = {
-        actionId = "sp:send-email"
-        attributes = {
-          recipientId = "$$.identity.id"
-          subject     = "Access Request Denied"
-          body        = "Your access request has been denied"
-        }
-        nextStep = "failure"
-        type     = "ACTION"
-      }
-      "success" = {
-        type = "success"
-      }
-      "failure" = {
-        type = "failure"
-      }
-    })
-  }
-}
-
-# Add a trigger for the approval workflow
-resource "sailpoint_workflow_trigger" "access_request_approval_trigger" {
-  workflow_id = sailpoint_workflow.access_request_approval.id
-
-  type = "EVENT"
-
-  attributes = jsonencode({
-    id          = "idn:access-request-submitted"
-    description = "Triggered when an access request is submitted"
-  })
-}
-
-# Example: Scheduled workflow
-# Note: Triggers are now managed separately using sailpoint_workflow_trigger resource
-resource "sailpoint_workflow" "daily_report" {
-  name        = "Daily Identity Report"
-  description = "Generate and email a daily identity report"
-  enabled     = true
-
-  owner = {
-    type = "IDENTITY"
-    id   = "00000000000000000000000000000001"
-    name = "Admin User"
-  }
-
-  definition = {
-    start = "Generate Report"
-    steps = jsonencode({
-      "Generate Report" = {
-        actionId = "sp:search-identities"
-        attributes = {
-          query = "attributes.cloudLifecycleState:active"
-        }
-        nextStep = "Send Report"
-        type     = "ACTION"
-      }
-      "Send Report" = {
-        actionId = "sp:send-email"
-        attributes = {
-          recipientId = "admin@example.com"
-          subject     = "Daily Identity Report"
-          body        = "Report attached"
-          attachments = ["$$.Generate Report.results"]
-        }
-        nextStep = "success"
-        type     = "ACTION"
-      }
-      "success" = {
-        type = "success"
-      }
-    })
-  }
-}
-
-# Add a scheduled trigger for the daily report workflow
-resource "sailpoint_workflow_trigger" "daily_report_trigger" {
-  workflow_id = sailpoint_workflow.daily_report.id
-
-  type         = "SCHEDULED"
-  display_name = "Daily at 9 AM"
-
-  attributes = jsonencode({
-    cronExpression = "0 0 9 * * ?"
-    timezone       = "America/New_York"
-  })
-}
-```
 
 <!-- schema generated by tfplugindocs -->
 ## Schema
 
 ### Required
 
-- `definition` (Attributes) Workflow definition containing the workflow logic. Must include `start` (name of first step to execute) and `steps` (JSON string with all workflow steps and their configurations). (see [below for nested schema](#nestedatt--definition))
-- `name` (String) Name of the workflow as it appears in the UI.
-- `owner` (Attributes) Owner of the workflow. Must be a valid identity reference with `type` (typically 'IDENTITY'), `id` (UUID), and optionally `name`. (see [below for nested schema](#nestedatt--owner))
+- `name` (String) The name of the workflow.
+- `owner` (Attributes) The owner of the workflow. (see [below for nested schema](#nestedatt--owner))
 
 ### Optional
 
-- `description` (String) Description of the workflow's purpose and functionality.
-- `enabled` (Boolean) Whether the workflow is enabled (true) or disabled (false). Disabled workflows do not execute when triggered. Note: Workflows must be disabled before they can be deleted.
+- `definition` (Attributes) The workflow definition containing the steps to execute. If not specified, the workflow will have no definition. (see [below for nested schema](#nestedatt--definition))
+- `description` (String) The description of the workflow.
+- `enabled` (Boolean) Whether the workflow is enabled. Workflows cannot be created in an enabled state. Default is `false`.
 
 ### Read-Only
 
-- `created` (String) ISO-8601 timestamp when the workflow was created (computed).
-- `id` (String) Unique identifier (UUID) of the workflow.
-- `modified` (String) ISO-8601 timestamp when the workflow was last modified (computed).
-- `trigger` (String) Trigger configuration defining what initiates the workflow. This is a computed field managed by the `sailpoint_workflow_trigger` resource. Do not configure this directly in the workflow resource.
-
-<a id="nestedatt--definition"></a>
-### Nested Schema for `definition`
-
-Required:
-
-- `start` (String) The name of the first step to execute in the workflow.
-- `steps` (String) Workflow steps as a JSON string. Each step defines an action or operator with its configuration.
-
+- `created` (String) The date and time the workflow was created.
+- `creator` (Attributes) The identity who created the workflow. (see [below for nested schema](#nestedatt--creator))
+- `execution_count` (Number) The number of times the workflow has been executed.
+- `failure_count` (Number) The number of times the workflow has failed.
+- `id` (String) The unique identifier of the workflow.
+- `modified` (String) The date and time the workflow was last modified.
+- `modified_by` (Attributes) The identity who last modified the workflow. (see [below for nested schema](#nestedatt--modified_by))
+- `trigger` (String) The trigger configuration as JSON. This is a computed field - use `sailpoint_workflow_trigger` resource to manage triggers.
 
 <a id="nestedatt--owner"></a>
 ### Nested Schema for `owner`
 
 Required:
 
-- `id` (String) The unique identifier (UUID) of the owner identity.
-- `type` (String) The type of the referenced object (e.g., IDENTITY).
+- `id` (String) The ID of the owner.
+- `type` (String) The type of the owner (e.g., `IDENTITY`).
 
-Optional:
+Read-Only:
 
-- `name` (String) The name of the owner identity.
+- `name` (String) The name of the owner.
+
+
+<a id="nestedatt--definition"></a>
+### Nested Schema for `definition`
+
+Required:
+
+- `start` (String) The name of the starting step.
+- `steps` (String) JSON object containing the workflow steps. Each key is a step name and the value defines the step configuration including action type, attributes, and flow control.
+
+~> **Note:** When configuring steps that use secrets (e.g., OAuth client secrets for `sp:http` actions), set the secret value through the SailPoint UI first, then copy the resulting vault reference (e.g., `$.secrets.<uid>`) into your Terraform configuration to prevent drift.
+
+
+<a id="nestedatt--creator"></a>
+### Nested Schema for `creator`
+
+Read-Only:
+
+- `id` (String) The ID of the creator.
+- `name` (String) The name of the creator.
+- `type` (String) The type of the creator (e.g., `IDENTITY`).
+
+
+<a id="nestedatt--modified_by"></a>
+### Nested Schema for `modified_by`
+
+Read-Only:
+
+- `id` (String) The ID of the modifier.
+- `name` (String) The name of the modifier.
+- `type` (String) The type of the modifier (e.g., `IDENTITY`).
