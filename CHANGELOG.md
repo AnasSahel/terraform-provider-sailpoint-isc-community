@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-02-10
+
+### Added
+
+- **Source Provisioning Policy**: New `sailpoint_source_provisioning_policy` resource and data source
+  - Full CRUD support for provisioning policies that define fields and transforms for source operations (CREATE, UPDATE, DELETE, ENABLE, DISABLE, etc.)
+  - REST client methods for Get, Create, Update (PUT), and Delete operations
+  - Resource supports `source_id` and `usage_type` as compound identifier with `RequiresReplace` semantics
+  - Import support using `source_id/usage_type` format (e.g., `2c91808a.../CREATE`)
+  - Fields support nested `transform` and `attributes` as JSON objects via `jsontypes.Normalized`
+  - Data source for reading existing provisioning policies by source and usage type
+  - Comprehensive examples showing policies with transforms, attributes, and minimal configurations
+  - Full documentation with example usage and import instructions
+
+### Changed
+
+- API coverage increased from 9/83 to 10/83 endpoints (12.0%)
+- README updated with new resource in the Resources & Data Sources table
+
 ## [2.0.0] - 2026-02-07
 
 ### BREAKING CHANGES
@@ -342,6 +361,7 @@ This release ensures all documentation and examples match the actual provider ca
 
 ---
 
+[2.1.0]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v1.1.0...v2.0.0
 [1.0.2]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v1.0.1...v1.0.2
 [0.7.2]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v0.6.1...v0.7.2

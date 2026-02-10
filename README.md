@@ -7,7 +7,7 @@
 
 A community-maintained Terraform provider for managing [SailPoint Identity Security Cloud (ISC)](https://www.sailpoint.com/) resources as code. It supports transforms, workflows, identity profiles, lifecycle states, and more — all through the standard `plan`, `apply`, `destroy` workflow.
 
-**Current Version:** v2.0.0 · **API Coverage:** 10 of 83 SailPoint v2025 endpoints (12.0%)
+**Current Version:** v2.1.0 · **API Coverage:** 10 of 83 SailPoint v2025 endpoints (12.0%)
 
 > **Upgrading from v1.x?** Version 2.0.0 removes `sailpoint_access_profile` and `sailpoint_entitlement` and restructures the provider internals. See [CHANGELOG.md](CHANGELOG.md) for details.
 
