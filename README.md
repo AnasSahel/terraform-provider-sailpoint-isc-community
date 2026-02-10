@@ -19,11 +19,12 @@ A Terraform provider for managing [SailPoint Identity Security Cloud (ISC)](http
 | `sailpoint_workflow_trigger` | - | Manage workflow triggers (EVENT, SCHEDULED, EXTERNAL) |
 | `sailpoint_launcher` | `sailpoint_launcher` | Manage launchers to trigger workflows through the SailPoint UI |
 | `sailpoint_lifecycle_state` | `sailpoint_lifecycle_state` | Manage lifecycle states within identity profiles |
+| `sailpoint_source_schema` | `sailpoint_source_schema` | Manage source schema definitions for accounts and entitlements |
 | `sailpoint_identity_profile` | `sailpoint_identity_profile` | Manage identity profiles and attribute mappings |
 
 ## SailPoint v2025 API Coverage
 
-**Summary:** 8 of 83 API endpoints implemented (9.6%)
+**Summary:** 9 of 83 API endpoints implemented (10.8%)
 
 ### ✅ Implemented APIs
 
@@ -34,6 +35,7 @@ A Terraform provider for managing [SailPoint Identity Security Cloud (ISC)](http
 | Identity Profiles | `sailpoint_identity_profile` |
 | Launchers | `sailpoint_launcher` |
 | Lifecycle States | `sailpoint_lifecycle_state` |
+| Source Schemas | `sailpoint_source_schema` |
 | Transforms | `sailpoint_transform` |
 | Triggers | `sailpoint_workflow_trigger` |
 | Workflows | `sailpoint_workflow` |
