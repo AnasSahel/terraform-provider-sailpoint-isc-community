@@ -1,0 +1,2 @@
+# Import using source_id/usage_type format
+terraform import sailpoint_source_provisioning_policy.create_account 2c91808a7813090a017813467c744b01/CREATE

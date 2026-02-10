@@ -168,6 +168,7 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 		launcher.NewLauncherDataSource,
 		lifecycle_state.NewLifecycleStateDataSource,
 		source.NewSourceSchemaDataSource,
+		source.NewSourceProvisioningPolicyDataSource,
 		transform.NewTransformDataSource,
 		workflow.NewWorkflowDataSource,
 	}
@@ -182,6 +183,7 @@ func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resou
 		launcher.NewLauncherResource,
 		lifecycle_state.NewLifecycleStateResource,
 		source.NewSourceSchemaResource,
+		source.NewSourceProvisioningPolicyResource,
 		transform.NewTransformResource,
 		workflow.NewWorkflowResource,
 		workflow_trigger.NewWorkflowTriggerResource,

@@ -7,7 +7,7 @@
 
 A community-maintained Terraform provider for managing [SailPoint Identity Security Cloud (ISC)](https://www.sailpoint.com/) resources as code. It supports transforms, workflows, identity profiles, lifecycle states, and more — all through the standard `plan`, `apply`, `destroy` workflow.
 
-**Current Version:** v2.0.0 · **API Coverage:** 9 of 83 SailPoint v2025 endpoints (10.8%)
+**Current Version:** v2.0.0 · **API Coverage:** 10 of 83 SailPoint v2025 endpoints (12.0%)
 
 > **Upgrading from v1.x?** Version 2.0.0 removes `sailpoint_access_profile` and `sailpoint_entitlement` and restructures the provider internals. See [CHANGELOG.md](CHANGELOG.md) for details.
 
@@ -147,13 +147,14 @@ For more examples — including workflows, form definitions, and identity profil
 | `sailpoint_launcher` | `sailpoint_launcher` | Launchers to trigger workflows from the SailPoint UI |
 | `sailpoint_lifecycle_state` | `sailpoint_lifecycle_state` | Lifecycle states within identity profiles |
 | `sailpoint_source_schema` | `sailpoint_source_schema` | Source schema definitions for accounts and entitlements |
+| `sailpoint_source_provisioning_policy` | `sailpoint_source_provisioning_policy` | Provisioning policies defining fields and transforms for source operations |
 | `sailpoint_identity_profile` | `sailpoint_identity_profile` | Identity profiles and attribute mappings |
 
 Full schema documentation for each resource and data source is available on the [Terraform Registry](https://registry.terraform.io/providers/AnasSahel/sailpoint-isc-community/latest/docs).
 
 ## API Coverage
 
-9 of 83 SailPoint v2025 API endpoints are currently implemented. New resources are added as contributions arrive — see the list below if you'd like to help close the gap.
+10 of 83 SailPoint v2025 API endpoints are currently implemented. New resources are added as contributions arrive — see the list below if you'd like to help close the gap.
 
 <details>
 <summary><strong>Not yet implemented APIs (74 endpoints)</strong></summary>
