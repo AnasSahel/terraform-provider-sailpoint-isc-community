@@ -26,10 +26,10 @@ resource "sailpoint_source_schema" "account" {
       description = "The email address"
     },
     {
-      name        = "memberOf"
-      type        = "STRING"
-      description = "Group memberships"
-      is_multi    = true
+      name           = "memberOf"
+      type           = "STRING"
+      description    = "Group memberships"
+      is_multi       = true
       is_entitlement = true
 
       schema = {
