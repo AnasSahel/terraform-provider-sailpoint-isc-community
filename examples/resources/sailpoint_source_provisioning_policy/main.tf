@@ -7,10 +7,10 @@ resource "sailpoint_source_provisioning_policy" "create_account" {
 
   fields = [
     {
-      name       = "userName"
-      type       = "string"
+      name        = "userName"
+      type        = "string"
       is_required = true
-      transform  = jsonencode({
+      transform = jsonencode({
         type = "rule"
         attributes = {
           name = "Create Unique LDAP Attribute"
@@ -44,10 +44,10 @@ resource "sailpoint_source_provisioning_policy" "create_account" {
       })
     },
     {
-      name       = "email"
-      type       = "string"
+      name        = "email"
+      type        = "string"
       is_required = true
-      transform  = jsonencode({
+      transform = jsonencode({
         type = "identityAttribute"
         attributes = {
           name = "email"
