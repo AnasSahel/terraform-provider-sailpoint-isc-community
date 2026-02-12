@@ -205,6 +205,9 @@ func (r *sourceSchemaResource) Schema(_ context.Context, _ resource.SchemaReques
 			"modified": schema.StringAttribute{
 				MarkdownDescription: "The date the schema was last modified.",
 				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}

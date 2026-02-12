@@ -15,6 +15,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int32planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -80,6 +82,9 @@ func (r *identityProfileResource) Schema(_ context.Context, _ resource.SchemaReq
 			"modified": schema.StringAttribute{
 				MarkdownDescription: "The date and time the identity profile was last modified.",
 				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"description": schema.StringAttribute{
 				MarkdownDescription: "The description of the identity profile.",
@@ -146,10 +151,16 @@ func (r *identityProfileResource) Schema(_ context.Context, _ resource.SchemaReq
 			"identity_refresh_required": schema.BoolAttribute{
 				MarkdownDescription: "Indicates whether an identity refresh is required.",
 				Computed:            true,
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"identity_count": schema.Int32Attribute{
 				MarkdownDescription: "The number of identities belonging to this identity profile.",
 				Computed:            true,
+				PlanModifiers: []planmodifier.Int32{
+					int32planmodifier.UseStateForUnknown(),
+				},
 			},
 			"identity_attribute_config": schema.SingleNestedAttribute{
 				MarkdownDescription: "The identity attribute configuration that defines how identity attributes are mapped.",
@@ -215,6 +226,9 @@ func (r *identityProfileResource) Schema(_ context.Context, _ resource.SchemaReq
 			"has_time_based_attr": schema.BoolAttribute{
 				MarkdownDescription: "Indicates the value of `requiresPeriodicRefresh` attribute for the identity profile.",
 				Computed:            true,
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}

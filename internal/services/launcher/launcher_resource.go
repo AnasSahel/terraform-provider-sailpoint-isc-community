@@ -92,6 +92,9 @@ func (r *launcherResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			"modified": schema.StringAttribute{
 				MarkdownDescription: "The date and time the launcher was last modified.",
 				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"owner": schema.SingleNestedAttribute{
 				MarkdownDescription: "The owner of the launcher.",
