@@ -29,6 +29,7 @@ var (
 	_ resource.Resource                = &identityProfileResource{}
 	_ resource.ResourceWithConfigure   = &identityProfileResource{}
 	_ resource.ResourceWithImportState = &identityProfileResource{}
+	_ resource.ResourceWithModifyPlan  = &identityProfileResource{}
 )
 
 type identityProfileResource struct {
@@ -482,6 +483,60 @@ func (r *identityProfileResource) ImportState(ctx context.Context, req resource.
 	tflog.Info(ctx, "Successfully imported SailPoint Identity Profile resource", map[string]any{
 		"id": req.ID,
 	})
+}
+
+// ModifyPlan implements resource.ResourceWithModifyPlan.
+// This runs after attribute-level plan modifiers and acts as a safety net to suppress
+// phantom drift caused by Optional+Computed attributes (like owner, priority) being
+// null in config but populated in state. The framework marks all computed attributes
+// as unknown when it detects any config-vs-state mismatch on Optional+Computed fields.
+func (r *identityProfileResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	// Skip on destroy (plan is null) or create (state is null)
+	if req.Plan.Raw.IsNull() || req.State.Raw.IsNull() {
+		return
+	}
+
+	var plan, state, config identityProfileModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Fix Optional+Computed attributes: if the user didn't set them in config (null),
+	// copy the value from state into plan to prevent the framework from marking
+	// everything as unknown.
+	if config.Owner.IsNull() && !state.Owner.IsNull() {
+		plan.Owner = state.Owner
+	}
+	if config.Priority.IsNull() && !state.Priority.IsNull() {
+		plan.Priority = state.Priority
+	}
+
+	// Check if any user-configurable attributes actually changed
+	hasRealChanges := !plan.Name.Equal(state.Name) ||
+		!plan.Description.Equal(state.Description) ||
+		!plan.Owner.Equal(state.Owner) ||
+		!plan.Priority.Equal(state.Priority) ||
+		!plan.AuthoritativeSource.Equal(state.AuthoritativeSource) ||
+		!plan.IdentityAttributeConfig.Equal(state.IdentityAttributeConfig)
+
+	if !hasRealChanges {
+		// No real changes — copy computed-only attributes from state to suppress drift
+		plan.Modified = state.Modified
+		plan.Created = state.Created
+		plan.IdentityCount = state.IdentityCount
+		plan.IdentityRefreshRequired = state.IdentityRefreshRequired
+		plan.HasTimeBasedAttr = state.HasTimeBasedAttr
+		plan.IdentityExceptionReportReference = state.IdentityExceptionReportReference
+
+		tflog.Debug(ctx, "ModifyPlan: no real changes detected, preserving computed attributes from state")
+	} else {
+		tflog.Debug(ctx, "ModifyPlan: real changes detected, leaving computed attributes as unknown")
+	}
+
+	resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
 }
 
 // buildPatchOperations creates JSON Patch operations for changes between state and plan.
