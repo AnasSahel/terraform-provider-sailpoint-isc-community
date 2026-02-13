@@ -70,17 +70,6 @@ func (r *identityProfileResource) Schema(_ context.Context, _ resource.SchemaReq
 				MarkdownDescription: "The name of the identity profile.",
 				Required:            true,
 			},
-			"created": schema.StringAttribute{
-				MarkdownDescription: "The date and time the identity profile was created.",
-				Computed:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"modified": schema.StringAttribute{
-				MarkdownDescription: "The date and time the identity profile was last modified.",
-				Computed:            true,
-			},
 			"description": schema.StringAttribute{
 				MarkdownDescription: "The description of the identity profile.",
 				Optional:            true,
@@ -88,10 +77,6 @@ func (r *identityProfileResource) Schema(_ context.Context, _ resource.SchemaReq
 			"owner": schema.SingleNestedAttribute{
 				MarkdownDescription: "The owner of the identity profile.",
 				Optional:            true,
-				Computed:            true,
-				PlanModifiers: []planmodifier.Object{
-					objectplanmodifier.UseStateForUnknown(),
-				},
 				Attributes: map[string]schema.Attribute{
 					"type": schema.StringAttribute{
 						MarkdownDescription: "The type of the owner object. Must be `IDENTITY`.",
@@ -127,8 +112,7 @@ func (r *identityProfileResource) Schema(_ context.Context, _ resource.SchemaReq
 				Attributes: map[string]schema.Attribute{
 					"type": schema.StringAttribute{
 						MarkdownDescription: "The type of the source object. Always `SOURCE`.",
-						Optional:            true,
-						Computed:            true,
+						Required:            true,
 					},
 					"id": schema.StringAttribute{
 						MarkdownDescription: "The ID of the authoritative source.",
@@ -216,6 +200,17 @@ func (r *identityProfileResource) Schema(_ context.Context, _ resource.SchemaReq
 				MarkdownDescription: "Indicates the value of `requiresPeriodicRefresh` attribute for the identity profile.",
 				Computed:            true,
 			},
+			"created": schema.StringAttribute{
+				MarkdownDescription: "The date and time the identity profile was created.",
+				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"modified": schema.StringAttribute{
+				MarkdownDescription: "The date and time the identity profile was last modified.",
+				Computed:            true,
+			},
 		},
 	}
 }
@@ -275,6 +270,14 @@ func (r *identityProfileResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
+	// Track whether user manages owner via private state, and null it out if not.
+	ownerManaged := !plan.Owner.IsNull()
+	if ownerManaged {
+		resp.Diagnostics.Append(resp.Private.SetKey(ctx, "owner_managed", []byte("true"))...)
+	} else {
+		state.Owner = types.ObjectNull(ownerAttrTypes)
+	}
+
 	// Set the state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
@@ -296,6 +299,11 @@ func (r *identityProfileResource) Read(ctx context.Context, req resource.ReadReq
 	}
 
 	identityProfileID := state.ID.ValueString()
+
+	// Check private state to determine if user manages owner
+	ownerManagedBytes, diags := req.Private.GetKey(ctx, "owner_managed")
+	resp.Diagnostics.Append(diags...)
+	ownerManaged := string(ownerManagedBytes) == "true"
 
 	// Read the identity profile from SailPoint
 	tflog.Debug(ctx, "Fetching identity profile from SailPoint", map[string]any{
@@ -335,6 +343,12 @@ func (r *identityProfileResource) Read(ctx context.Context, req resource.ReadReq
 	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *apiResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	// If user doesn't manage owner (no private state flag), null it out.
+	// The API always returns an owner, but we only store it if user set it in config.
+	if !ownerManaged {
+		state.Owner = types.ObjectNull(ownerAttrTypes)
 	}
 
 	// Set the state
@@ -411,6 +425,15 @@ func (r *identityProfileResource) Update(ctx context.Context, req resource.Updat
 	resp.Diagnostics.Append(newState.FromSailPointAPI(ctx, *apiResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	// Update private state flag and null out owner if user doesn't manage it
+	ownerManaged := !plan.Owner.IsNull()
+	if ownerManaged {
+		resp.Diagnostics.Append(resp.Private.SetKey(ctx, "owner_managed", []byte("true"))...)
+	} else {
+		resp.Diagnostics.Append(resp.Private.SetKey(ctx, "owner_managed", []byte("false"))...)
+		newState.Owner = types.ObjectNull(ownerAttrTypes)
 	}
 
 	// Set the state

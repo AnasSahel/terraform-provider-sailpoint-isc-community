@@ -141,6 +141,9 @@ func (r *lifecycleStateResource) Schema(_ context.Context, _ resource.SchemaRequ
 			"modified": schema.StringAttribute{
 				MarkdownDescription: "The date and time the lifecycle state was last modified.",
 				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"email_notification_option": schema.SingleNestedAttribute{
 				MarkdownDescription: "Email notification configuration for the lifecycle state.",
