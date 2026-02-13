@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-02-13
+
+### Fixed
+
+- Resolve phantom plan drift in identity profile resource — computed attributes no longer show `(known after apply)` on every plan
+- Add `UseStateForUnknown()` plan modifiers to computed attributes in `launcher`, `lifecycle_state`, and `source_schema` resources
+
+### Added
+
+- Example usage and import script for `sailpoint_identity_profile` resource documentation
+
+### Changed
+
+- Bump `github.com/stretchr/testify` from 1.10.0 to 1.11.1
+- Bump `github.com/hashicorp/terraform-plugin-framework` from 1.16.0 to 1.16.1
+- Bump `github.com/hashicorp/terraform-plugin-log` from 0.9.0 to 0.10.0
+- Bump `github.com/hashicorp/terraform-plugin-docs` from 0.23.0 to 0.24.0
+- Bump `github.com/hashicorp/copywrite` from 0.22.0 to 0.24.1
+- Bump GitHub Actions: `actions/checkout` v6.0.2, `actions/setup-go` v6.2.0, `golangci/golangci-lint-action` v9.2.0, `dessant/lock-threads` v6.0.0
+
 ## [2.1.0] - 2026-02-10
 
 ### Added
@@ -361,6 +381,7 @@ This release ensures all documentation and examples match the actual provider ca
 
 ---
 
+[2.1.1]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v1.1.0...v2.0.0
 [1.0.2]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v1.0.1...v1.0.2
