@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/go-resty/resty/v2 v2.16.5
-	github.com/hashicorp/terraform-plugin-framework v1.16.1
+	github.com/hashicorp/terraform-plugin-framework v1.17.0
 	github.com/hashicorp/terraform-plugin-framework-jsontypes v0.2.0
 	github.com/hashicorp/terraform-plugin-log v0.10.0
 )
