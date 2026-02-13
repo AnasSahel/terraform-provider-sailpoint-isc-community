@@ -15,8 +15,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int32planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -29,7 +27,6 @@ var (
 	_ resource.Resource                = &identityProfileResource{}
 	_ resource.ResourceWithConfigure   = &identityProfileResource{}
 	_ resource.ResourceWithImportState = &identityProfileResource{}
-	_ resource.ResourceWithModifyPlan  = &identityProfileResource{}
 )
 
 type identityProfileResource struct {
@@ -73,20 +70,6 @@ func (r *identityProfileResource) Schema(_ context.Context, _ resource.SchemaReq
 				MarkdownDescription: "The name of the identity profile.",
 				Required:            true,
 			},
-			"created": schema.StringAttribute{
-				MarkdownDescription: "The date and time the identity profile was created.",
-				Computed:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"modified": schema.StringAttribute{
-				MarkdownDescription: "The date and time the identity profile was last modified.",
-				Computed:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
 			"description": schema.StringAttribute{
 				MarkdownDescription: "The description of the identity profile.",
 				Optional:            true,
@@ -94,10 +77,6 @@ func (r *identityProfileResource) Schema(_ context.Context, _ resource.SchemaReq
 			"owner": schema.SingleNestedAttribute{
 				MarkdownDescription: "The owner of the identity profile.",
 				Optional:            true,
-				Computed:            true,
-				PlanModifiers: []planmodifier.Object{
-					objectplanmodifier.UseStateForUnknown(),
-				},
 				Attributes: map[string]schema.Attribute{
 					"type": schema.StringAttribute{
 						MarkdownDescription: "The type of the owner object. Must be `IDENTITY`.",
@@ -133,8 +112,7 @@ func (r *identityProfileResource) Schema(_ context.Context, _ resource.SchemaReq
 				Attributes: map[string]schema.Attribute{
 					"type": schema.StringAttribute{
 						MarkdownDescription: "The type of the source object. Always `SOURCE`.",
-						Optional:            true,
-						Computed:            true,
+						Required:            true,
 					},
 					"id": schema.StringAttribute{
 						MarkdownDescription: "The ID of the authoritative source.",
@@ -152,16 +130,10 @@ func (r *identityProfileResource) Schema(_ context.Context, _ resource.SchemaReq
 			"identity_refresh_required": schema.BoolAttribute{
 				MarkdownDescription: "Indicates whether an identity refresh is required.",
 				Computed:            true,
-				PlanModifiers: []planmodifier.Bool{
-					boolplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"identity_count": schema.Int32Attribute{
 				MarkdownDescription: "The number of identities belonging to this identity profile.",
 				Computed:            true,
-				PlanModifiers: []planmodifier.Int32{
-					int32planmodifier.UseStateForUnknown(),
-				},
 			},
 			"identity_attribute_config": schema.SingleNestedAttribute{
 				MarkdownDescription: "The identity attribute configuration that defines how identity attributes are mapped.",
@@ -227,9 +199,17 @@ func (r *identityProfileResource) Schema(_ context.Context, _ resource.SchemaReq
 			"has_time_based_attr": schema.BoolAttribute{
 				MarkdownDescription: "Indicates the value of `requiresPeriodicRefresh` attribute for the identity profile.",
 				Computed:            true,
-				PlanModifiers: []planmodifier.Bool{
-					boolplanmodifier.UseStateForUnknown(),
+			},
+			"created": schema.StringAttribute{
+				MarkdownDescription: "The date and time the identity profile was created.",
+				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
 				},
+			},
+			"modified": schema.StringAttribute{
+				MarkdownDescription: "The date and time the identity profile was last modified.",
+				Computed:            true,
 			},
 		},
 	}
@@ -290,6 +270,14 @@ func (r *identityProfileResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
+	// Track whether user manages owner via private state, and null it out if not.
+	ownerManaged := !plan.Owner.IsNull()
+	if ownerManaged {
+		resp.Diagnostics.Append(resp.Private.SetKey(ctx, "owner_managed", []byte("true"))...)
+	} else {
+		state.Owner = types.ObjectNull(ownerAttrTypes)
+	}
+
 	// Set the state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
@@ -311,6 +299,11 @@ func (r *identityProfileResource) Read(ctx context.Context, req resource.ReadReq
 	}
 
 	identityProfileID := state.ID.ValueString()
+
+	// Check private state to determine if user manages owner
+	ownerManagedBytes, diags := req.Private.GetKey(ctx, "owner_managed")
+	resp.Diagnostics.Append(diags...)
+	ownerManaged := string(ownerManagedBytes) == "true"
 
 	// Read the identity profile from SailPoint
 	tflog.Debug(ctx, "Fetching identity profile from SailPoint", map[string]any{
@@ -350,6 +343,12 @@ func (r *identityProfileResource) Read(ctx context.Context, req resource.ReadReq
 	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *apiResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	// If user doesn't manage owner (no private state flag), null it out.
+	// The API always returns an owner, but we only store it if user set it in config.
+	if !ownerManaged {
+		state.Owner = types.ObjectNull(ownerAttrTypes)
 	}
 
 	// Set the state
@@ -428,6 +427,15 @@ func (r *identityProfileResource) Update(ctx context.Context, req resource.Updat
 		return
 	}
 
+	// Update private state flag and null out owner if user doesn't manage it
+	ownerManaged := !plan.Owner.IsNull()
+	if ownerManaged {
+		resp.Diagnostics.Append(resp.Private.SetKey(ctx, "owner_managed", []byte("true"))...)
+	} else {
+		resp.Diagnostics.Append(resp.Private.SetKey(ctx, "owner_managed", []byte("false"))...)
+		newState.Owner = types.ObjectNull(ownerAttrTypes)
+	}
+
 	// Set the state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 	if resp.Diagnostics.HasError() {
@@ -483,60 +491,6 @@ func (r *identityProfileResource) ImportState(ctx context.Context, req resource.
 	tflog.Info(ctx, "Successfully imported SailPoint Identity Profile resource", map[string]any{
 		"id": req.ID,
 	})
-}
-
-// ModifyPlan implements resource.ResourceWithModifyPlan.
-// This runs after attribute-level plan modifiers and acts as a safety net to suppress
-// phantom drift caused by Optional+Computed attributes (like owner, priority) being
-// null in config but populated in state. The framework marks all computed attributes
-// as unknown when it detects any config-vs-state mismatch on Optional+Computed fields.
-func (r *identityProfileResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
-	// Skip on destroy (plan is null) or create (state is null)
-	if req.Plan.Raw.IsNull() || req.State.Raw.IsNull() {
-		return
-	}
-
-	var plan, state, config identityProfileModel
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	// Fix Optional+Computed attributes: if the user didn't set them in config (null),
-	// copy the value from state into plan to prevent the framework from marking
-	// everything as unknown.
-	if config.Owner.IsNull() && !state.Owner.IsNull() {
-		plan.Owner = state.Owner
-	}
-	if config.Priority.IsNull() && !state.Priority.IsNull() {
-		plan.Priority = state.Priority
-	}
-
-	// Check if any user-configurable attributes actually changed
-	hasRealChanges := !plan.Name.Equal(state.Name) ||
-		!plan.Description.Equal(state.Description) ||
-		!plan.Owner.Equal(state.Owner) ||
-		!plan.Priority.Equal(state.Priority) ||
-		!plan.AuthoritativeSource.Equal(state.AuthoritativeSource) ||
-		!plan.IdentityAttributeConfig.Equal(state.IdentityAttributeConfig)
-
-	if !hasRealChanges {
-		// No real changes — copy computed-only attributes from state to suppress drift
-		plan.Modified = state.Modified
-		plan.Created = state.Created
-		plan.IdentityCount = state.IdentityCount
-		plan.IdentityRefreshRequired = state.IdentityRefreshRequired
-		plan.HasTimeBasedAttr = state.HasTimeBasedAttr
-		plan.IdentityExceptionReportReference = state.IdentityExceptionReportReference
-
-		tflog.Debug(ctx, "ModifyPlan: no real changes detected, preserving computed attributes from state")
-	} else {
-		tflog.Debug(ctx, "ModifyPlan: real changes detected, leaving computed attributes as unknown")
-	}
-
-	resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
 }
 
 // buildPatchOperations creates JSON Patch operations for changes between state and plan.

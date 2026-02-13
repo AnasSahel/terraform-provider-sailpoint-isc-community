@@ -43,9 +43,6 @@ Resource for SailPoint Identity Profile. Identity profiles define the source of 
 Required:
 
 - `id` (String) The ID of the authoritative source.
-
-Optional:
-
 - `type` (String) The type of the source object. Always `SOURCE`.
 
 Read-Only:
