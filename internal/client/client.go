@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-resty/resty/v2"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"resty.dev/v3"
 )
@@ -103,6 +102,12 @@ func retryCondition(r *resty.Response, err error) bool {
 	}
 
 	return false
+}
+
+func (c *Client) prepareRequest(ctx context.Context) *resty.Request {
+	return c.HTTPClient.R().
+		SetContext(ctx).
+		SetHeader("Accept", "application/json")
 }
 
 func (c *Client) doRequest(ctx context.Context, method string, url string, body any, result any) (*resty.Response, error) {

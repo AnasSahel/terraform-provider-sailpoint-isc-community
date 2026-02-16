@@ -11,12 +11,15 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -115,11 +118,41 @@ func (r *formDefinitionResource) Schema(_ context.Context, _ resource.SchemaRequ
 					},
 				},
 			},
-			"form_input": schema.StringAttribute{
-				MarkdownDescription: "JSON array of form inputs that can be passed into the form for use in conditional logic. Each input object has: id, type (STRING, ARRAY), label, description.",
+			"form_input": schema.ListNestedAttribute{
+				MarkdownDescription: "List of form inputs that can be passed into the form for use in conditional logic.",
 				Optional:            true,
 				Computed:            true,
-				CustomType:          jsontypes.NormalizedType{},
+				Default: listdefault.StaticValue(types.ListValueMust(
+					types.ObjectType{AttrTypes: map[string]attr.Type{
+						"id":          types.StringType,
+						"type":        types.StringType,
+						"label":       types.StringType,
+						"description": types.StringType,
+					}},
+					[]attr.Value{},
+				)),
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"id": schema.StringAttribute{
+							MarkdownDescription: "The unique identifier of the form input.",
+							Optional:            true,
+							Computed:            true,
+						},
+						"type": schema.StringAttribute{
+							MarkdownDescription: "The type of the form input (STRING, ARRAY).",
+							Required:            true,
+						},
+						"label": schema.StringAttribute{
+							MarkdownDescription: "The label of the form input.",
+							Required:            true,
+						},
+						"description": schema.StringAttribute{
+							MarkdownDescription: "The description of the form input.",
+							Optional:            true,
+							Computed:            true,
+						},
+					},
+				},
 			},
 			"form_elements": schema.StringAttribute{
 				MarkdownDescription: "JSON array of form elements (fields, sections, etc.). Elements must be wrapped in SECTION elements. Each element object has: id, elementType (TEXT, TOGGLE, TEXTAREA, HIDDEN, PHONE, EMAIL, SELECT, DATE, SECTION, COLUMN_SET, IMAGE, DESCRIPTION), config, key, validations.",
@@ -127,11 +160,95 @@ func (r *formDefinitionResource) Schema(_ context.Context, _ resource.SchemaRequ
 				Computed:            true,
 				CustomType:          jsontypes.NormalizedType{},
 			},
-			"form_conditions": schema.StringAttribute{
-				MarkdownDescription: "JSON array of conditional logic that can dynamically modify the form. Each condition object has: ruleOperator (AND, OR), rules (sourceType, source, operator, valueType, value), effects (effectType, config).",
+			"form_conditions": schema.ListNestedAttribute{
+				MarkdownDescription: "List of conditions for the form definition. Conditions control the visibility and behavior of form elements based on form inputs and other conditions.",
 				Optional:            true,
 				Computed:            true,
-				CustomType:          jsontypes.NormalizedType{},
+				Default: listdefault.StaticValue(types.ListValueMust(
+					types.ObjectType{AttrTypes: map[string]attr.Type{
+						"rule_operator": types.StringType,
+						"rules": types.ListType{ElemType: types.ObjectType{AttrTypes: map[string]attr.Type{
+							"source_type": types.StringType,
+							"source":      types.StringType,
+							"operator":    types.StringType,
+							"value_type":  types.StringType,
+							"value":       types.StringType,
+						}}},
+						"effects": types.ListType{ElemType: types.ObjectType{AttrTypes: map[string]attr.Type{
+							"effect_type": types.StringType,
+							"config": types.ObjectType{AttrTypes: map[string]attr.Type{
+								"default_value_label": types.StringType,
+								"element":             types.StringType,
+							}},
+						}}},
+					}},
+					[]attr.Value{},
+				)),
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"rule_operator": schema.StringAttribute{
+							MarkdownDescription: "The operator for the condition (AND, OR).",
+							Required:            true,
+						},
+						"rules": schema.ListNestedAttribute{
+							MarkdownDescription: "List of rules for the condition.",
+							Required:            true,
+							NestedObject: schema.NestedAttributeObject{
+								Attributes: map[string]schema.Attribute{
+									"source_type": schema.StringAttribute{
+										MarkdownDescription: "The type of the source for the rule (INPUT, ELEMENT).",
+										Required:            true,
+									},
+									"source": schema.StringAttribute{
+										MarkdownDescription: "The source for the rule.",
+										Required:            true,
+									},
+									"operator": schema.StringAttribute{
+										MarkdownDescription: "The operator for the rule (EQ, NE, CO, NOT_CO, IN, NOT_IN, EM, NOT_EM, SW, NOT_SW, EW, NOT_EW).",
+										Required:            true,
+									},
+									"value_type": schema.StringAttribute{
+										MarkdownDescription: "The type of the value for the rule (STRING, STRING_LIST, INPUT, ELEMENT, LIST, BOOLEAN).",
+										Required:            true,
+									},
+									"value": schema.StringAttribute{
+										MarkdownDescription: "The value for the rule.",
+										Optional:            true,
+										Computed:            true,
+									},
+								},
+							},
+						},
+						"effects": schema.ListNestedAttribute{
+							MarkdownDescription: "List of effects for the condition.",
+							Required:            true,
+							NestedObject: schema.NestedAttributeObject{
+								Attributes: map[string]schema.Attribute{
+									"effect_type": schema.StringAttribute{
+										MarkdownDescription: "The type of the effect (HIDE, SHOW, DISABLE, ENABLE, REQUIRE, OPTIONAL, SUBMIT_MESSAGE, SUBMIT_NOTIFICATION, SET_DEFAULT_VALUE).",
+										Required:            true,
+									},
+									"config": schema.SingleNestedAttribute{
+										MarkdownDescription: "The configuration for the effect.",
+										Required:            true,
+										Attributes: map[string]schema.Attribute{
+											"default_value_label": schema.StringAttribute{
+												MarkdownDescription: "The default value label for the effect.",
+												Optional:            true,
+												Computed:            true,
+											},
+											"element": schema.StringAttribute{
+												MarkdownDescription: "The element targeted by the effect.",
+												Optional:            true,
+												Computed:            true,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
 			},
 			"created": schema.StringAttribute{
 				MarkdownDescription: "The date and time when the form definition was created.",
@@ -354,7 +471,7 @@ func (r *formDefinitionResource) Update(ctx context.Context, req resource.Update
 		"id":          state.ID.ValueString(),
 		"patch_count": len(patchOps),
 	})
-	formDefinitionAPIResponse, err := r.client.UpdateFormDefinition(ctx, state.ID.ValueString(), patchOps)
+	formDefinitionAPIResponse, err := r.client.PatchFormDefinition(ctx, state.ID.ValueString(), patchOps)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating SailPoint Form Definition",

@@ -96,20 +96,100 @@ func (d *formDefinitionDataSource) Schema(_ context.Context, _ datasource.Schema
 					},
 				},
 			},
-			"form_input": schema.StringAttribute{
-				MarkdownDescription: "JSON array of form inputs that can be passed into the form for use in conditional logic. Each input object has: id, type (STRING, ARRAY), label, description.",
+			"form_input": schema.ListNestedAttribute{
+				MarkdownDescription: "List of form inputs that can be passed into the form for use in conditional logic.",
 				Computed:            true,
-				CustomType:          jsontypes.NormalizedType{},
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"id": schema.StringAttribute{
+							MarkdownDescription: "The unique identifier of the form input.",
+							Computed:            true,
+						},
+						"type": schema.StringAttribute{
+							MarkdownDescription: "The type of the form input (STRING, ARRAY).",
+							Computed:            true,
+						},
+						"label": schema.StringAttribute{
+							MarkdownDescription: "The label of the form input.",
+							Computed:            true,
+						},
+						"description": schema.StringAttribute{
+							MarkdownDescription: "The description of the form input.",
+							Computed:            true,
+						},
+					},
+				},
 			},
 			"form_elements": schema.StringAttribute{
 				MarkdownDescription: "JSON array of form elements (fields, sections, etc.). Elements must be wrapped in SECTION elements. Each element object has: id, elementType (TEXT, TOGGLE, TEXTAREA, HIDDEN, PHONE, EMAIL, SELECT, DATE, SECTION, COLUMN_SET, IMAGE, DESCRIPTION), config, key, validations.",
 				Computed:            true,
 				CustomType:          jsontypes.NormalizedType{},
 			},
-			"form_conditions": schema.StringAttribute{
-				MarkdownDescription: "JSON array of conditional logic that can dynamically modify the form. Each condition object has: ruleOperator (AND, OR), rules (sourceType, source, operator, valueType, value), effects (effectType, config).",
+			"form_conditions": schema.ListNestedAttribute{
+				MarkdownDescription: "List of conditions for the form definition. Conditions control the visibility and behavior of form elements based on form inputs and other conditions.",
 				Computed:            true,
-				CustomType:          jsontypes.NormalizedType{},
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"rule_operator": schema.StringAttribute{
+							MarkdownDescription: "The operator for the condition (AND, OR).",
+							Computed:            true,
+						},
+						"rules": schema.ListNestedAttribute{
+							MarkdownDescription: "List of rules for the condition.",
+							Computed:            true,
+							NestedObject: schema.NestedAttributeObject{
+								Attributes: map[string]schema.Attribute{
+									"source_type": schema.StringAttribute{
+										MarkdownDescription: "The type of the source for the rule.",
+										Computed:            true,
+									},
+									"source": schema.StringAttribute{
+										MarkdownDescription: "The source for the rule.",
+										Computed:            true,
+									},
+									"operator": schema.StringAttribute{
+										MarkdownDescription: "The operator for the rule.",
+										Computed:            true,
+									},
+									"value_type": schema.StringAttribute{
+										MarkdownDescription: "The type of the value for the rule.",
+										Computed:            true,
+									},
+									"value": schema.StringAttribute{
+										MarkdownDescription: "The value for the rule.",
+										Computed:            true,
+									},
+								},
+							},
+						},
+						"effects": schema.ListNestedAttribute{
+							MarkdownDescription: "List of effects for the condition.",
+							Computed:            true,
+							NestedObject: schema.NestedAttributeObject{
+								Attributes: map[string]schema.Attribute{
+									"effect_type": schema.StringAttribute{
+										MarkdownDescription: "The type of the effect.",
+										Computed:            true,
+									},
+									"config": schema.SingleNestedAttribute{
+										MarkdownDescription: "The configuration for the effect.",
+										Computed:            true,
+										Attributes: map[string]schema.Attribute{
+											"default_value_label": schema.StringAttribute{
+												MarkdownDescription: "The default value label for the effect.",
+												Computed:            true,
+											},
+											"element": schema.StringAttribute{
+												MarkdownDescription: "The element targeted by the effect.",
+												Computed:            true,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
 			},
 			"created": schema.StringAttribute{
 				MarkdownDescription: "The date and time when the form definition was created.",
