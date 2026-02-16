@@ -3,7 +3,7 @@ module github.com/AnasSahel/terraform-provider-sailpoint-isc-community
 go 1.24.0
 
 require (
-	github.com/go-resty/resty/v2 v2.16.5
+	github.com/go-resty/resty/v2 v2.17.2
 	github.com/hashicorp/terraform-plugin-framework v1.16.1
 	github.com/hashicorp/terraform-plugin-framework-jsontypes v0.2.0
 	github.com/hashicorp/terraform-plugin-log v0.10.0
