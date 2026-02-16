@@ -130,7 +130,7 @@ func (c *Client) GetIdentityProfile(ctx context.Context, id string) (*IdentityPr
 
 	if resp.IsError() {
 		return nil, c.formatIdentityProfileError(
-			identityProfileErrorContext{Operation: "get", ID: id, ResponseBody: string(resp.Body())},
+			identityProfileErrorContext{Operation: "get", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -176,10 +176,10 @@ func (c *Client) CreateIdentityProfile(ctx context.Context, profile *IdentityPro
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatIdentityProfileError(
-			identityProfileErrorContext{Operation: "create", Name: profile.Name, ResponseBody: string(resp.Body())},
+			identityProfileErrorContext{Operation: "create", Name: profile.Name, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -231,10 +231,10 @@ func (c *Client) UpdateIdentityProfile(ctx context.Context, id string, patchOper
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatIdentityProfileError(
-			identityProfileErrorContext{Operation: "update", ID: id, ResponseBody: string(resp.Body())},
+			identityProfileErrorContext{Operation: "update", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -287,7 +287,7 @@ func (c *Client) DeleteIdentityProfile(ctx context.Context, id string) (*TaskRes
 		}
 
 		return nil, c.formatIdentityProfileError(
-			identityProfileErrorContext{Operation: "delete", ID: id, ResponseBody: string(resp.Body())},
+			identityProfileErrorContext{Operation: "delete", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)

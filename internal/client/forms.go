@@ -22,8 +22,8 @@ type FormDefinitionAPI struct {
 	ID             string             `json:"id,omitempty"`
 	Name           string             `json:"name"`
 	Description    string             `json:"description,omitempty"`
-	Owner          ObjectRefAPI       `json:"owner"`
-	UsedBy         []ObjectRefAPI     `json:"usedBy,omitempty"`
+	Owner          FormOwnerAPI       `json:"owner"`
+	UsedBy         []FormUsedByAPI    `json:"usedBy,omitempty"`
 	FormInput      []FormInputAPI     `json:"formInput,omitempty"`
 	FormElements   []FormElementAPI   `json:"formElements,omitempty"`
 	FormConditions []FormConditionAPI `json:"formConditions,omitempty"`
@@ -71,8 +71,13 @@ type FormConditionRuleAPI struct {
 
 // FormConditionEffectAPI represents an effect triggered by a condition.
 type FormConditionEffectAPI struct {
-	EffectType string                 `json:"effectType,omitempty"` // HIDE, SHOW, DISABLE, ENABLE, REQUIRE, OPTIONAL, SUBMIT_MESSAGE, SUBMIT_NOTIFICATION, SET_DEFAULT_VALUE
-	Config     map[string]interface{} `json:"config,omitempty"`     // Arbitrary config based on effect type
+	EffectType string                       `json:"effectType,omitempty"` // HIDE, SHOW, DISABLE, ENABLE, REQUIRE, OPTIONAL, SUBMIT_MESSAGE, SUBMIT_NOTIFICATION, SET_DEFAULT_VALUE
+	Config     FormConditionEffectConfigAPI `json:"config,omitempty"`     // Arbitrary config based on effect type
+}
+
+type FormConditionEffectConfigAPI struct {
+	Element           string `json:"element,omitempty"`
+	DefaultValueLabel string `json:"defaultValueLabel,omitempty"`
 }
 
 // JSONPatchOperation represents a JSON Patch operation (RFC 6902).
@@ -196,7 +201,7 @@ func (c *Client) CreateFormDefinition(ctx context.Context, form *FormDefinitionA
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatFormError(
 			formErrorContext{Operation: "create", Name: form.Name},
@@ -252,7 +257,7 @@ func (c *Client) UpdateFormDefinition(ctx context.Context, id string, patchOps [
 	}
 
 	if resp.IsError() {
-		responseBody := string(resp.Body())
+		responseBody := string(resp.Bytes())
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": responseBody,

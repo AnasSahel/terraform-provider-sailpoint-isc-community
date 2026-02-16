@@ -147,7 +147,7 @@ func (c *Client) CreateIdentityAttribute(ctx context.Context, attribute *Identit
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatIdentityAttributeError(
 			identityAttributeErrorContext{Operation: "create", Name: attribute.Name},

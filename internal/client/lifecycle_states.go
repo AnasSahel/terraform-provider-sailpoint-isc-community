@@ -178,7 +178,7 @@ func (c *Client) CreateLifecycleState(ctx context.Context, identityProfileID str
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatLifecycleStateError(
 			lifecycleStateErrorContext{
@@ -239,7 +239,7 @@ func (c *Client) UpdateLifecycleState(ctx context.Context, identityProfileID, li
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatLifecycleStateError(
 			lifecycleStateErrorContext{

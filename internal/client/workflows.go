@@ -123,7 +123,7 @@ func (c *Client) CreateWorkflow(ctx context.Context, workflow *WorkflowAPI) (*Wo
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatWorkflowError(
 			workflowErrorContext{Operation: "create", Name: workflow.Name},
@@ -175,7 +175,7 @@ func (c *Client) UpdateWorkflow(ctx context.Context, id string, workflow *Workfl
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatWorkflowError(
 			workflowErrorContext{Operation: "update", ID: id},
@@ -227,7 +227,7 @@ func (c *Client) PatchWorkflow(ctx context.Context, id string, operations []JSON
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatWorkflowError(
 			workflowErrorContext{Operation: "patch", ID: id},

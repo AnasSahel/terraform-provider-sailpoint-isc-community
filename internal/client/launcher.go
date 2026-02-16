@@ -126,7 +126,7 @@ func (c *Client) CreateLauncher(ctx context.Context, launcher *LauncherCreateAPI
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatLauncherError(
 			launcherErrorContext{Operation: "create", Name: launcher.Name},
@@ -178,7 +178,7 @@ func (c *Client) UpdateLauncher(ctx context.Context, id string, launcher *Launch
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatLauncherError(
 			launcherErrorContext{Operation: "update", ID: id},

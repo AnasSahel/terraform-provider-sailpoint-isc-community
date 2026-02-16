@@ -144,7 +144,7 @@ func (c *Client) CreateTransform(ctx context.Context, transform *TransformAPI) (
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatTransformError(
 			transformErrorContext{Operation: "create", Name: transform.Name},
@@ -200,7 +200,7 @@ func (c *Client) UpdateTransform(ctx context.Context, id string, transform *Tran
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatTransformError(
 			transformErrorContext{Operation: "update", ID: id},

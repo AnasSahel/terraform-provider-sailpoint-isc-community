@@ -196,7 +196,7 @@ func (c *Client) CreateSourceSchema(ctx context.Context, sourceID string, schema
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatSourceSchemaError(
 			sourceSchemaErrorContext{Operation: "create", SourceID: sourceID},
@@ -253,7 +253,7 @@ func (c *Client) UpdateSourceSchema(ctx context.Context, sourceID, schemaID stri
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatSourceSchemaError(
 			sourceSchemaErrorContext{Operation: "update", SourceID: sourceID, SchemaID: schemaID},
