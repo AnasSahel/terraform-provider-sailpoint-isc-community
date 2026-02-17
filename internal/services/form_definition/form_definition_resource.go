@@ -83,15 +83,16 @@ func (r *formDefinitionResource) Schema(_ context.Context, _ resource.SchemaRequ
 					},
 					"name": schema.StringAttribute{
 						MarkdownDescription: "The name of the owner.",
-						Optional:            true,
 						Computed:            true,
+						PlanModifiers: []planmodifier.String{
+							stringplanmodifier.UseStateForUnknown(),
+						},
 					},
 				},
 			},
 			"used_by": schema.ListNestedAttribute{
 				MarkdownDescription: "List of objects that use this form definition.",
 				Optional:            true,
-				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"type": schema.StringAttribute{
@@ -113,7 +114,6 @@ func (r *formDefinitionResource) Schema(_ context.Context, _ resource.SchemaRequ
 			"form_input": schema.ListNestedAttribute{
 				MarkdownDescription: "List of form inputs that can be passed into the form for use in conditional logic.",
 				Optional:            true,
-				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"id": schema.StringAttribute{
@@ -139,15 +139,13 @@ func (r *formDefinitionResource) Schema(_ context.Context, _ resource.SchemaRequ
 				},
 			},
 			"form_elements": schema.StringAttribute{
-				MarkdownDescription: "JSON array of form elements (fields, sections, etc.). Elements must be wrapped in SECTION elements. Each element object has: id, elementType (TEXT, TOGGLE, TEXTAREA, HIDDEN, PHONE, EMAIL, SELECT, DATE, SECTION, COLUMN_SET, IMAGE, DESCRIPTION), config, key, validations.",
+				MarkdownDescription: "JSON array of form elements (fields, sections, etc.). Elements must be wrapped in SECTION elements. Each element object has: id, elementType (TEXT, TOGGLE, TEXTAREA, HIDDEN, PHONE, EMAIL, SELECT, DATE, SECTION, COLUMN_SET, IMAGE, DESCRIPTION), config, key, validations. **Important:** Omit fields with zero values (empty strings `\"\"`, empty arrays `[]`, `false`) from the JSON to avoid inconsistent plan errors.",
 				Optional:            true,
-				Computed:            true,
 				CustomType:          jsontypes.NormalizedType{},
 			},
 			"form_conditions": schema.ListNestedAttribute{
 				MarkdownDescription: "List of conditions for the form definition. Conditions control the visibility and behavior of form elements based on form inputs and other conditions.",
 				Optional:            true,
-				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"rule_operator": schema.StringAttribute{

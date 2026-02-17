@@ -16,12 +16,15 @@ Resource for SailPoint Form Definition. Forms are used to collect data in access
 # SailPoint Form Definition Resource Examples
 #
 # IMPORTANT NOTES:
-# - REQUIRED FIELDS: name, owner (with type and id), form_elements
+# - REQUIRED FIELDS: name, owner (with type and id)
 # - Forms are composed of sections and fields for data collection
-# - Form elements are now structured objects (not JSON strings)
-# - Each form element MUST have an 'id' and 'element_type'
-# - The 'config' field within elements uses jsonencode() for complex configurations
+# - form_elements is a JSON string — use jsonencode() to define it
 # - The 'owner' field references an identity who owns this form
+#
+# IMPORTANT: In form_elements JSON, omit fields with zero values
+# (empty strings "", empty arrays [], false). Including them may cause
+# "inconsistent result after apply" errors because the SailPoint API
+# strips zero-value fields from its responses.
 #
 # For more information, see:
 # https://developer.sailpoint.com/docs/api/v2025/custom-forms/
@@ -34,7 +37,6 @@ resource "sailpoint_form_definition" "basic_form" {
   owner = {
     type = "IDENTITY"
     id   = "00000000000000000000000000000001"
-    name = "John Doe"
   }
 
   form_elements = [
@@ -74,7 +76,6 @@ resource "sailpoint_form_definition" "advanced_form" {
   owner = {
     type = "IDENTITY"
     id   = "00000000000000000000000000000001"
-    name = "Admin User"
   }
 
   form_elements = [
@@ -106,7 +107,6 @@ resource "sailpoint_form_definition" "advanced_form" {
     {
       id           = "section2"
       element_type = "SECTION"
-      validations  = []
       config = jsonencode({
         label = "Access Details"
         formElements = [
@@ -167,7 +167,6 @@ resource "sailpoint_form_definition" "conditional_form" {
   owner = {
     type = "IDENTITY"
     id   = "00000000000000000000000000000001"
-    name = "Form Administrator"
   }
 
   form_elements = [
@@ -245,11 +244,6 @@ resource "sailpoint_form_definition" "onboarding_form" {
     {
       id           = "section1"
       element_type = "SECTION"
-      validations = [
-        {
-          validation_type = "REQUIRED"
-        }
-      ]
       config = jsonencode({
         label = "New Hire Information"
         formElements = [
@@ -316,7 +310,7 @@ Required:
 - `id` (String) The unique identifier of the owner.
 - `type` (String) The type of the owner (e.g., IDENTITY).
 
-Optional:
+Read-Only:
 
 - `name` (String) The name of the owner.
 

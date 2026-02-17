@@ -284,21 +284,37 @@ func (m *formDefinitionModel) FromAPI(ctx context.Context, api client.FormDefini
 	m.Owner, diags = common.NewObjectRefFromAPIPtr(ctx, api.Owner)
 	diagnostics.Append(diags...)
 
-	// Map usedBy
-	m.UsedBy, diags = common.MapListFromAPI(ctx, api.UsedBy, common.ObjectRefObjectType, common.NewObjectRefFromAPI)
-	diagnostics.Append(diags...)
+	// Map usedBy (Optional only — normalize empty to null)
+	if len(api.UsedBy) > 0 {
+		m.UsedBy, diags = common.MapListFromAPI(ctx, api.UsedBy, common.ObjectRefObjectType, common.NewObjectRefFromAPI)
+		diagnostics.Append(diags...)
+	} else {
+		m.UsedBy = types.ListNull(common.ObjectRefObjectType)
+	}
 
-	// Map formInput
-	m.FormInput, diags = common.MapListFromAPI(ctx, api.FormInput, formInputObjectType, NewFormInputFromAPI)
-	diagnostics.Append(diags...)
+	// Map formInput (Optional only — normalize empty to null)
+	if len(api.FormInput) > 0 {
+		m.FormInput, diags = common.MapListFromAPI(ctx, api.FormInput, formInputObjectType, NewFormInputFromAPI)
+		diagnostics.Append(diags...)
+	} else {
+		m.FormInput = types.ListNull(formInputObjectType)
+	}
 
-	// Map formConditions
-	m.FormConditions, diags = common.MapListFromAPI(ctx, api.FormConditions, formConditionObjectType, NewFormConditionFromAPI)
-	diagnostics.Append(diags...)
+	// Map formConditions (Optional only — normalize empty to null)
+	if len(api.FormConditions) > 0 {
+		m.FormConditions, diags = common.MapListFromAPI(ctx, api.FormConditions, formConditionObjectType, NewFormConditionFromAPI)
+		diagnostics.Append(diags...)
+	} else {
+		m.FormConditions = types.ListNull(formConditionObjectType)
+	}
 
-	// Map formElements as JSON (use empty array "[]" instead of null for consistency)
-	m.FormElements, diags = common.MarshalJSONOrDefault(api.FormElements, "[]")
-	diagnostics.Append(diags...)
+	// Map formElements (Optional only — normalize empty to null)
+	if len(api.FormElements) > 0 {
+		m.FormElements, diags = common.MarshalJSONOrDefault(api.FormElements, "[]")
+		diagnostics.Append(diags...)
+	} else {
+		m.FormElements = jsontypes.NewNormalizedNull()
+	}
 
 	return diagnostics
 }
