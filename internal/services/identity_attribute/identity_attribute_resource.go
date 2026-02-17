@@ -147,7 +147,7 @@ func (r *identityAttributeResource) Create(ctx context.Context, req resource.Cre
 	tflog.Debug(ctx, "Mapping identity attribute resource model to API create request", map[string]any{
 		"name": plan.Name.ValueString(),
 	})
-	apiCreateRequest, diags := plan.ToAPICreateRequest(ctx)
+	apiCreateRequest, diags := plan.ToAPI(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -183,7 +183,7 @@ func (r *identityAttributeResource) Create(ctx context.Context, req resource.Cre
 	tflog.Debug(ctx, "Mapping SailPoint Identity Attribute API response to resource model", map[string]any{
 		"name": plan.Name.ValueString(),
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *identityAttributeAPIResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *identityAttributeAPIResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -248,7 +248,7 @@ func (r *identityAttributeResource) Read(ctx context.Context, req resource.ReadR
 	tflog.Debug(ctx, "Mapping SailPoint Identity Attribute API response to resource model", map[string]any{
 		"name": state.Name.ValueString(),
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *identityAttributeResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *identityAttributeResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -344,7 +344,7 @@ func (r *identityAttributeResource) Update(ctx context.Context, req resource.Upd
 	tflog.Debug(ctx, "Mapping SailPoint Identity Attribute API response to resource model", map[string]any{
 		"name": plan.Name.ValueString(),
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *identityAttributeAPIResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *identityAttributeAPIResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
