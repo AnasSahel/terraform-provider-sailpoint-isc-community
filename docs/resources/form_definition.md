@@ -16,15 +16,12 @@ Resource for SailPoint Form Definition. Forms are used to collect data in access
 # SailPoint Form Definition Resource Examples
 #
 # IMPORTANT NOTES:
-# - REQUIRED FIELDS: name, owner (with type and id)
+# - REQUIRED FIELDS: name, owner (with type and id), form_elements
 # - Forms are composed of sections and fields for data collection
-# - form_elements is a JSON string — use jsonencode() to define it
+# - Form elements are now structured objects (not JSON strings)
+# - Each form element MUST have an 'id' and 'element_type'
+# - The 'config' field within elements uses jsonencode() for complex configurations
 # - The 'owner' field references an identity who owns this form
-#
-# IMPORTANT: In form_elements JSON, omit fields with zero values
-# (empty strings "", empty arrays [], false). Including them may cause
-# "inconsistent result after apply" errors because the SailPoint API
-# strips zero-value fields from its responses.
 #
 # For more information, see:
 # https://developer.sailpoint.com/docs/api/v2025/custom-forms/
@@ -37,6 +34,7 @@ resource "sailpoint_form_definition" "basic_form" {
   owner = {
     type = "IDENTITY"
     id   = "00000000000000000000000000000001"
+    name = "John Doe"
   }
 
   form_elements = [
@@ -76,6 +74,7 @@ resource "sailpoint_form_definition" "advanced_form" {
   owner = {
     type = "IDENTITY"
     id   = "00000000000000000000000000000001"
+    name = "Admin User"
   }
 
   form_elements = [
@@ -107,6 +106,7 @@ resource "sailpoint_form_definition" "advanced_form" {
     {
       id           = "section2"
       element_type = "SECTION"
+      validations  = []
       config = jsonencode({
         label = "Access Details"
         formElements = [
@@ -167,6 +167,7 @@ resource "sailpoint_form_definition" "conditional_form" {
   owner = {
     type = "IDENTITY"
     id   = "00000000000000000000000000000001"
+    name = "Form Administrator"
   }
 
   form_elements = [
@@ -244,6 +245,11 @@ resource "sailpoint_form_definition" "onboarding_form" {
     {
       id           = "section1"
       element_type = "SECTION"
+      validations = [
+        {
+          validation_type = "REQUIRED"
+        }
+      ]
       config = jsonencode({
         label = "New Hire Information"
         formElements = [
@@ -292,7 +298,7 @@ resource "sailpoint_form_definition" "onboarding_form" {
 
 - `description` (String) The description of the form definition.
 - `form_conditions` (Attributes List) List of conditions for the form definition. Conditions control the visibility and behavior of form elements based on form inputs and other conditions. (see [below for nested schema](#nestedatt--form_conditions))
-- `form_elements` (String) JSON array of form elements (fields, sections, etc.). Elements must be wrapped in SECTION elements. Each element object has: id, elementType (TEXT, TOGGLE, TEXTAREA, HIDDEN, PHONE, EMAIL, SELECT, DATE, SECTION, COLUMN_SET, IMAGE, DESCRIPTION), config, key, validations.
+- `form_elements` (String) JSON array of form elements (fields, sections, etc.). Elements must be wrapped in SECTION elements. Each element object has: id, elementType (TEXT, TOGGLE, TEXTAREA, HIDDEN, PHONE, EMAIL, SELECT, DATE, SECTION, COLUMN_SET, IMAGE, DESCRIPTION), config, key, validations. **Important:** Omit fields with zero values (empty strings `""`, empty arrays `[]`, `false`) from the JSON to avoid inconsistent plan errors.
 - `form_input` (Attributes List) List of form inputs that can be passed into the form for use in conditional logic. (see [below for nested schema](#nestedatt--form_input))
 - `used_by` (Attributes List) List of objects that use this form definition. (see [below for nested schema](#nestedatt--used_by))
 
