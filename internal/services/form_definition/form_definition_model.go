@@ -276,7 +276,7 @@ func (m *formDefinitionModel) FromAPI(ctx context.Context, api client.FormDefini
 
 	m.ID = types.StringValue(api.ID)
 	m.Name = types.StringValue(api.Name)
-	m.Description = types.StringValue(api.Description)
+	m.Description = common.StringOrNullIfEmpty(api.Description)
 	m.Created = types.StringValue(api.Created)
 	m.Modified = types.StringValue(api.Modified)
 

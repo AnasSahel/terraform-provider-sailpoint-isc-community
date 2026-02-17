@@ -127,7 +127,7 @@ func fromSourceSchemaAPI(ctx context.Context, api client.SourceSchemaAPI) (
 		displayAttribute = types.StringNull()
 	}
 
-	hierarchyAttribute = common.StringOrNullValue(api.HierarchyAttribute)
+	hierarchyAttribute = common.StringOrNull(api.HierarchyAttribute)
 	includePermissions = types.BoolValue(api.IncludePermissions)
 
 	// Convert features
@@ -157,7 +157,7 @@ func fromSourceSchemaAPI(ctx context.Context, api client.SourceSchemaAPI) (
 		for _, attrAPI := range api.Attributes {
 			attrModel := sourceSchemaAttributeModel{
 				Name:          attrAPI.Name,
-				NativeName:    common.StringOrNullValue(attrAPI.NativeName),
+				NativeName:    common.StringOrNull(attrAPI.NativeName),
 				Type:          attrAPI.Type,
 				Description:   attrAPI.Description,
 				IsMulti:       attrAPI.IsMulti,
@@ -195,7 +195,7 @@ func fromSourceSchemaAPI(ctx context.Context, api client.SourceSchemaAPI) (
 		created = types.StringNull()
 	}
 
-	modified = common.StringOrNullValue(api.Modified)
+	modified = common.StringOrNull(api.Modified)
 
 	return
 }

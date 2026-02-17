@@ -68,7 +68,6 @@ func (r *formDefinitionResource) Schema(_ context.Context, _ resource.SchemaRequ
 			"description": schema.StringAttribute{
 				MarkdownDescription: "The description of the form definition.",
 				Optional:            true,
-				Computed:            true,
 			},
 			"owner": schema.SingleNestedAttribute{
 				MarkdownDescription: "The owner of the form definition.",

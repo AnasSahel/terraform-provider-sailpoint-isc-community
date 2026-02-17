@@ -36,7 +36,7 @@ func (ia *identityAttributeModel) FromSailPointAPI(ctx context.Context, identity
 	ia.System = types.BoolValue(identityAttributeApi.System)
 
 	// Handle nullable Type field
-	ia.Type = common.StringOrNullValue(identityAttributeApi.Type)
+	ia.Type = common.StringOrNull(identityAttributeApi.Type)
 
 	// Handle Sources
 	if identityAttributeApi.Sources == nil {

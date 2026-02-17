@@ -75,7 +75,7 @@ func fromSourceProvisioningPolicyAPI(ctx context.Context, api *client.Provisioni
 		for _, fieldAPI := range api.Fields {
 			fieldModel := provisioningPolicyFieldModel{
 				Name:          fieldAPI.Name,
-				Type:          common.StringOrNullValue(fieldAPI.Type),
+				Type:          common.StringOrNull(fieldAPI.Type),
 				IsRequired:    types.BoolValue(fieldAPI.IsRequired),
 				IsMultiValued: types.BoolValue(fieldAPI.IsMultiValued),
 			}
