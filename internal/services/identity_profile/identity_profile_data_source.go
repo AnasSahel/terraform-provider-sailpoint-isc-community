@@ -218,7 +218,7 @@ func (d *identityProfileDataSource) Read(ctx context.Context, req datasource.Rea
 	tflog.Debug(ctx, "Mapping SailPoint Identity Profile API response to data source model", map[string]any{
 		"id": identityProfileID,
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *identityProfileResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *identityProfileResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

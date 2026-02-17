@@ -100,6 +100,14 @@ func NewReplacePatch(path string, value any) JSONPatchOperation {
 	}
 }
 
+// NewRemovePatch creates a JSON Patch "remove" operation for the given path.
+func NewRemovePatch(path string) JSONPatchOperation {
+	return JSONPatchOperation{
+		Op:   "remove",
+		Path: path,
+	}
+}
+
 // formErrorContext provides context for error messages.
 type formErrorContext struct {
 	Operation string

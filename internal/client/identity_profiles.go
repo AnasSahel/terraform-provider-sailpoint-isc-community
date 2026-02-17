@@ -13,7 +13,11 @@ import (
 )
 
 const (
-	identityProfilesEndpoint = "/v2025/identity-profiles"
+	identityProfilesEndpointList   = "/v2025/identity-profiles"
+	identityProfilesEndpointGet    = "/v2025/identity-profiles/{profileId}"
+	identityProfilesEndpointCreate = "/v2025/identity-profiles"
+	identityProfilesEndpointPatch  = "/v2025/identity-profiles/{profileId}"
+	identityProfilesEndpointDelete = "/v2025/identity-profiles/{profileId}"
 )
 
 // IdentityProfileAPI represents a SailPoint Identity Profile from the API.
@@ -23,9 +27,9 @@ type IdentityProfileAPI struct {
 	Created                          string                         `json:"created,omitempty"`
 	Modified                         string                         `json:"modified,omitempty"`
 	Description                      *string                        `json:"description,omitempty"`
-	Owner                            *IdentityProfileOwnerAPI       `json:"owner,omitempty"`
+	Owner                            *ObjectRefAPI                  `json:"owner,omitempty"`
 	Priority                         int64                          `json:"priority,omitempty"`
-	AuthoritativeSource              IdentityProfileSourceRefAPI    `json:"authoritativeSource"`
+	AuthoritativeSource              ObjectRefAPI                   `json:"authoritativeSource"`
 	IdentityRefreshRequired          bool                           `json:"identityRefreshRequired"`
 	IdentityCount                    int32                          `json:"identityCount,omitempty"`
 	IdentityAttributeConfig          IdentityAttributeConfigAPI     `json:"identityAttributeConfig"`
@@ -35,26 +39,12 @@ type IdentityProfileAPI struct {
 
 // IdentityProfileCreateAPI represents the request body for creating an Identity Profile.
 type IdentityProfileCreateAPI struct {
-	Name                    string                      `json:"name"`
-	Description             *string                     `json:"description,omitempty"`
-	Owner                   *IdentityProfileOwnerAPI    `json:"owner,omitempty"`
-	Priority                int64                       `json:"priority,omitempty"`
-	AuthoritativeSource     IdentityProfileSourceRefAPI `json:"authoritativeSource"`
-	IdentityAttributeConfig IdentityAttributeConfigAPI  `json:"identityAttributeConfig"`
-}
-
-// IdentityProfileOwnerAPI represents the owner of an identity profile.
-type IdentityProfileOwnerAPI struct {
-	Type string `json:"type"`
-	ID   string `json:"id"`
-	Name string `json:"name,omitempty"`
-}
-
-// IdentityProfileSourceRefAPI represents a reference to a source (authoritative source).
-type IdentityProfileSourceRefAPI struct {
-	Type string `json:"type,omitempty"`
-	ID   string `json:"id"`
-	Name string `json:"name,omitempty"`
+	Name                    string                     `json:"name"`
+	Description             *string                    `json:"description,omitempty"`
+	Owner                   *ObjectRefAPI              `json:"owner,omitempty"`
+	Priority                int64                      `json:"priority,omitempty"`
+	AuthoritativeSource     ObjectRefAPI               `json:"authoritativeSource"`
+	IdentityAttributeConfig IdentityAttributeConfigAPI `json:"identityAttributeConfig"`
 }
 
 // IdentityAttributeConfigAPI represents the identity attribute configuration.
@@ -113,13 +103,11 @@ func (c *Client) GetIdentityProfile(ctx context.Context, id string) (*IdentityPr
 
 	var profile IdentityProfileAPI
 
-	resp, err := c.doRequest(
-		ctx,
-		http.MethodGet,
-		fmt.Sprintf("%s/%s", identityProfilesEndpoint, id),
-		nil,
-		&profile,
-	)
+	resp, err := c.prepareRequest(ctx).
+		SetResult(&profile).
+		SetPathParam("profileId", id).
+		Get(identityProfilesEndpointGet)
+
 	if err != nil {
 		return nil, c.formatIdentityProfileError(
 			identityProfileErrorContext{Operation: "get", ID: id},
@@ -164,7 +152,11 @@ func (c *Client) CreateIdentityProfile(ctx context.Context, profile *IdentityPro
 
 	var result IdentityProfileAPI
 
-	resp, err := c.doRequest(ctx, http.MethodPost, identityProfilesEndpoint, profile, &result)
+	resp, err := c.prepareRequest(ctx).
+		SetBody(profile).
+		SetResult(&result).
+		Post(identityProfilesEndpointCreate)
+
 	if err != nil {
 		return nil, c.formatIdentityProfileError(
 			identityProfileErrorContext{Operation: "create", Name: profile.Name},
@@ -193,33 +185,34 @@ func (c *Client) CreateIdentityProfile(ctx context.Context, profile *IdentityPro
 	return &result, nil
 }
 
-// UpdateIdentityProfile performs a partial update (PATCH) of an identity profile using JSON Patch.
-// Operations are passed as []map[string]interface{} to ensure correct JSON serialization
-// (struct-based operations with omitempty can incorrectly strip the "value" key for null values).
+// PatchIdentityProfile performs a partial update (PATCH) of an identity profile using JSON Patch.
 // Returns the updated IdentityProfileAPI and any error encountered.
-func (c *Client) UpdateIdentityProfile(ctx context.Context, id string, patchOperations []map[string]interface{}) (*IdentityProfileAPI, error) {
+func (c *Client) PatchIdentityProfile(ctx context.Context, id string, patchOps []JSONPatchOperation) (*IdentityProfileAPI, error) {
 	if id == "" {
 		return nil, fmt.Errorf("identity profile ID cannot be empty")
 	}
 
-	if len(patchOperations) == 0 {
-		return nil, fmt.Errorf("at least one patch operation is required")
+	if len(patchOps) == 0 {
+		// No changes to apply, fetch and return the current state
+		return c.GetIdentityProfile(ctx, id)
 	}
 
+	// Log the full request body for debugging
+	requestBody, _ := json.Marshal(patchOps)
 	tflog.Debug(ctx, "Updating identity profile (PATCH)", map[string]any{
 		"id":               id,
-		"operations_count": len(patchOperations),
+		"operations_count": len(patchOps),
+		"request_body":     string(requestBody),
 	})
 
 	var result IdentityProfileAPI
 
-	resp, err := c.doRequest(
-		ctx,
-		http.MethodPatch,
-		fmt.Sprintf("%s/%s", identityProfilesEndpoint, id),
-		patchOperations,
-		&result,
-	)
+	resp, err := c.prepareRequest(ctx).
+		SetBody(patchOps).
+		SetResult(&result).
+		SetPathParam("profileId", id).
+		Patch(identityProfilesEndpointPatch)
+
 	if err != nil {
 		return nil, c.formatIdentityProfileError(
 			identityProfileErrorContext{Operation: "update", ID: id},
@@ -262,13 +255,11 @@ func (c *Client) DeleteIdentityProfile(ctx context.Context, id string) (*TaskRes
 
 	var taskResult TaskResultSimplifiedAPI
 
-	resp, err := c.doRequest(
-		ctx,
-		http.MethodDelete,
-		fmt.Sprintf("%s/%s", identityProfilesEndpoint, id),
-		nil,
-		&taskResult,
-	)
+	resp, err := c.prepareRequest(ctx).
+		SetResult(&taskResult).
+		SetPathParam("profileId", id).
+		Delete(identityProfilesEndpointDelete)
+
 	if err != nil {
 		return nil, c.formatIdentityProfileError(
 			identityProfileErrorContext{Operation: "delete", ID: id},

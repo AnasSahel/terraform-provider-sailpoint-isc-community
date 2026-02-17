@@ -12,6 +12,14 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
+const (
+	identityAttributesEndpointList   = "/v2025/identity-attributes"
+	identityAttributesEndpointGet    = "/v2025/identity-attributes/{attributeName}"
+	identityAttributesEndpointCreate = "/v2025/identity-attributes"
+	identityAttributesEndpointUpdate = "/v2025/identity-attributes/{attributeName}"
+	identityAttributesEndpointDelete = "/v2025/identity-attributes/{attributeName}"
+)
+
 // IdentityAttributeSourceAPI represents the source configuration for an identity attribute in the SailPoint API.
 type IdentityAttributeSourceAPI struct {
 	Type       string                 `json:"type"`
@@ -33,13 +41,10 @@ type IdentityAttributeAPI struct {
 
 // identityAttributeErrorContext provides context for error messages.
 type identityAttributeErrorContext struct {
-	Operation string
-	Name      string
+	Operation    string
+	Name         string
+	ResponseBody string
 }
-
-const (
-	identityAttributesEndpoint = "/v2025/identity-attributes"
-)
 
 // ListIdentityAttributes retrieves all identity attributes from SailPoint.
 // Returns a slice of IdentityAttributeAPI and any error encountered.
@@ -48,7 +53,10 @@ func (c *Client) ListIdentityAttributes(ctx context.Context) ([]IdentityAttribut
 
 	var attributes []IdentityAttributeAPI
 
-	resp, err := c.doRequest(ctx, http.MethodGet, identityAttributesEndpoint, nil, &attributes)
+	resp, err := c.prepareRequest(ctx).
+		SetResult(&attributes).
+		Get(identityAttributesEndpointList)
+
 	if err != nil {
 		return nil, c.formatIdentityAttributeError(
 			identityAttributeErrorContext{Operation: "list"},
@@ -59,7 +67,7 @@ func (c *Client) ListIdentityAttributes(ctx context.Context) ([]IdentityAttribut
 
 	if resp.IsError() {
 		return nil, c.formatIdentityAttributeError(
-			identityAttributeErrorContext{Operation: "list"},
+			identityAttributeErrorContext{Operation: "list", ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -85,13 +93,11 @@ func (c *Client) GetIdentityAttribute(ctx context.Context, name string) (*Identi
 
 	var attribute IdentityAttributeAPI
 
-	resp, err := c.doRequest(
-		ctx,
-		http.MethodGet,
-		fmt.Sprintf("%s/%s", identityAttributesEndpoint, name),
-		nil,
-		&attribute,
-	)
+	resp, err := c.prepareRequest(ctx).
+		SetResult(&attribute).
+		SetPathParam("attributeName", name).
+		Get(identityAttributesEndpointGet)
+
 	if err != nil {
 		return nil, c.formatIdentityAttributeError(
 			identityAttributeErrorContext{Operation: "get", Name: name},
@@ -102,7 +108,7 @@ func (c *Client) GetIdentityAttribute(ctx context.Context, name string) (*Identi
 
 	if resp.IsError() {
 		return nil, c.formatIdentityAttributeError(
-			identityAttributeErrorContext{Operation: "get", Name: name},
+			identityAttributeErrorContext{Operation: "get", Name: name, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -135,7 +141,11 @@ func (c *Client) CreateIdentityAttribute(ctx context.Context, attribute *Identit
 
 	var result IdentityAttributeAPI
 
-	resp, err := c.doRequest(ctx, http.MethodPost, identityAttributesEndpoint, attribute, &result)
+	resp, err := c.prepareRequest(ctx).
+		SetBody(attribute).
+		SetResult(&result).
+		Post(identityAttributesEndpointCreate)
+
 	if err != nil {
 		return nil, c.formatIdentityAttributeError(
 			identityAttributeErrorContext{Operation: "create", Name: attribute.Name},
@@ -150,7 +160,7 @@ func (c *Client) CreateIdentityAttribute(ctx context.Context, attribute *Identit
 			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatIdentityAttributeError(
-			identityAttributeErrorContext{Operation: "create", Name: attribute.Name},
+			identityAttributeErrorContext{Operation: "create", Name: attribute.Name, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -175,19 +185,21 @@ func (c *Client) UpdateIdentityAttribute(ctx context.Context, name string, attri
 		return nil, fmt.Errorf("identity attribute cannot be nil")
 	}
 
+	// Log the full request body for debugging
+	requestBody, _ := json.Marshal(attribute)
 	tflog.Debug(ctx, "Updating identity attribute", map[string]any{
-		"name": name,
+		"name":         name,
+		"request_body": string(requestBody),
 	})
 
 	var result IdentityAttributeAPI
 
-	resp, err := c.doRequest(
-		ctx,
-		http.MethodPut,
-		fmt.Sprintf("%s/%s", identityAttributesEndpoint, name),
-		attribute,
-		&result,
-	)
+	resp, err := c.prepareRequest(ctx).
+		SetBody(attribute).
+		SetResult(&result).
+		SetPathParam("attributeName", name).
+		Put(identityAttributesEndpointUpdate)
+
 	if err != nil {
 		return nil, c.formatIdentityAttributeError(
 			identityAttributeErrorContext{Operation: "update", Name: name},
@@ -197,8 +209,12 @@ func (c *Client) UpdateIdentityAttribute(ctx context.Context, name string, attri
 	}
 
 	if resp.IsError() {
+		tflog.Error(ctx, "SailPoint API error response", map[string]any{
+			"status_code":   resp.StatusCode(),
+			"response_body": string(resp.Bytes()),
+		})
 		return nil, c.formatIdentityAttributeError(
-			identityAttributeErrorContext{Operation: "update", Name: name},
+			identityAttributeErrorContext{Operation: "update", Name: name, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -223,13 +239,10 @@ func (c *Client) DeleteIdentityAttribute(ctx context.Context, name string) error
 		"name": name,
 	})
 
-	resp, err := c.doRequest(
-		ctx,
-		http.MethodDelete,
-		fmt.Sprintf("%s/%s", identityAttributesEndpoint, name),
-		nil,
-		nil,
-	)
+	resp, err := c.prepareRequest(ctx).
+		SetPathParam("attributeName", name).
+		Delete(identityAttributesEndpointDelete)
+
 	if err != nil {
 		return c.formatIdentityAttributeError(
 			identityAttributeErrorContext{Operation: "delete", Name: name},
@@ -248,7 +261,7 @@ func (c *Client) DeleteIdentityAttribute(ctx context.Context, name string) error
 		}
 
 		return c.formatIdentityAttributeError(
-			identityAttributeErrorContext{Operation: "delete", Name: name},
+			identityAttributeErrorContext{Operation: "delete", Name: name, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -262,7 +275,6 @@ func (c *Client) DeleteIdentityAttribute(ctx context.Context, name string) error
 }
 
 // formatIdentityAttributeError formats errors with appropriate context for identity attribute operations.
-// This follows the error handling pattern established in the codebase.
 func (c *Client) formatIdentityAttributeError(errCtx identityAttributeErrorContext, err error, statusCode int) error {
 	var baseMsg string
 
@@ -280,24 +292,29 @@ func (c *Client) formatIdentityAttributeError(errCtx identityAttributeErrorConte
 
 	// Handle HTTP error status codes with clear, actionable messages
 	if statusCode != 0 {
+		detail := ""
+		if errCtx.ResponseBody != "" {
+			detail = fmt.Sprintf(" - response: %s", errCtx.ResponseBody)
+		}
+
 		switch statusCode {
 		case http.StatusBadRequest:
-			return fmt.Errorf("%s: invalid request - check attribute properties (400)", baseMsg)
+			return fmt.Errorf("%s: invalid request (400)%s", baseMsg, detail)
 		case http.StatusUnauthorized:
-			return fmt.Errorf("%s: authentication failed - check credentials (401)", baseMsg)
+			return fmt.Errorf("%s: authentication failed (401)%s", baseMsg, detail)
 		case http.StatusForbidden:
-			return fmt.Errorf("%s: access denied - insufficient permissions (403)", baseMsg)
+			return fmt.Errorf("%s: access denied (403)%s", baseMsg, detail)
 		case http.StatusNotFound:
 			// Wrap ErrNotFound so callers can use errors.Is() to check for 404
 			return fmt.Errorf("%s: %w", baseMsg, ErrNotFound)
 		case http.StatusConflict:
-			return fmt.Errorf("%s: conflict - attribute may already exist (409)", baseMsg)
+			return fmt.Errorf("%s: conflict (409)%s", baseMsg, detail)
 		case http.StatusTooManyRequests:
-			return fmt.Errorf("%s: rate limit exceeded - retry after delay (429)", baseMsg)
+			return fmt.Errorf("%s: rate limit exceeded (429)%s", baseMsg, detail)
 		case http.StatusInternalServerError:
-			return fmt.Errorf("%s: server error - contact SailPoint support (500)", baseMsg)
+			return fmt.Errorf("%s: server error (500)%s", baseMsg, detail)
 		default:
-			return fmt.Errorf("%s: unexpected status code %d", baseMsg, statusCode)
+			return fmt.Errorf("%s: unexpected status code %d%s", baseMsg, statusCode, detail)
 		}
 	}
 

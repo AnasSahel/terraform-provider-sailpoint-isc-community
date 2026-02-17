@@ -5,7 +5,6 @@ package identity_profile
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -19,7 +18,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -228,7 +226,7 @@ func (r *identityProfileResource) Create(ctx context.Context, req resource.Creat
 	tflog.Debug(ctx, "Mapping identity profile resource model to API create request", map[string]any{
 		"name": plan.Name.ValueString(),
 	})
-	apiCreateRequest, diags := plan.ToAPICreateRequest(ctx)
+	apiCreateRequest, diags := plan.ToAPI(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -265,17 +263,17 @@ func (r *identityProfileResource) Create(ctx context.Context, req resource.Creat
 	tflog.Debug(ctx, "Mapping SailPoint Identity Profile API response to resource model", map[string]any{
 		"name": plan.Name.ValueString(),
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *apiResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *apiResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	// Track whether user manages owner via private state, and null it out if not.
-	ownerManaged := !plan.Owner.IsNull()
+	ownerManaged := plan.Owner != nil
 	if ownerManaged {
 		resp.Diagnostics.Append(resp.Private.SetKey(ctx, "owner_managed", []byte("true"))...)
 	} else {
-		state.Owner = types.ObjectNull(ownerAttrTypes)
+		state.Owner = nil
 	}
 
 	// Set the state
@@ -340,7 +338,7 @@ func (r *identityProfileResource) Read(ctx context.Context, req resource.ReadReq
 	}
 
 	// Map the response to the resource model
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *apiResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *apiResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -348,7 +346,7 @@ func (r *identityProfileResource) Read(ctx context.Context, req resource.ReadReq
 	// If user doesn't manage owner (no private state flag), null it out.
 	// The API always returns an owner, but we only store it if user set it in config.
 	if !ownerManaged {
-		state.Owner = types.ObjectNull(ownerAttrTypes)
+		state.Owner = nil
 	}
 
 	// Set the state
@@ -384,7 +382,11 @@ func (r *identityProfileResource) Update(ctx context.Context, req resource.Updat
 	tflog.Debug(ctx, "Building patch operations for identity profile update", map[string]any{
 		"id": identityProfileID,
 	})
-	patchOperations := r.buildPatchOperations(&state, &plan)
+	patchOperations, diags := plan.ToPatchOperations(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	if len(patchOperations) == 0 {
 		tflog.Debug(ctx, "No changes detected, skipping update", map[string]any{
@@ -398,7 +400,7 @@ func (r *identityProfileResource) Update(ctx context.Context, req resource.Updat
 		"id":               identityProfileID,
 		"operations_count": len(patchOperations),
 	})
-	apiResponse, err := r.client.UpdateIdentityProfile(ctx, identityProfileID, patchOperations)
+	apiResponse, err := r.client.PatchIdentityProfile(ctx, identityProfileID, patchOperations)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating SailPoint Identity Profile",
@@ -422,18 +424,18 @@ func (r *identityProfileResource) Update(ctx context.Context, req resource.Updat
 
 	// Map the API response back to the resource model
 	var newState identityProfileModel
-	resp.Diagnostics.Append(newState.FromSailPointAPI(ctx, *apiResponse)...)
+	resp.Diagnostics.Append(newState.FromAPI(ctx, *apiResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	// Update private state flag and null out owner if user doesn't manage it
-	ownerManaged := !plan.Owner.IsNull()
+	ownerManaged := plan.Owner != nil
 	if ownerManaged {
 		resp.Diagnostics.Append(resp.Private.SetKey(ctx, "owner_managed", []byte("true"))...)
 	} else {
 		resp.Diagnostics.Append(resp.Private.SetKey(ctx, "owner_managed", []byte("false"))...)
-		newState.Owner = types.ObjectNull(ownerAttrTypes)
+		newState.Owner = nil
 	}
 
 	// Set the state
@@ -491,160 +493,4 @@ func (r *identityProfileResource) ImportState(ctx context.Context, req resource.
 	tflog.Info(ctx, "Successfully imported SailPoint Identity Profile resource", map[string]any{
 		"id": req.ID,
 	})
-}
-
-// buildPatchOperations creates JSON Patch operations for changes between state and plan.
-// Returns []map[string]interface{} to ensure correct JSON serialization (avoiding omitempty issues with struct-based operations).
-func (r *identityProfileResource) buildPatchOperations(state, plan *identityProfileModel) []map[string]interface{} {
-	operations := make([]map[string]interface{}, 0)
-
-	// Name
-	if !plan.Name.Equal(state.Name) {
-		operations = append(operations, map[string]interface{}{
-			"op":    "replace",
-			"path":  "/name",
-			"value": plan.Name.ValueString(),
-		})
-	}
-
-	// Description
-	if !plan.Description.Equal(state.Description) {
-		if !plan.Description.IsNull() {
-			operations = append(operations, map[string]interface{}{
-				"op":    "replace",
-				"path":  "/description",
-				"value": plan.Description.ValueString(),
-			})
-		} else {
-			operations = append(operations, map[string]interface{}{
-				"op":   "remove",
-				"path": "/description",
-			})
-		}
-	}
-
-	// Priority
-	if !plan.Priority.Equal(state.Priority) {
-		operations = append(operations, map[string]interface{}{
-			"op":    "replace",
-			"path":  "/priority",
-			"value": plan.Priority.ValueInt64(),
-		})
-	}
-
-	// Owner
-	if !plan.Owner.Equal(state.Owner) {
-		if !plan.Owner.IsNull() {
-			ownerAttrs := plan.Owner.Attributes()
-			ownerValue := map[string]interface{}{}
-
-			if typeVal, ok := ownerAttrs["type"]; ok && !typeVal.IsNull() {
-				if strVal, ok := typeVal.(types.String); ok {
-					ownerValue["type"] = strVal.ValueString()
-				}
-			}
-			if idVal, ok := ownerAttrs["id"]; ok && !idVal.IsNull() {
-				if strVal, ok := idVal.(types.String); ok {
-					ownerValue["id"] = strVal.ValueString()
-				}
-			}
-			if nameVal, ok := ownerAttrs["name"]; ok && !nameVal.IsNull() && !nameVal.IsUnknown() {
-				if strVal, ok := nameVal.(types.String); ok {
-					ownerValue["name"] = strVal.ValueString()
-				}
-			}
-
-			operations = append(operations, map[string]interface{}{
-				"op":    "replace",
-				"path":  "/owner",
-				"value": ownerValue,
-			})
-		} else {
-			operations = append(operations, map[string]interface{}{
-				"op":   "remove",
-				"path": "/owner",
-			})
-		}
-	}
-
-	// IdentityAttributeConfig
-	if !plan.IdentityAttributeConfig.Equal(state.IdentityAttributeConfig) {
-		if !plan.IdentityAttributeConfig.IsNull() {
-			configAttrs := plan.IdentityAttributeConfig.Attributes()
-			configValue := map[string]interface{}{}
-
-			// Handle enabled field
-			if enabledVal, ok := configAttrs["enabled"]; ok && !enabledVal.IsNull() && !enabledVal.IsUnknown() {
-				if boolVal, ok := enabledVal.(types.Bool); ok {
-					configValue["enabled"] = boolVal.ValueBool()
-				}
-			}
-
-			// Handle attribute_transforms field
-			if transformsVal, ok := configAttrs["attribute_transforms"]; ok && !transformsVal.IsNull() && !transformsVal.IsUnknown() {
-				if listVal, ok := transformsVal.(types.List); ok {
-					transforms := make([]map[string]interface{}, 0, len(listVal.Elements()))
-
-					for _, elem := range listVal.Elements() {
-						if objVal, ok := elem.(types.Object); ok {
-							transformAttrs := objVal.Attributes()
-							transform := map[string]interface{}{}
-
-							// Get identity_attribute_name
-							if nameVal, ok := transformAttrs["identity_attribute_name"]; ok && !nameVal.IsNull() {
-								if strVal, ok := nameVal.(types.String); ok {
-									transform["identityAttributeName"] = strVal.ValueString()
-								}
-							}
-
-							// Get transform_definition
-							if defVal, ok := transformAttrs["transform_definition"]; ok && !defVal.IsNull() && !defVal.IsUnknown() {
-								if defObj, ok := defVal.(types.Object); ok {
-									defAttrs := defObj.Attributes()
-									transformDef := map[string]interface{}{}
-
-									if typeVal, ok := defAttrs["type"]; ok && !typeVal.IsNull() && !typeVal.IsUnknown() {
-										if strVal, ok := typeVal.(types.String); ok {
-											transformDef["type"] = strVal.ValueString()
-										}
-									}
-
-									if attrsVal, ok := defAttrs["attributes"]; ok && !attrsVal.IsNull() && !attrsVal.IsUnknown() {
-										if normalizedVal, ok := attrsVal.(jsontypes.Normalized); ok {
-											jsonStr := normalizedVal.ValueString()
-											var attrs map[string]interface{}
-											if err := json.Unmarshal([]byte(jsonStr), &attrs); err == nil {
-												transformDef["attributes"] = attrs
-											}
-										}
-									}
-
-									transform["transformDefinition"] = transformDef
-								}
-							}
-
-							transforms = append(transforms, transform)
-						}
-					}
-
-					if len(transforms) > 0 {
-						configValue["attributeTransforms"] = transforms
-					}
-				}
-			}
-
-			operations = append(operations, map[string]interface{}{
-				"op":    "replace",
-				"path":  "/identityAttributeConfig",
-				"value": configValue,
-			})
-		} else {
-			operations = append(operations, map[string]interface{}{
-				"op":   "remove",
-				"path": "/identityAttributeConfig",
-			})
-		}
-	}
-
-	return operations
 }
