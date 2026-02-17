@@ -239,7 +239,7 @@ func (d *formDefinitionDataSource) Read(ctx context.Context, req datasource.Read
 
 	// Map the response to the data source model
 	var state formDefinitionModel
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *formDefinitionResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *formDefinitionResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

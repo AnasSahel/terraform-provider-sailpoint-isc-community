@@ -5,46 +5,149 @@ package form_definition
 
 import (
 	"context"
-	"encoding/json"
-	"reflect"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// formDefinitionOwnerModel represents the owner of a form definition in Terraform state.
-type formDefinitionOwnerModel struct {
-	Type types.String `tfsdk:"type"`
-	ID   types.String `tfsdk:"id"`
-	Name types.String `tfsdk:"name"`
-}
+// Element type definitions for types.List conversions.
+var (
+	formInputObjectType = types.ObjectType{AttrTypes: map[string]attr.Type{
+		"id":          types.StringType,
+		"type":        types.StringType,
+		"label":       types.StringType,
+		"description": types.StringType,
+	}}
 
-// formDefinitionUsedByModel represents a resource that references the form definition in Terraform state.
-type formDefinitionUsedByModel struct {
-	Type types.String `tfsdk:"type"`
-	ID   types.String `tfsdk:"id"`
-	Name types.String `tfsdk:"name"`
-}
+	formConditionRuleObjectType = types.ObjectType{AttrTypes: map[string]attr.Type{
+		"source_type": types.StringType,
+		"source":      types.StringType,
+		"operator":    types.StringType,
+		"value_type":  types.StringType,
+		"value":       types.StringType,
+	}}
 
-// formDefinitionFormInputModel represents a form input field in Terraform state.
-type formDefinitionFormInputModel struct {
+	formConditionEffectConfigObjectType = types.ObjectType{AttrTypes: map[string]attr.Type{
+		"default_value_label": types.StringType,
+		"element":             types.StringType,
+	}}
+
+	formConditionEffectObjectType = types.ObjectType{AttrTypes: map[string]attr.Type{
+		"effect_type": types.StringType,
+		"config":      formConditionEffectConfigObjectType,
+	}}
+
+	formConditionObjectType = types.ObjectType{AttrTypes: map[string]attr.Type{
+		"rule_operator": types.StringType,
+		"rules":         types.ListType{ElemType: formConditionRuleObjectType},
+		"effects":       types.ListType{ElemType: formConditionEffectObjectType},
+	}}
+)
+
+// formInputModel represents a form input field in Terraform state.
+type formInputModel struct {
 	ID          types.String `tfsdk:"id"`
 	Type        types.String `tfsdk:"type"`
 	Label       types.String `tfsdk:"label"`
 	Description types.String `tfsdk:"description"`
 }
 
-// formDefinitionFormConditionsModel represents a form condition in Terraform state.
-type formDefinitionFormConditionModel struct {
-	RuleOperator types.String                             `tfsdk:"rule_operator"` // Has either "AND" or "OR"
-	Rules        []formDefinitionFormConditionRuleModel   `tfsdk:"rules"`
-	Effects      []formDefinitionFormConditionEffectModel `tfsdk:"effects"`
+func NewFormInputFromAPI(ctx context.Context, api client.FormInputAPI) (formInputModel, diag.Diagnostics) {
+	var m formInputModel
+
+	diags := m.FromAPI(ctx, api)
+
+	return m, diags
 }
 
-// formDefinitionFormConditionRuleModel represents a rule within a form condition.
-type formDefinitionFormConditionRuleModel struct {
+func (m *formInputModel) FromAPI(ctx context.Context, api client.FormInputAPI) diag.Diagnostics {
+	m.ID = types.StringValue(api.ID)
+	m.Type = types.StringValue(api.Type)
+	m.Label = types.StringValue(api.Label)
+	m.Description = types.StringValue(api.Description)
+
+	return nil
+}
+
+func (m *formInputModel) ToAPI(ctx context.Context) (client.FormInputAPI, diag.Diagnostics) {
+	api := client.FormInputAPI{
+		ID:          m.ID.ValueString(),
+		Type:        m.Type.ValueString(),
+		Label:       m.Label.ValueString(),
+		Description: m.Description.ValueString(),
+	}
+
+	return api, nil
+}
+
+func FormInputToAPI(ctx context.Context, m formInputModel) (client.FormInputAPI, diag.Diagnostics) {
+	return m.ToAPI(ctx)
+}
+
+// formConditionModel represents a form condition in Terraform state.
+type formConditionModel struct {
+	RuleOperator types.String               `tfsdk:"rule_operator"`
+	Rules        []formConditionRuleModel   `tfsdk:"rules"`
+	Effects      []formConditionEffectModel `tfsdk:"effects"`
+}
+
+func NewFormConditionFromAPI(ctx context.Context, api client.FormConditionAPI) (formConditionModel, diag.Diagnostics) {
+	var m formConditionModel
+	diags := m.FromAPI(ctx, api)
+
+	return m, diags
+}
+
+func (m *formConditionModel) FromAPI(ctx context.Context, api client.FormConditionAPI) diag.Diagnostics {
+	var diagnostics diag.Diagnostics
+	var diags diag.Diagnostics
+
+	m.RuleOperator = types.StringValue(api.RuleOperator)
+
+	m.Rules, diags = common.MapSliceFromAPI(ctx, api.Rules, NewFormConditionRuleFromAPI)
+	diagnostics.Append(diags...)
+
+	m.Effects, diags = common.MapSliceFromAPI(ctx, api.Effects, NewFormConditionEffectFromAPI)
+	diagnostics.Append(diags...)
+
+	return diagnostics
+}
+
+func (m *formConditionModel) ToAPI(ctx context.Context) (client.FormConditionAPI, diag.Diagnostics) {
+	var diagnostics diag.Diagnostics
+	var diags diag.Diagnostics
+
+	rules := make([]client.FormConditionRuleAPI, len(m.Rules))
+	for i := range m.Rules {
+		rules[i], diags = m.Rules[i].ToAPI(ctx)
+		diagnostics.Append(diags...)
+	}
+
+	effects := make([]client.FormConditionEffectAPI, len(m.Effects))
+	for i := range m.Effects {
+		effects[i], diags = m.Effects[i].ToAPI(ctx)
+		diagnostics.Append(diags...)
+	}
+
+	api := client.FormConditionAPI{
+		RuleOperator: m.RuleOperator.ValueString(),
+		Rules:        rules,
+		Effects:      effects,
+	}
+
+	return api, diagnostics
+}
+
+func FormConditionToAPI(ctx context.Context, m formConditionModel) (client.FormConditionAPI, diag.Diagnostics) {
+	return m.ToAPI(ctx)
+}
+
+// formConditionRuleModel represents a rule within a form condition.
+type formConditionRuleModel struct {
 	SourceType types.String `tfsdk:"source_type"`
 	Source     types.String `tfsdk:"source"`
 	Operator   types.String `tfsdk:"operator"`
@@ -52,35 +155,122 @@ type formDefinitionFormConditionRuleModel struct {
 	Value      types.String `tfsdk:"value"`
 }
 
-// formDefinitionFormConditionEffectModel represents the effect of a form condition in Terraform state.
-type formDefinitionFormConditionEffectModel struct {
-	EffectType types.String                                 `tfsdk:"effect_type"`
-	Config     formDefinitionFormConditionEffectConfigModel `tfsdk:"config"`
+func NewFormConditionRuleFromAPI(ctx context.Context, api client.FormConditionRuleAPI) (formConditionRuleModel, diag.Diagnostics) {
+	var m formConditionRuleModel
+
+	diags := m.FromAPI(ctx, api)
+
+	return m, diags
 }
 
-// formDefinitionFormConditionEffectConfigModel represents the configuration for a form condition effect in Terraform state.
-type formDefinitionFormConditionEffectConfigModel struct {
+func (m *formConditionRuleModel) FromAPI(ctx context.Context, api client.FormConditionRuleAPI) diag.Diagnostics {
+	m.SourceType = types.StringValue(api.SourceType)
+	m.Source = types.StringValue(api.Source)
+	m.Operator = types.StringValue(api.Operator)
+	m.ValueType = types.StringValue(api.ValueType)
+	m.Value = types.StringValue(api.Value)
+
+	return nil
+}
+
+func (m *formConditionRuleModel) ToAPI(ctx context.Context) (client.FormConditionRuleAPI, diag.Diagnostics) {
+	api := client.FormConditionRuleAPI{
+		SourceType: m.SourceType.ValueString(),
+		Source:     m.Source.ValueString(),
+		Operator:   m.Operator.ValueString(),
+		ValueType:  m.ValueType.ValueString(),
+		Value:      m.Value.ValueString(),
+	}
+
+	return api, nil
+}
+
+// formConditionEffectModel represents the effect of a form condition in Terraform state.
+type formConditionEffectModel struct {
+	EffectType types.String                   `tfsdk:"effect_type"`
+	Config     formConditionEffectConfigModel `tfsdk:"config"`
+}
+
+func NewFormConditionEffectFromAPI(ctx context.Context, api client.FormConditionEffectAPI) (formConditionEffectModel, diag.Diagnostics) {
+	var m formConditionEffectModel
+
+	diags := m.FromAPI(ctx, api)
+
+	return m, diags
+}
+
+func (m *formConditionEffectModel) FromAPI(ctx context.Context, api client.FormConditionEffectAPI) diag.Diagnostics {
+	var diags diag.Diagnostics
+
+	m.EffectType = types.StringValue(api.EffectType)
+	m.Config, diags = NewFormConditionEffectConfigFromAPI(ctx, api.Config)
+
+	return diags
+}
+
+func (m *formConditionEffectModel) ToAPI(ctx context.Context) (client.FormConditionEffectAPI, diag.Diagnostics) {
+	var diagnostics diag.Diagnostics
+	var diags diag.Diagnostics
+
+	configAPI, diags := m.Config.ToAPI(ctx)
+	diagnostics.Append(diags...)
+
+	api := client.FormConditionEffectAPI{
+		EffectType: m.EffectType.ValueString(),
+		Config:     configAPI,
+	}
+
+	return api, diagnostics
+}
+
+// formConditionEffectConfigModel represents the configuration for a form condition effect in Terraform state.
+type formConditionEffectConfigModel struct {
 	DefaultValueLabel types.String `tfsdk:"default_value_label"`
 	Element           types.String `tfsdk:"element"`
 }
 
-// formDefinitionModel represents the Terraform state for a SailPoint form definition.
-type formDefinitionModel struct {
-	ID             types.String                       `tfsdk:"id"`
-	Name           types.String                       `tfsdk:"name"`
-	Description    types.String                       `tfsdk:"description"`
-	Owner          *formDefinitionOwnerModel          `tfsdk:"owner"`
-	UsedBy         []formDefinitionUsedByModel        `tfsdk:"used_by"`
-	FormInput      []formDefinitionFormInputModel     `tfsdk:"form_input"`
-	FormElements   jsontypes.Normalized               `tfsdk:"form_elements"`
-	FormConditions []formDefinitionFormConditionModel `tfsdk:"form_conditions"`
-	Created        types.String                       `tfsdk:"created"`
-	Modified       types.String                       `tfsdk:"modified"`
+func NewFormConditionEffectConfigFromAPI(ctx context.Context, api client.FormConditionEffectConfigAPI) (formConditionEffectConfigModel, diag.Diagnostics) {
+	var m formConditionEffectConfigModel
+
+	diags := m.FromAPI(ctx, api)
+
+	return m, diags
 }
 
-// FromSailPointAPI maps fields from the API response to the Terraform model.
-func (m *formDefinitionModel) FromSailPointAPI(ctx context.Context, api client.FormDefinitionAPI) diag.Diagnostics {
+func (m *formConditionEffectConfigModel) FromAPI(ctx context.Context, api client.FormConditionEffectConfigAPI) diag.Diagnostics {
+	m.DefaultValueLabel = types.StringValue(api.DefaultValueLabel)
+	m.Element = types.StringValue(api.Element)
+
+	return nil
+}
+
+func (m *formConditionEffectConfigModel) ToAPI(ctx context.Context) (client.FormConditionEffectConfigAPI, diag.Diagnostics) {
+	api := client.FormConditionEffectConfigAPI{
+		DefaultValueLabel: m.DefaultValueLabel.ValueString(),
+		Element:           m.Element.ValueString(),
+	}
+
+	return api, nil
+}
+
+// formDefinitionModel represents the Terraform state for a SailPoint form definition.
+type formDefinitionModel struct {
+	ID             types.String           `tfsdk:"id"`
+	Name           types.String           `tfsdk:"name"`
+	Description    types.String           `tfsdk:"description"`
+	Owner          *common.ObjectRefModel `tfsdk:"owner"`
+	UsedBy         types.List             `tfsdk:"used_by"`
+	FormInput      types.List             `tfsdk:"form_input"`
+	FormElements   jsontypes.Normalized   `tfsdk:"form_elements"`
+	FormConditions types.List             `tfsdk:"form_conditions"`
+	Created        types.String           `tfsdk:"created"`
+	Modified       types.String           `tfsdk:"modified"`
+}
+
+// FromAPI maps fields from the API response to the Terraform model.
+func (m *formDefinitionModel) FromAPI(ctx context.Context, api client.FormDefinitionAPI) diag.Diagnostics {
 	var diagnostics diag.Diagnostics
+	var diags diag.Diagnostics
 
 	m.ID = types.StringValue(api.ID)
 	m.Name = types.StringValue(api.Name)
@@ -89,166 +279,53 @@ func (m *formDefinitionModel) FromSailPointAPI(ctx context.Context, api client.F
 	m.Modified = types.StringValue(api.Modified)
 
 	// Map owner
-	m.Owner = &formDefinitionOwnerModel{
-		Type: types.StringValue(api.Owner.Type),
-		ID:   types.StringValue(api.Owner.ID),
-		Name: types.StringValue(api.Owner.Name),
-	}
+	m.Owner, diags = common.NewObjectRefFromAPIPtr(ctx, api.Owner)
+	diagnostics.Append(diags...)
 
 	// Map usedBy
-	if len(api.UsedBy) > 0 {
-		m.UsedBy = make([]formDefinitionUsedByModel, len(api.UsedBy))
-		for i := range api.UsedBy {
-			m.UsedBy[i] = formDefinitionUsedByModel{
-				Type: types.StringValue(api.UsedBy[i].Type),
-				ID:   types.StringValue(api.UsedBy[i].ID),
-				Name: types.StringValue(api.UsedBy[i].Name),
-			}
-		}
-	}
+	m.UsedBy, diags = common.MapListFromAPI(ctx, api.UsedBy, common.ObjectRefObjectType, common.NewObjectRefFromAPI)
+	diagnostics.Append(diags...)
 
 	// Map formInput
-	if len(api.FormInput) > 0 {
-		m.FormInput = make([]formDefinitionFormInputModel, len(api.FormInput))
-		for i := range api.FormInput {
-			m.FormInput[i] = formDefinitionFormInputModel{
-				ID:          types.StringValue(api.FormInput[i].ID),
-				Type:        types.StringValue(api.FormInput[i].Type),
-				Label:       types.StringValue(api.FormInput[i].Label),
-				Description: types.StringValue(api.FormInput[i].Description),
-			}
-		}
-	}
+	m.FormInput, diags = common.MapListFromAPI(ctx, api.FormInput, formInputObjectType, NewFormInputFromAPI)
+	diagnostics.Append(diags...)
 
 	// Map formConditions
-	if len(api.FormConditions) > 0 {
-		m.FormConditions = make([]formDefinitionFormConditionModel, len(api.FormConditions))
-		for i := range api.FormConditions {
-			// Map rules
-			rules := make([]formDefinitionFormConditionRuleModel, len(api.FormConditions[i].Rules))
-			for j := range api.FormConditions[i].Rules {
-				rules[j] = formDefinitionFormConditionRuleModel{
-					SourceType: types.StringValue(api.FormConditions[i].Rules[j].SourceType),
-					Source:     types.StringValue(api.FormConditions[i].Rules[j].Source),
-					Operator:   types.StringValue(api.FormConditions[i].Rules[j].Operator),
-					ValueType:  types.StringValue(api.FormConditions[i].Rules[j].ValueType),
-					Value:      types.StringValue(api.FormConditions[i].Rules[j].Value),
-				}
-			}
-
-			// Map effects
-			effects := make([]formDefinitionFormConditionEffectModel, len(api.FormConditions[i].Effects))
-			for k := range api.FormConditions[i].Effects {
-				effects[k] = formDefinitionFormConditionEffectModel{
-					EffectType: types.StringValue(api.FormConditions[i].Effects[k].EffectType),
-					Config: formDefinitionFormConditionEffectConfigModel{
-						DefaultValueLabel: types.StringValue(api.FormConditions[i].Effects[k].Config.DefaultValueLabel),
-						Element:           types.StringValue(api.FormConditions[i].Effects[k].Config.Element),
-					},
-				}
-			}
-
-			m.FormConditions[i] = formDefinitionFormConditionModel{
-				RuleOperator: types.StringValue(api.FormConditions[i].RuleOperator),
-				Rules:        rules,
-				Effects:      effects,
-			}
-		}
-	}
+	m.FormConditions, diags = common.MapListFromAPI(ctx, api.FormConditions, formConditionObjectType, NewFormConditionFromAPI)
+	diagnostics.Append(diags...)
 
 	// Map formElements as JSON (use empty array "[]" instead of null for consistency)
-	if api.FormElements != nil {
-		formElementsBytes, err := json.Marshal(api.FormElements)
-		if err != nil {
-			diagnostics.AddError(
-				"Error Mapping Form Elements",
-				"Could not marshal form elements to JSON: "+err.Error(),
-			)
-			return diagnostics
-		}
-		m.FormElements = jsontypes.NewNormalizedValue(string(formElementsBytes))
-	} else {
-		m.FormElements = jsontypes.NewNormalizedValue("[]")
-	}
+	m.FormElements, diags = common.MarshalJSONOrDefault(api.FormElements, "[]")
+	diagnostics.Append(diags...)
 
 	return diagnostics
 }
 
-// ToAPICreateRequest maps fields from the Terraform model to the API create request.
-func (m *formDefinitionModel) ToAPICreateRequest(ctx context.Context) (client.FormDefinitionAPI, diag.Diagnostics) {
+// ToAPI maps fields from the Terraform model to the API create request.
+func (m *formDefinitionModel) ToAPI(ctx context.Context) (client.FormDefinitionAPI, diag.Diagnostics) {
 	var diagnostics diag.Diagnostics
+	var diags diag.Diagnostics
+	var apiRequest client.FormDefinitionAPI
 
-	apiRequest := client.FormDefinitionAPI{
-		Name:        m.Name.ValueString(),
-		Description: m.Description.ValueString(),
-		Owner: client.ObjectRefAPI{
-			Type: m.Owner.Type.ValueString(),
-			ID:   m.Owner.ID.ValueString(),
-		},
-	}
+	apiRequest.Name = m.Name.ValueString()
+	apiRequest.Description = m.Description.ValueString()
 
-	// Parse formInput
-	if len(m.FormInput) > 0 {
-		var formInput []client.FormInputAPI
-		for i := range m.FormInput {
-			formInput = append(formInput, client.FormInputAPI{
-				ID:          m.FormInput[i].ID.ValueString(),
-				Type:        m.FormInput[i].Type.ValueString(),
-				Label:       m.FormInput[i].Label.ValueString(),
-				Description: m.FormInput[i].Description.ValueString(),
-			})
-		}
-		apiRequest.FormInput = formInput
-	}
+	// Parse owner
+	apiRequest.Owner, diags = m.Owner.ToAPI(ctx)
+	diagnostics.Append(diags...)
 
-	// Parse formConditions
-	if len(m.FormConditions) > 0 {
-		var formConditions []client.FormConditionAPI
-		for i := range m.FormConditions {
-			// Parse rules
-			var rules []client.FormConditionRuleAPI
-			for j := range m.FormConditions[i].Rules {
-				rules = append(rules, client.FormConditionRuleAPI{
-					SourceType: m.FormConditions[i].Rules[j].SourceType.ValueString(),
-					Source:     m.FormConditions[i].Rules[j].Source.ValueString(),
-					Operator:   m.FormConditions[i].Rules[j].Operator.ValueString(),
-					ValueType:  m.FormConditions[i].Rules[j].ValueType.ValueString(),
-					Value:      m.FormConditions[i].Rules[j].Value.ValueString(),
-				})
-			}
+	// Parse formInput from types.List
+	apiRequest.FormInput, diags = common.MapListToAPI(ctx, m.FormInput, FormInputToAPI)
+	diagnostics.Append(diags...)
 
-			// Parse effects
-			var effects []client.FormConditionEffectAPI
-			for k := range m.FormConditions[i].Effects {
-				effects = append(effects, client.FormConditionEffectAPI{
-					EffectType: m.FormConditions[i].Effects[k].EffectType.ValueString(),
-					Config: client.FormConditionEffectConfigAPI{
-						DefaultValueLabel: m.FormConditions[i].Effects[k].Config.DefaultValueLabel.ValueString(),
-						Element:           m.FormConditions[i].Effects[k].Config.Element.ValueString(),
-					},
-				})
-			}
-
-			formConditions = append(formConditions, client.FormConditionAPI{
-				RuleOperator: m.FormConditions[i].RuleOperator.ValueString(),
-				Rules:        rules,
-				Effects:      effects,
-			})
-		}
-		apiRequest.FormConditions = formConditions
-	}
+	// Parse formConditions from types.List
+	apiRequest.FormConditions, diags = common.MapListToAPI(ctx, m.FormConditions, FormConditionToAPI)
+	diagnostics.Append(diags...)
 
 	// Parse formElements from JSON
-	if !m.FormElements.IsNull() && !m.FormElements.IsUnknown() {
-		var formElements []client.FormElementAPI
-		if err := json.Unmarshal([]byte(m.FormElements.ValueString()), &formElements); err != nil {
-			diagnostics.AddError(
-				"Error Parsing Form Elements",
-				"Could not parse form elements JSON: "+err.Error(),
-			)
-			return apiRequest, diagnostics
-		}
-		apiRequest.FormElements = formElements
+	if elements, diags := common.UnmarshalJSONField[[]client.FormElementAPI](m.FormElements); elements != nil {
+		apiRequest.FormElements = *elements
+		diagnostics.Append(diags...)
 	}
 
 	return apiRequest, diagnostics
@@ -279,7 +356,8 @@ func (m *formDefinitionModel) ToPatchOperations(ctx context.Context, state *form
 	}
 
 	// Compare owner
-	if !reflect.DeepEqual(m.Owner, state.Owner) {
+	if m.Owner.Type.ValueString() != state.Owner.Type.ValueString() ||
+		m.Owner.ID.ValueString() != state.Owner.ID.ValueString() {
 		patchOps = append(patchOps, client.JSONPatchOperation{
 			Op:   "replace",
 			Path: "/owner",
@@ -290,33 +368,12 @@ func (m *formDefinitionModel) ToPatchOperations(ctx context.Context, state *form
 		})
 	}
 
-	// Compare usedBy - this is read-only and should not be updated, so we skip it
-	if !reflect.DeepEqual(m.UsedBy, state.UsedBy) {
-		usedBy := []client.ObjectRefAPI{}
-		for i := range m.UsedBy {
-			usedBy = append(usedBy, client.ObjectRefAPI{
-				Type: m.UsedBy[i].Type.ValueString(),
-				ID:   m.UsedBy[i].ID.ValueString(),
-			})
-		}
-		patchOps = append(patchOps, client.JSONPatchOperation{
-			Op:    "replace",
-			Path:  "/usedBy",
-			Value: usedBy,
-		})
-	}
+	// usedBy is read-only (Computed), never patched
 
 	// Compare formInput
-	if !reflect.DeepEqual(m.FormInput, state.FormInput) {
-		formInput := []client.FormInputAPI{}
-		for i := range m.FormInput {
-			formInput = append(formInput, client.FormInputAPI{
-				ID:          m.FormInput[i].ID.ValueString(),
-				Type:        m.FormInput[i].Type.ValueString(),
-				Label:       m.FormInput[i].Label.ValueString(),
-				Description: m.FormInput[i].Description.ValueString(),
-			})
-		}
+	if !m.FormInput.Equal(state.FormInput) {
+		formInput, diags := common.MapListToAPI(ctx, m.FormInput, FormInputToAPI)
+		diagnostics.Append(diags...)
 		patchOps = append(patchOps, client.JSONPatchOperation{
 			Op:    "replace",
 			Path:  "/formInput",
@@ -325,39 +382,9 @@ func (m *formDefinitionModel) ToPatchOperations(ctx context.Context, state *form
 	}
 
 	// Compare formConditions
-	if !reflect.DeepEqual(m.FormConditions, state.FormConditions) {
-		formConditions := []client.FormConditionAPI{}
-		for i := range m.FormConditions {
-			// Parse rules
-			rules := []client.FormConditionRuleAPI{}
-			for j := range m.FormConditions[i].Rules {
-				rules = append(rules, client.FormConditionRuleAPI{
-					SourceType: m.FormConditions[i].Rules[j].SourceType.ValueString(),
-					Source:     m.FormConditions[i].Rules[j].Source.ValueString(),
-					Operator:   m.FormConditions[i].Rules[j].Operator.ValueString(),
-					ValueType:  m.FormConditions[i].Rules[j].ValueType.ValueString(),
-					Value:      m.FormConditions[i].Rules[j].Value.ValueString(),
-				})
-			}
-
-			// Parse effects
-			effects := []client.FormConditionEffectAPI{}
-			for k := range m.FormConditions[i].Effects {
-				effects = append(effects, client.FormConditionEffectAPI{
-					EffectType: m.FormConditions[i].Effects[k].EffectType.ValueString(),
-					Config: client.FormConditionEffectConfigAPI{
-						DefaultValueLabel: m.FormConditions[i].Effects[k].Config.DefaultValueLabel.ValueString(),
-						Element:           m.FormConditions[i].Effects[k].Config.Element.ValueString(),
-					},
-				})
-			}
-
-			formConditions = append(formConditions, client.FormConditionAPI{
-				RuleOperator: m.FormConditions[i].RuleOperator.ValueString(),
-				Rules:        rules,
-				Effects:      effects,
-			})
-		}
+	if !m.FormConditions.Equal(state.FormConditions) {
+		formConditions, diags := common.MapListToAPI(ctx, m.FormConditions, FormConditionToAPI)
+		diagnostics.Append(diags...)
 		patchOps = append(patchOps, client.JSONPatchOperation{
 			Op:    "replace",
 			Path:  "/formConditions",
@@ -367,24 +394,17 @@ func (m *formDefinitionModel) ToPatchOperations(ctx context.Context, state *form
 
 	// Compare formElements - parse JSON and send as structured data
 	if !m.FormElements.Equal(state.FormElements) {
-		var formElementsAPI []client.FormElementAPI
-		if !m.FormElements.IsNull() && !m.FormElements.IsUnknown() {
-			if err := json.Unmarshal([]byte(m.FormElements.ValueString()), &formElementsAPI); err != nil {
-				diagnostics.AddError(
-					"Error Parsing Form Elements",
-					"Could not parse form elements JSON: "+err.Error(),
-				)
-				return patchOps, diagnostics
-			}
-		}
-		// Use empty array if null to avoid API issues
-		if formElementsAPI == nil {
-			formElementsAPI = []client.FormElementAPI{}
+		formElementsAPI, diags := common.UnmarshalJSONField[[]client.FormElementAPI](m.FormElements)
+		diagnostics.Append(diags...)
+		value := formElementsAPI
+		if value == nil {
+			empty := []client.FormElementAPI{}
+			value = &empty
 		}
 		patchOps = append(patchOps, client.JSONPatchOperation{
 			Op:    "replace",
 			Path:  "/formElements",
-			Value: formElementsAPI,
+			Value: *value,
 		})
 	}
 

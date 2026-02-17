@@ -300,13 +300,13 @@ resource "sailpoint_form_definition" "onboarding_form" {
 - `form_conditions` (Attributes List) List of conditions for the form definition. Conditions control the visibility and behavior of form elements based on form inputs and other conditions. (see [below for nested schema](#nestedatt--form_conditions))
 - `form_elements` (String) JSON array of form elements (fields, sections, etc.). Elements must be wrapped in SECTION elements. Each element object has: id, elementType (TEXT, TOGGLE, TEXTAREA, HIDDEN, PHONE, EMAIL, SELECT, DATE, SECTION, COLUMN_SET, IMAGE, DESCRIPTION), config, key, validations.
 - `form_input` (Attributes List) List of form inputs that can be passed into the form for use in conditional logic. (see [below for nested schema](#nestedatt--form_input))
+- `used_by` (Attributes List) List of objects that use this form definition. (see [below for nested schema](#nestedatt--used_by))
 
 ### Read-Only
 
 - `created` (String) The date and time when the form definition was created.
 - `id` (String) The unique identifier of the form definition.
 - `modified` (String) The date and time when the form definition was last modified.
-- `used_by` (Attributes List) List of objects that use this form definition. (see [below for nested schema](#nestedatt--used_by))
 
 <a id="nestedatt--owner"></a>
 ### Nested Schema for `owner`
@@ -316,7 +316,7 @@ Required:
 - `id` (String) The unique identifier of the owner.
 - `type` (String) The type of the owner (e.g., IDENTITY).
 
-Read-Only:
+Optional:
 
 - `name` (String) The name of the owner.
 
@@ -341,10 +341,13 @@ Required:
 <a id="nestedatt--form_conditions--effects--config"></a>
 ### Nested Schema for `form_conditions.effects.config`
 
+Required:
+
+- `element` (String) The element targeted by the effect.
+
 Optional:
 
 - `default_value_label` (String) The default value label for the effect.
-- `element` (String) The element targeted by the effect.
 
 
 
@@ -356,11 +359,8 @@ Required:
 - `operator` (String) The operator for the rule (EQ, NE, CO, NOT_CO, IN, NOT_IN, EM, NOT_EM, SW, NOT_SW, EW, NOT_EW).
 - `source` (String) The source for the rule.
 - `source_type` (String) The type of the source for the rule (INPUT, ELEMENT).
-- `value_type` (String) The type of the value for the rule (STRING, STRING_LIST, INPUT, ELEMENT, LIST, BOOLEAN).
-
-Optional:
-
 - `value` (String) The value for the rule.
+- `value_type` (String) The type of the value for the rule (STRING, STRING_LIST, INPUT, ELEMENT, LIST, BOOLEAN).
 
 
 
@@ -370,18 +370,18 @@ Optional:
 Required:
 
 - `label` (String) The label of the form input.
-- `type` (String) The type of the form input (STRING, ARRAY).
 
 Optional:
 
 - `description` (String) The description of the form input.
 - `id` (String) The unique identifier of the form input.
+- `type` (String) The type of the form input (STRING, ARRAY).
 
 
 <a id="nestedatt--used_by"></a>
 ### Nested Schema for `used_by`
 
-Read-Only:
+Optional:
 
 - `id` (String) The unique identifier of the referencing object.
 - `name` (String) The name of the referencing object.

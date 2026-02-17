@@ -11,15 +11,11 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -88,31 +84,28 @@ func (r *formDefinitionResource) Schema(_ context.Context, _ resource.SchemaRequ
 					},
 					"name": schema.StringAttribute{
 						MarkdownDescription: "The name of the owner.",
+						Optional:            true,
 						Computed:            true,
-						PlanModifiers: []planmodifier.String{
-							stringplanmodifier.UseStateForUnknown(),
-						},
 					},
 				},
 			},
 			"used_by": schema.ListNestedAttribute{
 				MarkdownDescription: "List of objects that use this form definition.",
+				Optional:            true,
 				Computed:            true,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.UseStateForUnknown(),
-				},
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"type": schema.StringAttribute{
 							MarkdownDescription: "The type of the referencing object (WORKFLOW, SOURCE, MySailPoint).",
-							Computed:            true,
+							Optional:            true,
 						},
 						"id": schema.StringAttribute{
 							MarkdownDescription: "The unique identifier of the referencing object.",
-							Computed:            true,
+							Optional:            true,
 						},
 						"name": schema.StringAttribute{
 							MarkdownDescription: "The name of the referencing object.",
+							Optional:            true,
 							Computed:            true,
 						},
 					},
@@ -122,15 +115,6 @@ func (r *formDefinitionResource) Schema(_ context.Context, _ resource.SchemaRequ
 				MarkdownDescription: "List of form inputs that can be passed into the form for use in conditional logic.",
 				Optional:            true,
 				Computed:            true,
-				Default: listdefault.StaticValue(types.ListValueMust(
-					types.ObjectType{AttrTypes: map[string]attr.Type{
-						"id":          types.StringType,
-						"type":        types.StringType,
-						"label":       types.StringType,
-						"description": types.StringType,
-					}},
-					[]attr.Value{},
-				)),
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"id": schema.StringAttribute{
@@ -140,7 +124,8 @@ func (r *formDefinitionResource) Schema(_ context.Context, _ resource.SchemaRequ
 						},
 						"type": schema.StringAttribute{
 							MarkdownDescription: "The type of the form input (STRING, ARRAY).",
-							Required:            true,
+							Optional:            true,
+							Computed:            true,
 						},
 						"label": schema.StringAttribute{
 							MarkdownDescription: "The label of the form input.",
@@ -164,26 +149,6 @@ func (r *formDefinitionResource) Schema(_ context.Context, _ resource.SchemaRequ
 				MarkdownDescription: "List of conditions for the form definition. Conditions control the visibility and behavior of form elements based on form inputs and other conditions.",
 				Optional:            true,
 				Computed:            true,
-				Default: listdefault.StaticValue(types.ListValueMust(
-					types.ObjectType{AttrTypes: map[string]attr.Type{
-						"rule_operator": types.StringType,
-						"rules": types.ListType{ElemType: types.ObjectType{AttrTypes: map[string]attr.Type{
-							"source_type": types.StringType,
-							"source":      types.StringType,
-							"operator":    types.StringType,
-							"value_type":  types.StringType,
-							"value":       types.StringType,
-						}}},
-						"effects": types.ListType{ElemType: types.ObjectType{AttrTypes: map[string]attr.Type{
-							"effect_type": types.StringType,
-							"config": types.ObjectType{AttrTypes: map[string]attr.Type{
-								"default_value_label": types.StringType,
-								"element":             types.StringType,
-							}},
-						}}},
-					}},
-					[]attr.Value{},
-				)),
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"rule_operator": schema.StringAttribute{
@@ -213,8 +178,7 @@ func (r *formDefinitionResource) Schema(_ context.Context, _ resource.SchemaRequ
 									},
 									"value": schema.StringAttribute{
 										MarkdownDescription: "The value for the rule.",
-										Optional:            true,
-										Computed:            true,
+										Required:            true,
 									},
 								},
 							},
@@ -235,12 +199,10 @@ func (r *formDefinitionResource) Schema(_ context.Context, _ resource.SchemaRequ
 											"default_value_label": schema.StringAttribute{
 												MarkdownDescription: "The default value label for the effect.",
 												Optional:            true,
-												Computed:            true,
 											},
 											"element": schema.StringAttribute{
 												MarkdownDescription: "The element targeted by the effect.",
-												Optional:            true,
-												Computed:            true,
+												Required:            true,
 											},
 										},
 									},
@@ -279,7 +241,7 @@ func (r *formDefinitionResource) Create(ctx context.Context, req resource.Create
 	tflog.Debug(ctx, "Mapping form definition resource model to API create request", map[string]any{
 		"name": plan.Name.ValueString(),
 	})
-	apiCreateRequest, diags := plan.ToAPICreateRequest(ctx)
+	apiCreateRequest, diags := plan.ToAPI(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -315,7 +277,7 @@ func (r *formDefinitionResource) Create(ctx context.Context, req resource.Create
 	tflog.Debug(ctx, "Mapping SailPoint Form Definition API response to resource model", map[string]any{
 		"name": plan.Name.ValueString(),
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *formDefinitionAPIResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *formDefinitionAPIResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -382,7 +344,7 @@ func (r *formDefinitionResource) Read(ctx context.Context, req resource.ReadRequ
 	tflog.Debug(ctx, "Mapping SailPoint Form Definition API response to resource model", map[string]any{
 		"id": state.ID.ValueString(),
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *formDefinitionResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *formDefinitionResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -497,7 +459,7 @@ func (r *formDefinitionResource) Update(ctx context.Context, req resource.Update
 	tflog.Debug(ctx, "Mapping SailPoint Form Definition API response to resource model", map[string]any{
 		"id": state.ID.ValueString(),
 	})
-	resp.Diagnostics.Append(newState.FromSailPointAPI(ctx, *formDefinitionAPIResponse)...)
+	resp.Diagnostics.Append(newState.FromAPI(ctx, *formDefinitionAPIResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
