@@ -5,6 +5,7 @@ package form_definition
 
 import (
 	"context"
+	"reflect"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
@@ -64,6 +65,10 @@ func NewFormInputFromAPI(ctx context.Context, api client.FormInputAPI) (formInpu
 	return m, diags
 }
 
+func NewFormInputToAPI(ctx context.Context, m formInputModel) (client.FormInputAPI, diag.Diagnostics) {
+	return m.ToAPI(ctx)
+}
+
 func (m *formInputModel) FromAPI(ctx context.Context, api client.FormInputAPI) diag.Diagnostics {
 	m.ID = types.StringValue(api.ID)
 	m.Type = types.StringValue(api.Type)
@@ -84,10 +89,6 @@ func (m *formInputModel) ToAPI(ctx context.Context) (client.FormInputAPI, diag.D
 	return api, nil
 }
 
-func FormInputToAPI(ctx context.Context, m formInputModel) (client.FormInputAPI, diag.Diagnostics) {
-	return m.ToAPI(ctx)
-}
-
 // formConditionModel represents a form condition in Terraform state.
 type formConditionModel struct {
 	RuleOperator types.String               `tfsdk:"rule_operator"`
@@ -97,6 +98,7 @@ type formConditionModel struct {
 
 func NewFormConditionFromAPI(ctx context.Context, api client.FormConditionAPI) (formConditionModel, diag.Diagnostics) {
 	var m formConditionModel
+
 	diags := m.FromAPI(ctx, api)
 
 	return m, diags
@@ -315,7 +317,7 @@ func (m *formDefinitionModel) ToAPI(ctx context.Context) (client.FormDefinitionA
 	diagnostics.Append(diags...)
 
 	// Parse formInput from types.List
-	apiRequest.FormInput, diags = common.MapListToAPI(ctx, m.FormInput, FormInputToAPI)
+	apiRequest.FormInput, diags = common.MapListToAPI(ctx, m.FormInput, NewFormInputToAPI)
 	diagnostics.Append(diags...)
 
 	// Parse formConditions from types.List
@@ -339,73 +341,49 @@ func (m *formDefinitionModel) ToPatchOperations(ctx context.Context, state *form
 
 	// Compare name
 	if !m.Name.Equal(state.Name) {
-		patchOps = append(patchOps, client.JSONPatchOperation{
-			Op:    "replace",
-			Path:  "/name",
-			Value: m.Name.ValueString(),
-		})
+		patchOps = append(patchOps, client.NewReplacePatch("/name", m.Name.ValueString()))
 	}
 
 	// Compare description
 	if !m.Description.Equal(state.Description) {
-		patchOps = append(patchOps, client.JSONPatchOperation{
-			Op:    "replace",
-			Path:  "/description",
-			Value: m.Description.ValueString(),
-		})
+		patchOps = append(patchOps, client.NewReplacePatch("/description", m.Description.ValueString()))
 	}
 
 	// Compare owner
-	if m.Owner.Type.ValueString() != state.Owner.Type.ValueString() ||
-		m.Owner.ID.ValueString() != state.Owner.ID.ValueString() {
-		patchOps = append(patchOps, client.JSONPatchOperation{
-			Op:   "replace",
-			Path: "/owner",
-			Value: client.ObjectRefAPI{
-				Type: m.Owner.Type.ValueString(),
-				ID:   m.Owner.ID.ValueString(),
-			},
-		})
+	if !reflect.DeepEqual(*m.Owner, *state.Owner) {
+		ownerAPI, diags := m.Owner.ToAPI(ctx)
+		diagnostics.Append(diags...)
+		patchOps = append(patchOps, client.NewReplacePatch("/owner", ownerAPI))
 	}
 
-	// usedBy is read-only (Computed), never patched
+	// Compare usedBy
+	if !m.UsedBy.Equal(state.UsedBy) {
+		usedBy, diags := common.MapListToAPI(ctx, m.UsedBy, common.NewObjectRefToAPI)
+		diagnostics.Append(diags...)
+		patchOps = append(patchOps, client.NewReplacePatch("/usedBy", usedBy))
+	}
 
 	// Compare formInput
 	if !m.FormInput.Equal(state.FormInput) {
-		formInput, diags := common.MapListToAPI(ctx, m.FormInput, FormInputToAPI)
+		formInput, diags := common.MapListToAPI(ctx, m.FormInput, NewFormInputToAPI)
 		diagnostics.Append(diags...)
-		patchOps = append(patchOps, client.JSONPatchOperation{
-			Op:    "replace",
-			Path:  "/formInput",
-			Value: formInput,
-		})
+		patchOps = append(patchOps, client.NewReplacePatch("/formInput", formInput))
 	}
 
 	// Compare formConditions
 	if !m.FormConditions.Equal(state.FormConditions) {
 		formConditions, diags := common.MapListToAPI(ctx, m.FormConditions, FormConditionToAPI)
 		diagnostics.Append(diags...)
-		patchOps = append(patchOps, client.JSONPatchOperation{
-			Op:    "replace",
-			Path:  "/formConditions",
-			Value: formConditions,
-		})
+		patchOps = append(patchOps, client.NewReplacePatch("/formConditions", formConditions))
 	}
 
 	// Compare formElements - parse JSON and send as structured data
 	if !m.FormElements.Equal(state.FormElements) {
 		formElementsAPI, diags := common.UnmarshalJSONField[[]client.FormElementAPI](m.FormElements)
-		diagnostics.Append(diags...)
-		value := formElementsAPI
-		if value == nil {
-			empty := []client.FormElementAPI{}
-			value = &empty
+		if formElementsAPI != nil {
+			diagnostics.Append(diags...)
+			patchOps = append(patchOps, client.NewReplacePatch("/formElements", *formElementsAPI))
 		}
-		patchOps = append(patchOps, client.JSONPatchOperation{
-			Op:    "replace",
-			Path:  "/formElements",
-			Value: *value,
-		})
 	}
 
 	return patchOps, diagnostics

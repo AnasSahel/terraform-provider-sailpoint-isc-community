@@ -91,6 +91,15 @@ type JSONPatchOperation struct {
 	Value interface{} `json:"value,omitempty"`
 }
 
+// NewReplacePatch creates a JSON Patch "replace" operation for the given path and value.
+func NewReplacePatch(path string, value any) JSONPatchOperation {
+	return JSONPatchOperation{
+		Op:    "replace",
+		Path:  path,
+		Value: value,
+	}
+}
+
 // formErrorContext provides context for error messages.
 type formErrorContext struct {
 	Operation string
