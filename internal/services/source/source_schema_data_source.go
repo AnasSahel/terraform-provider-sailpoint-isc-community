@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
@@ -170,10 +171,21 @@ func (d *sourceSchemaDataSource) Schema(_ context.Context, _ datasource.SchemaRe
 }
 
 func (d *sourceSchemaDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	tflog.Debug(ctx, "Reading SailPoint Source Schema data source")
-
-	var config sourceSchemaModel
-	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	var config struct {
+		SourceID     types.String `tfsdk:"source_id"`
+		IncludeTypes types.String `tfsdk:"include_types"`
+		IncludeNames types.String `tfsdk:"include_names"`
+	}
+	tflog.Debug(ctx, "Getting config for source schema data source")
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("source_id"), &config.SourceID)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("include_types"), &config.IncludeTypes)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("include_names"), &config.IncludeNames)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -225,14 +237,13 @@ func (d *sourceSchemaDataSource) Read(ctx context.Context, req datasource.ReadRe
 	}
 
 	// Use the first schema from the results
-	var state sourceSchemaModel
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, schemas[0])...)
+	var state sourceSchemaDataSourceModel
+	resp.Diagnostics.Append(state.FromAPI(ctx, schemas[0], sourceID)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	// Preserve input parameters in state
-	state.SourceID = config.SourceID
 	state.IncludeTypes = config.IncludeTypes
 	state.IncludeNames = config.IncludeNames
 
