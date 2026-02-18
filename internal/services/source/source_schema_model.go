@@ -96,8 +96,8 @@ func (m *sourceSchemaModel) FromAPI(ctx context.Context, api client.SourceSchema
 		m.Features = types.ListValueMust(types.StringType, []attr.Value{})
 	}
 
-	// Map configuration to JSON (default: {}, mapped to null when empty)
-	if len(api.Configuration) > 0 {
+	// Map configuration to JSON (default: {}, mapped to null when absent)
+	if api.Configuration != nil {
 		configJSON, err := json.Marshal(api.Configuration)
 		if err != nil {
 			diags.AddError("Error Mapping Configuration", "Could not marshal configuration to JSON: "+err.Error())

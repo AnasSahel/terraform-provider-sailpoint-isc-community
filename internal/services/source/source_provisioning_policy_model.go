@@ -74,8 +74,8 @@ func (m *provisioningPolicyFieldModel) FromAPI(ctx context.Context, api client.P
 		m.Transform = jsontypes.NewNormalizedNull()
 	}
 
-	// Convert attributes to JSON (normalize empty to null)
-	if len(api.Attributes) > 0 {
+	// Convert attributes to JSON
+	if api.Attributes != nil {
 		attributesJSON, err := json.Marshal(api.Attributes)
 		if err != nil {
 			diagnostics.AddError("Error Mapping Attributes", "Could not marshal attributes to JSON: "+err.Error())
