@@ -105,46 +105,31 @@ func (m *identityAttributeModel) FromAPI(ctx context.Context, api client.Identit
 	return diagnostics
 }
 
-// ToAPI maps fields from the Terraform model to the API create request.
+// ToAPI maps fields from the Terraform model to the API create/update request.
 func (m *identityAttributeModel) ToAPI(ctx context.Context) (client.IdentityAttributeAPI, diag.Diagnostics) {
 	var diagnostics diag.Diagnostics
-	var diags diag.Diagnostics
 
 	apiRequest := client.IdentityAttributeAPI{
-		Name: m.Name.ValueString(),
+		Name:       m.Name.ValueString(),
+		Standard:   m.Standard.ValueBool(),
+		Multi:      m.Multi.ValueBool(),
+		Searchable: m.Searchable.ValueBool(),
 	}
 
-	// DisplayName defaults to Name if not provided
-	if !m.DisplayName.IsNull() {
+	// Map DisplayName (optional — server computes default if not set)
+	if !m.DisplayName.IsNull() && !m.DisplayName.IsUnknown() {
 		apiRequest.DisplayName = m.DisplayName.ValueString()
-	} else {
-		apiRequest.DisplayName = m.Name.ValueString()
 	}
-	if !m.Standard.IsNull() {
-		apiRequest.Standard = m.Standard.ValueBool()
-	}
-	if !m.Type.IsNull() {
+
+	// Map Type (optional, nullable — server defaults to null)
+	if !m.Type.IsNull() && !m.Type.IsUnknown() {
 		apiRequest.Type = m.Type.ValueStringPointer()
-	}
-	if !m.Multi.IsNull() {
-		apiRequest.Multi = m.Multi.ValueBool()
-	}
-	if !m.Searchable.IsNull() {
-		apiRequest.Searchable = m.Searchable.ValueBool()
-	}
-	if !m.System.IsNull() {
-		apiRequest.System = m.System.ValueBool()
 	}
 
 	// Parse sources from types.List
+	var diags diag.Diagnostics
 	apiRequest.Sources, diags = common.MapListToAPI(ctx, m.Sources, NewIdentityAttributeSourceToAPI)
 	diagnostics.Append(diags...)
 
 	return apiRequest, diagnostics
-}
-
-// ToAPIUpdateRequest maps fields from the resource model to the API update request model.
-func (m *identityAttributeModel) ToAPIUpdateRequest(ctx context.Context) (client.IdentityAttributeAPI, diag.Diagnostics) {
-	// The update request has the same structure as the create request
-	return m.ToAPI(ctx)
 }
