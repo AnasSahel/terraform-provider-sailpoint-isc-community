@@ -171,13 +171,11 @@ func (m *identityProfileModel) FromAPI(ctx context.Context, api client.IdentityP
 	// Map Description (nullable)
 	m.Description = common.StringOrNull(api.Description)
 
-	// Map Owner (nullable)
+	// Map Owner (required, always returned by API)
 	if api.Owner != nil {
 		var diags diag.Diagnostics
 		m.Owner, diags = common.NewObjectRefFromAPIPtr(ctx, *api.Owner)
 		diagnostics.Append(diags...)
-	} else {
-		m.Owner = nil
 	}
 
 	// Map AuthoritativeSource
@@ -191,8 +189,6 @@ func (m *identityProfileModel) FromAPI(ctx context.Context, api client.IdentityP
 	if api.IdentityExceptionReportReference != nil {
 		m.IdentityExceptionReportReference = &identityExceptionReportRefModel{}
 		diagnostics.Append(m.IdentityExceptionReportReference.FromAPI(ctx, *api.IdentityExceptionReportReference)...)
-	} else {
-		m.IdentityExceptionReportReference = nil
 	}
 
 	return diagnostics
@@ -213,11 +209,10 @@ func (m *identityProfileModel) ToAPI(ctx context.Context) (client.IdentityProfil
 		apiRequest.Description = &desc
 	}
 
-	// Map Owner (optional, nullable)
+	// Map Owner (required)
 	if m.Owner != nil {
-		ownerAPI, d := m.Owner.ToAPI(ctx)
-		diagnostics.Append(d...)
-		apiRequest.Owner = &ownerAPI
+		apiRequest.Owner, diags = common.NewObjectRefToAPIPtr(ctx, *m.Owner)
+		diagnostics.Append(diags...)
 	}
 
 	// Map Priority (optional)
@@ -263,14 +258,12 @@ func (m *identityProfileModel) ToPatchOperations(ctx context.Context, state *ide
 		patchOps = append(patchOps, client.NewReplacePatch("/priority", m.Priority.ValueInt64()))
 	}
 
-	// Owner
+	// Owner (required, always present)
 	if !reflect.DeepEqual(m.Owner, state.Owner) {
 		if m.Owner != nil {
-			ownerAPI, diags := m.Owner.ToAPI(ctx)
+			ownerAPI, diags := common.NewObjectRefToAPIPtr(ctx, *m.Owner)
 			diagnostics.Append(diags...)
 			patchOps = append(patchOps, client.NewReplacePatch("/owner", ownerAPI))
-		} else {
-			patchOps = append(patchOps, client.NewRemovePatch("/owner"))
 		}
 	}
 

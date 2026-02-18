@@ -74,7 +74,7 @@ func (r *identityProfileResource) Schema(_ context.Context, _ resource.SchemaReq
 			},
 			"owner": schema.SingleNestedAttribute{
 				MarkdownDescription: "The owner of the identity profile.",
-				Optional:            true,
+				Required:            true,
 				Attributes: map[string]schema.Attribute{
 					"type": schema.StringAttribute{
 						MarkdownDescription: "The type of the owner object. Must be `IDENTITY`.",
@@ -268,14 +268,6 @@ func (r *identityProfileResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
-	// Track whether user manages owner via private state, and null it out if not.
-	ownerManaged := plan.Owner != nil
-	if ownerManaged {
-		resp.Diagnostics.Append(resp.Private.SetKey(ctx, "owner_managed", []byte("true"))...)
-	} else {
-		state.Owner = nil
-	}
-
 	// Set the state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
@@ -297,11 +289,6 @@ func (r *identityProfileResource) Read(ctx context.Context, req resource.ReadReq
 	}
 
 	identityProfileID := state.ID.ValueString()
-
-	// Check private state to determine if user manages owner
-	ownerManagedBytes, diags := req.Private.GetKey(ctx, "owner_managed")
-	resp.Diagnostics.Append(diags...)
-	ownerManaged := string(ownerManagedBytes) == "true"
 
 	// Read the identity profile from SailPoint
 	tflog.Debug(ctx, "Fetching identity profile from SailPoint", map[string]any{
@@ -341,12 +328,6 @@ func (r *identityProfileResource) Read(ctx context.Context, req resource.ReadReq
 	resp.Diagnostics.Append(state.FromAPI(ctx, *apiResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
-	}
-
-	// If user doesn't manage owner (no private state flag), null it out.
-	// The API always returns an owner, but we only store it if user set it in config.
-	if !ownerManaged {
-		state.Owner = nil
 	}
 
 	// Set the state
@@ -427,15 +408,6 @@ func (r *identityProfileResource) Update(ctx context.Context, req resource.Updat
 	resp.Diagnostics.Append(newState.FromAPI(ctx, *apiResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
-	}
-
-	// Update private state flag and null out owner if user doesn't manage it
-	ownerManaged := plan.Owner != nil
-	if ownerManaged {
-		resp.Diagnostics.Append(resp.Private.SetKey(ctx, "owner_managed", []byte("true"))...)
-	} else {
-		resp.Diagnostics.Append(resp.Private.SetKey(ctx, "owner_managed", []byte("false"))...)
-		newState.Owner = nil
 	}
 
 	// Set the state
