@@ -12,6 +12,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -105,10 +107,16 @@ func (d *sourceProvisioningPolicyDataSource) Schema(_ context.Context, _ datasou
 }
 
 func (d *sourceProvisioningPolicyDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	tflog.Debug(ctx, "Reading SailPoint Source Provisioning Policy data source")
-
-	var config sourceProvisioningPolicyModel
-	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	var config struct {
+		SourceID  types.String `tfsdk:"source_id"`
+		UsageType types.String `tfsdk:"usage_type"`
+	}
+	tflog.Debug(ctx, "Getting config for source provisioning policy data source")
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("source_id"), &config.SourceID)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("usage_type"), &config.UsageType)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -144,9 +152,7 @@ func (d *sourceProvisioningPolicyDataSource) Read(ctx context.Context, req datas
 	}
 
 	var state sourceProvisioningPolicyModel
-	state.SourceID = config.SourceID
-	state.UsageType = config.UsageType
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, policy)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, policy, sourceID)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

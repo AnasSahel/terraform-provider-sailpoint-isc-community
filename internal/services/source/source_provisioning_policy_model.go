@@ -15,20 +15,18 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// sourceProvisioningPolicyModel represents the Terraform model for a SailPoint provisioning policy data source.
+// Element type definition for the provisioning policy field nested object.
+var provisioningPolicyFieldObjectType = types.ObjectType{AttrTypes: map[string]attr.Type{
+	"name":            types.StringType,
+	"type":            types.StringType,
+	"is_required":     types.BoolType,
+	"is_multi_valued": types.BoolType,
+	"transform":       jsontypes.NormalizedType{},
+	"attributes":      jsontypes.NormalizedType{},
+}}
+
+// sourceProvisioningPolicyModel represents the Terraform state for a Source Provisioning Policy.
 type sourceProvisioningPolicyModel struct {
-	// Input parameters
-	SourceID  types.String `tfsdk:"source_id"`
-	UsageType types.String `tfsdk:"usage_type"`
-
-	// Output attributes
-	Name        types.String `tfsdk:"name"`
-	Description types.String `tfsdk:"description"`
-	Fields      types.List   `tfsdk:"fields"`
-}
-
-// sourceProvisioningPolicyResourceModel represents the Terraform model for a SailPoint provisioning policy resource.
-type sourceProvisioningPolicyResourceModel struct {
 	SourceID    types.String `tfsdk:"source_id"`
 	UsageType   types.String `tfsdk:"usage_type"`
 	Name        types.String `tfsdk:"name"`
@@ -46,110 +44,105 @@ type provisioningPolicyFieldModel struct {
 	Attributes    jsontypes.Normalized `tfsdk:"attributes"`
 }
 
-func provisioningPolicyFieldElementType() types.ObjectType {
-	return types.ObjectType{
-		AttrTypes: map[string]attr.Type{
-			"name":            types.StringType,
-			"type":            types.StringType,
-			"is_required":     types.BoolType,
-			"is_multi_valued": types.BoolType,
-			"transform":       jsontypes.NormalizedType{},
-			"attributes":      jsontypes.NormalizedType{},
-		},
-	}
+func NewProvisioningPolicyFieldFromAPI(ctx context.Context, api client.ProvisioningPolicyFieldAPI) (provisioningPolicyFieldModel, diag.Diagnostics) {
+	var m provisioningPolicyFieldModel
+	diags := m.FromAPI(ctx, api)
+	return m, diags
 }
 
-// fromSourceProvisioningPolicyAPI is a shared helper that populates common fields from a SailPoint API response.
-func fromSourceProvisioningPolicyAPI(ctx context.Context, api *client.ProvisioningPolicyAPI) (
-	name types.String,
-	description types.String,
-	fields types.List,
-	diags diag.Diagnostics,
-) {
-	name = types.StringValue(api.Name)
-	description = types.StringValue(api.Description)
+func NewProvisioningPolicyFieldToAPI(ctx context.Context, m provisioningPolicyFieldModel) (client.ProvisioningPolicyFieldAPI, diag.Diagnostics) {
+	return m.ToAPI(ctx)
+}
 
-	// Convert fields
-	if api.Fields != nil {
-		fieldList := []provisioningPolicyFieldModel{}
-		for _, fieldAPI := range api.Fields {
-			fieldModel := provisioningPolicyFieldModel{
-				Name:          fieldAPI.Name,
-				Type:          common.StringOrNull(fieldAPI.Type),
-				IsRequired:    types.BoolValue(fieldAPI.IsRequired),
-				IsMultiValued: types.BoolValue(fieldAPI.IsMultiValued),
-			}
+func (m *provisioningPolicyFieldModel) FromAPI(ctx context.Context, api client.ProvisioningPolicyFieldAPI) diag.Diagnostics {
+	var diagnostics diag.Diagnostics
 
-			// Convert transform to JSON
-			if fieldAPI.Transform != nil {
-				transformJSON, err := json.Marshal(fieldAPI.Transform)
-				if err != nil {
-					diags.AddError("Error Mapping Transform", "Could not marshal transform to JSON: "+err.Error())
-					return
-				}
-				fieldModel.Transform = jsontypes.NewNormalizedValue(string(transformJSON))
-			} else {
-				fieldModel.Transform = jsontypes.NewNormalizedNull()
-			}
+	m.Name = api.Name
+	m.Type = common.StringOrNull(api.Type)
+	m.IsRequired = types.BoolValue(api.IsRequired)
+	m.IsMultiValued = types.BoolValue(api.IsMultiValued)
 
-			// Convert attributes to JSON
-			if fieldAPI.Attributes != nil {
-				attributesJSON, err := json.Marshal(fieldAPI.Attributes)
-				if err != nil {
-					diags.AddError("Error Mapping Attributes", "Could not marshal attributes to JSON: "+err.Error())
-					return
-				}
-				fieldModel.Attributes = jsontypes.NewNormalizedValue(string(attributesJSON))
-			} else {
-				fieldModel.Attributes = jsontypes.NewNormalizedNull()
-			}
-
-			fieldList = append(fieldList, fieldModel)
+	// Convert transform to JSON
+	if api.Transform != nil {
+		transformJSON, err := json.Marshal(api.Transform)
+		if err != nil {
+			diagnostics.AddError("Error Mapping Transform", "Could not marshal transform to JSON: "+err.Error())
+			return diagnostics
 		}
-
-		var d diag.Diagnostics
-		fields, d = types.ListValueFrom(ctx, provisioningPolicyFieldElementType(), fieldList)
-		diags.Append(d...)
+		m.Transform = jsontypes.NewNormalizedValue(string(transformJSON))
 	} else {
-		fields = types.ListNull(provisioningPolicyFieldElementType())
+		m.Transform = jsontypes.NewNormalizedNull()
 	}
 
-	return
+	// Convert attributes to JSON (normalize empty to null)
+	if len(api.Attributes) > 0 {
+		attributesJSON, err := json.Marshal(api.Attributes)
+		if err != nil {
+			diagnostics.AddError("Error Mapping Attributes", "Could not marshal attributes to JSON: "+err.Error())
+			return diagnostics
+		}
+		m.Attributes = jsontypes.NewNormalizedValue(string(attributesJSON))
+	} else {
+		m.Attributes = jsontypes.NewNormalizedNull()
+	}
+
+	return diagnostics
 }
 
-// FromSailPointAPI populates the data source Terraform model from a SailPoint API response.
-func (m *sourceProvisioningPolicyModel) FromSailPointAPI(ctx context.Context, api *client.ProvisioningPolicyAPI) diag.Diagnostics {
-	var diags diag.Diagnostics
+func (m *provisioningPolicyFieldModel) ToAPI(ctx context.Context) (client.ProvisioningPolicyFieldAPI, diag.Diagnostics) {
+	var diagnostics diag.Diagnostics
 
-	name, description, fields, d := fromSourceProvisioningPolicyAPI(ctx, api)
-	diags.Append(d...)
+	api := client.ProvisioningPolicyFieldAPI{
+		Name:          m.Name,
+		IsRequired:    m.IsRequired.ValueBool(),
+		IsMultiValued: m.IsMultiValued.ValueBool(),
+	}
 
-	m.Name = name
-	m.Description = description
-	m.Fields = fields
-	m.UsageType = types.StringValue(api.UsageType)
+	// Convert type if present
+	if !m.Type.IsNull() && !m.Type.IsUnknown() {
+		typeVal := m.Type.ValueString()
+		api.Type = &typeVal
+	}
 
-	return diags
+	// Convert transform from JSON
+	if transform, diags := common.UnmarshalJSONField[client.ProvisioningPolicyTransformAPI](m.Transform); transform != nil {
+		api.Transform = transform
+		diagnostics.Append(diags...)
+	}
+
+	// Convert attributes from JSON
+	if attributes, diags := common.UnmarshalJSONField[map[string]interface{}](m.Attributes); attributes != nil {
+		api.Attributes = *attributes
+		diagnostics.Append(diags...)
+	}
+
+	return api, diagnostics
 }
 
-// FromSailPointAPI populates the resource Terraform model from a SailPoint API response.
-func (m *sourceProvisioningPolicyResourceModel) FromSailPointAPI(ctx context.Context, api *client.ProvisioningPolicyAPI, sourceID string) diag.Diagnostics {
+// FromAPI maps fields from the API model to the Terraform model.
+func (m *sourceProvisioningPolicyModel) FromAPI(ctx context.Context, api *client.ProvisioningPolicyAPI, sourceID string) diag.Diagnostics {
+	var diagnostics diag.Diagnostics
 	var diags diag.Diagnostics
-
-	name, description, fields, d := fromSourceProvisioningPolicyAPI(ctx, api)
-	diags.Append(d...)
 
 	m.SourceID = types.StringValue(sourceID)
 	m.UsageType = types.StringValue(api.UsageType)
-	m.Name = name
-	m.Description = description
-	m.Fields = fields
+	m.Name = types.StringValue(api.Name)
+	m.Description = common.StringOrNullIfEmpty(api.Description)
 
-	return diags
+	// Map fields (Optional only — normalize empty to null)
+	if len(api.Fields) > 0 {
+		m.Fields, diags = common.MapListFromAPI(ctx, api.Fields, provisioningPolicyFieldObjectType, NewProvisioningPolicyFieldFromAPI)
+		diagnostics.Append(diags...)
+	} else {
+		m.Fields = types.ListNull(provisioningPolicyFieldObjectType)
+	}
+
+	return diagnostics
 }
 
-// ToAPICreateRequest maps fields from the resource Terraform model to the API create request.
-func (m *sourceProvisioningPolicyResourceModel) ToAPICreateRequest(ctx context.Context) (client.ProvisioningPolicyAPI, diag.Diagnostics) {
+// ToAPI maps fields from the Terraform model to the API request.
+func (m *sourceProvisioningPolicyModel) ToAPI(ctx context.Context) (client.ProvisioningPolicyAPI, diag.Diagnostics) {
+	var diagnostics diag.Diagnostics
 	var diags diag.Diagnostics
 
 	apiRequest := client.ProvisioningPolicyAPI{
@@ -163,54 +156,14 @@ func (m *sourceProvisioningPolicyResourceModel) ToAPICreateRequest(ctx context.C
 	}
 
 	// Map fields
-	if !m.Fields.IsNull() && !m.Fields.IsUnknown() {
-		var fieldModels []provisioningPolicyFieldModel
-		d := m.Fields.ElementsAs(ctx, &fieldModels, false)
-		diags.Append(d...)
-		if !diags.HasError() {
-			apiFields := make([]client.ProvisioningPolicyFieldAPI, len(fieldModels))
-			for i, fieldModel := range fieldModels {
-				apiFields[i] = client.ProvisioningPolicyFieldAPI{
-					Name:          fieldModel.Name,
-					IsRequired:    fieldModel.IsRequired.ValueBool(),
-					IsMultiValued: fieldModel.IsMultiValued.ValueBool(),
-				}
+	apiRequest.Fields, diags = common.MapListToAPI(ctx, m.Fields, NewProvisioningPolicyFieldToAPI)
+	diagnostics.Append(diags...)
 
-				// Convert type if present
-				if !fieldModel.Type.IsNull() && !fieldModel.Type.IsUnknown() {
-					typeVal := fieldModel.Type.ValueString()
-					apiFields[i].Type = &typeVal
-				}
-
-				// Convert transform from JSON
-				if !fieldModel.Transform.IsNull() && !fieldModel.Transform.IsUnknown() {
-					var transformObj *client.ProvisioningPolicyTransformAPI
-					if err := json.Unmarshal([]byte(fieldModel.Transform.ValueString()), &transformObj); err != nil {
-						diags.AddError("Error Parsing Transform", "Could not parse transform JSON for field "+fieldModel.Name+": "+err.Error())
-						continue
-					}
-					apiFields[i].Transform = transformObj
-				}
-
-				// Convert attributes from JSON
-				if !fieldModel.Attributes.IsNull() && !fieldModel.Attributes.IsUnknown() {
-					var attributesObj map[string]interface{}
-					if err := json.Unmarshal([]byte(fieldModel.Attributes.ValueString()), &attributesObj); err != nil {
-						diags.AddError("Error Parsing Attributes", "Could not parse attributes JSON for field "+fieldModel.Name+": "+err.Error())
-						continue
-					}
-					apiFields[i].Attributes = attributesObj
-				}
-			}
-			apiRequest.Fields = apiFields
-		}
-	}
-
-	return apiRequest, diags
+	return apiRequest, diagnostics
 }
 
-// ToAPIUpdateRequest maps fields from the resource Terraform model to the API update (PUT) request.
+// ToAPIUpdate maps fields from the Terraform model to the API update (PUT) request.
 // For provisioning policies, PUT is a full replacement, same as create.
-func (m *sourceProvisioningPolicyResourceModel) ToAPIUpdateRequest(ctx context.Context) (client.ProvisioningPolicyAPI, diag.Diagnostics) {
-	return m.ToAPICreateRequest(ctx)
+func (m *sourceProvisioningPolicyModel) ToAPIUpdate(ctx context.Context) (client.ProvisioningPolicyAPI, diag.Diagnostics) {
+	return m.ToAPI(ctx)
 }
