@@ -99,7 +99,7 @@ func (r *transformResource) Create(ctx context.Context, req resource.CreateReque
 		"name": plan.Name.ValueString(),
 		"type": plan.Type.ValueString(),
 	})
-	apiCreateRequest, diags := plan.ToAPICreateRequest(ctx)
+	apiCreateRequest, diags := plan.ToAPI(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -137,7 +137,7 @@ func (r *transformResource) Create(ctx context.Context, req resource.CreateReque
 		"id":   transformAPIResponse.ID,
 		"name": plan.Name.ValueString(),
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *transformAPIResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *transformAPIResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -203,7 +203,7 @@ func (r *transformResource) Read(ctx context.Context, req resource.ReadRequest, 
 	tflog.Debug(ctx, "Mapping SailPoint Transform API response to resource model", map[string]any{
 		"id": state.ID.ValueString(),
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *transformResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *transformResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -243,7 +243,7 @@ func (r *transformResource) Update(ctx context.Context, req resource.UpdateReque
 		"id":   state.ID.ValueString(),
 		"name": plan.Name.ValueString(),
 	})
-	apiUpdateRequest, diags := plan.ToAPIUpdateRequest(ctx)
+	apiUpdateRequest, diags := plan.ToAPIUpdate(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -279,7 +279,7 @@ func (r *transformResource) Update(ctx context.Context, req resource.UpdateReque
 	tflog.Debug(ctx, "Mapping SailPoint Transform API response to resource model", map[string]any{
 		"id": state.ID.ValueString(),
 	})
-	resp.Diagnostics.Append(newState.FromSailPointAPI(ctx, *transformAPIResponse)...)
+	resp.Diagnostics.Append(newState.FromAPI(ctx, *transformAPIResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

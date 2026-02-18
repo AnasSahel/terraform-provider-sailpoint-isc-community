@@ -23,13 +23,18 @@ type TransformAPI struct {
 
 // transformErrorContext provides context for error messages.
 type transformErrorContext struct {
-	Operation string
-	ID        string
-	Name      string
+	Operation    string
+	ID           string
+	Name         string
+	ResponseBody string
 }
 
 const (
-	transformsEndpoint = "/v2025/transforms"
+	transformEndpointList   = "/v2025/transforms"
+	transformEndpointGet    = "/v2025/transforms/{id}"
+	transformEndpointCreate = "/v2025/transforms"
+	transformEndpointUpdate = "/v2025/transforms/{id}"
+	transformEndpointDelete = "/v2025/transforms/{id}"
 )
 
 // ListTransforms retrieves all transforms from SailPoint.
@@ -39,7 +44,10 @@ func (c *Client) ListTransforms(ctx context.Context) ([]TransformAPI, error) {
 
 	var transforms []TransformAPI
 
-	resp, err := c.doRequest(ctx, http.MethodGet, transformsEndpoint, nil, &transforms)
+	resp, err := c.prepareRequest(ctx).
+		SetResult(&transforms).
+		Get(transformEndpointList)
+
 	if err != nil {
 		return nil, c.formatTransformError(
 			transformErrorContext{Operation: "list"},
@@ -50,7 +58,7 @@ func (c *Client) ListTransforms(ctx context.Context) ([]TransformAPI, error) {
 
 	if resp.IsError() {
 		return nil, c.formatTransformError(
-			transformErrorContext{Operation: "list"},
+			transformErrorContext{Operation: "list", ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -76,13 +84,11 @@ func (c *Client) GetTransform(ctx context.Context, id string) (*TransformAPI, er
 
 	var transform TransformAPI
 
-	resp, err := c.doRequest(
-		ctx,
-		http.MethodGet,
-		fmt.Sprintf("%s/%s", transformsEndpoint, id),
-		nil,
-		&transform,
-	)
+	resp, err := c.prepareRequest(ctx).
+		SetResult(&transform).
+		SetPathParam("id", id).
+		Get(transformEndpointGet)
+
 	if err != nil {
 		return nil, c.formatTransformError(
 			transformErrorContext{Operation: "get", ID: id},
@@ -93,7 +99,7 @@ func (c *Client) GetTransform(ctx context.Context, id string) (*TransformAPI, er
 
 	if resp.IsError() {
 		return nil, c.formatTransformError(
-			transformErrorContext{Operation: "get", ID: id},
+			transformErrorContext{Operation: "get", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -132,7 +138,11 @@ func (c *Client) CreateTransform(ctx context.Context, transform *TransformAPI) (
 
 	var result TransformAPI
 
-	resp, err := c.doRequest(ctx, http.MethodPost, transformsEndpoint, transform, &result)
+	resp, err := c.prepareRequest(ctx).
+		SetBody(transform).
+		SetResult(&result).
+		Post(transformEndpointCreate)
+
 	if err != nil {
 		return nil, c.formatTransformError(
 			transformErrorContext{Operation: "create", Name: transform.Name},
@@ -147,7 +157,7 @@ func (c *Client) CreateTransform(ctx context.Context, transform *TransformAPI) (
 			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatTransformError(
-			transformErrorContext{Operation: "create", Name: transform.Name},
+			transformErrorContext{Operation: "create", Name: transform.Name, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -182,13 +192,12 @@ func (c *Client) UpdateTransform(ctx context.Context, id string, transform *Tran
 
 	var result TransformAPI
 
-	resp, err := c.doRequest(
-		ctx,
-		http.MethodPut,
-		fmt.Sprintf("%s/%s", transformsEndpoint, id),
-		transform,
-		&result,
-	)
+	resp, err := c.prepareRequest(ctx).
+		SetBody(transform).
+		SetResult(&result).
+		SetPathParam("id", id).
+		Put(transformEndpointUpdate)
+
 	if err != nil {
 		return nil, c.formatTransformError(
 			transformErrorContext{Operation: "update", ID: id},
@@ -203,7 +212,7 @@ func (c *Client) UpdateTransform(ctx context.Context, id string, transform *Tran
 			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatTransformError(
-			transformErrorContext{Operation: "update", ID: id},
+			transformErrorContext{Operation: "update", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -228,13 +237,10 @@ func (c *Client) DeleteTransform(ctx context.Context, id string) error {
 		"id": id,
 	})
 
-	resp, err := c.doRequest(
-		ctx,
-		http.MethodDelete,
-		fmt.Sprintf("%s/%s", transformsEndpoint, id),
-		nil,
-		nil,
-	)
+	resp, err := c.prepareRequest(ctx).
+		SetPathParam("id", id).
+		Delete(transformEndpointDelete)
+
 	if err != nil {
 		return c.formatTransformError(
 			transformErrorContext{Operation: "delete", ID: id},
@@ -253,7 +259,7 @@ func (c *Client) DeleteTransform(ctx context.Context, id string) error {
 		}
 
 		return c.formatTransformError(
-			transformErrorContext{Operation: "delete", ID: id},
+			transformErrorContext{Operation: "delete", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -270,7 +276,6 @@ func (c *Client) DeleteTransform(ctx context.Context, id string) error {
 func (c *Client) formatTransformError(errCtx transformErrorContext, err error, statusCode int) error {
 	var baseMsg string
 
-	// Build base message with operation and identifier context
 	switch {
 	case errCtx.ID != "":
 		baseMsg = fmt.Sprintf("failed to %s transform '%s'", errCtx.Operation, errCtx.ID)
@@ -280,34 +285,35 @@ func (c *Client) formatTransformError(errCtx transformErrorContext, err error, s
 		baseMsg = fmt.Sprintf("failed to %s transforms", errCtx.Operation)
 	}
 
-	// Handle network or request errors
 	if err != nil {
 		return fmt.Errorf("%s: %w", baseMsg, err)
 	}
 
-	// Handle HTTP error status codes with clear, actionable messages
 	if statusCode != 0 {
+		detail := ""
+		if errCtx.ResponseBody != "" {
+			detail = fmt.Sprintf(" - response: %s", errCtx.ResponseBody)
+		}
+
 		switch statusCode {
 		case http.StatusBadRequest:
-			return fmt.Errorf("%s: invalid request - check transform properties (400)", baseMsg)
+			return fmt.Errorf("%s: invalid request (400)%s", baseMsg, detail)
 		case http.StatusUnauthorized:
-			return fmt.Errorf("%s: authentication failed - check credentials (401)", baseMsg)
+			return fmt.Errorf("%s: authentication failed (401)%s", baseMsg, detail)
 		case http.StatusForbidden:
-			return fmt.Errorf("%s: access denied - insufficient permissions (403)", baseMsg)
+			return fmt.Errorf("%s: access denied (403)%s", baseMsg, detail)
 		case http.StatusNotFound:
-			// Wrap ErrNotFound so callers can use errors.Is() to check for 404
 			return fmt.Errorf("%s: %w", baseMsg, ErrNotFound)
 		case http.StatusConflict:
-			return fmt.Errorf("%s: conflict - transform may already exist (409)", baseMsg)
+			return fmt.Errorf("%s: conflict (409)%s", baseMsg, detail)
 		case http.StatusTooManyRequests:
-			return fmt.Errorf("%s: rate limit exceeded - retry after delay (429)", baseMsg)
+			return fmt.Errorf("%s: rate limit exceeded (429)%s", baseMsg, detail)
 		case http.StatusInternalServerError:
-			return fmt.Errorf("%s: server error - contact SailPoint support (500)", baseMsg)
+			return fmt.Errorf("%s: server error (500)%s", baseMsg, detail)
 		default:
-			return fmt.Errorf("%s: unexpected status code %d", baseMsg, statusCode)
+			return fmt.Errorf("%s: unexpected status code %d%s", baseMsg, statusCode, detail)
 		}
 	}
 
-	// Fallback for unknown error conditions
 	return fmt.Errorf("%s: unknown error", baseMsg)
 }
