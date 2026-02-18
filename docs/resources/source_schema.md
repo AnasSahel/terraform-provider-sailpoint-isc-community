@@ -17,19 +17,19 @@ Manages a SailPoint Source Schema. Source schemas define the structure of accoun
 
 ### Required
 
+- `attributes` (Attributes List) The attribute definitions for the schema. Required because `identity_attribute` must reference an attribute defined in this list. (see [below for nested schema](#nestedatt--attributes))
+- `identity_attribute` (String) The name of the attribute used to calculate the unique identifier for an object in the schema. Must be set at creation time because updating from null to a value is not supported by the API.
 - `name` (String) The name of the schema (e.g., `account`, `group`). Cannot be changed after creation.
+- `native_object_type` (String) The name of the object type on the native system that the schema represents (e.g., `User`, `Group`).
 - `source_id` (String) The ID of the source this schema belongs to. Changing this forces a new resource.
 
 ### Optional
 
-- `attributes` (Attributes List) The attribute definitions for the schema. (see [below for nested schema](#nestedatt--attributes))
 - `configuration` (String) Extra configuration data for the schema as a JSON object.
 - `display_attribute` (String) The name of the attribute used to calculate the display value for an object in the schema.
-- `features` (List of String) Optional features supported by the source.
+- `features` (List of String) Optional features supported by the source. Defaults to an empty list.
 - `hierarchy_attribute` (String) The name of the attribute whose values represent other objects in a hierarchy. Only relevant to group schemas.
-- `identity_attribute` (String) The name of the attribute used to calculate the unique identifier for an object in the schema.
-- `include_permissions` (Boolean) Flag indicating whether to include permissions with the object data when aggregating the schema.
-- `native_object_type` (String) The name of the object type on the native system that the schema represents (e.g., `User`, `Group`).
+- `include_permissions` (Boolean) Flag indicating whether to include permissions with the object data when aggregating the schema. Defaults to `false`.
 
 ### Read-Only
 

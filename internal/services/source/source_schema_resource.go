@@ -12,11 +12,12 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -84,63 +85,43 @@ func (r *sourceSchemaResource) Schema(_ context.Context, _ resource.SchemaReques
 			},
 			"native_object_type": schema.StringAttribute{
 				MarkdownDescription: "The name of the object type on the native system that the schema represents (e.g., `User`, `Group`).",
-				Optional:            true,
-				Computed:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
+				Required:            true,
 			},
 			"identity_attribute": schema.StringAttribute{
-				MarkdownDescription: "The name of the attribute used to calculate the unique identifier for an object in the schema.",
-				Optional:            true,
-				Computed:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
+				MarkdownDescription: "The name of the attribute used to calculate the unique identifier for an object in the schema. " +
+					"Must be set at creation time because updating from null to a value is not supported by the API.",
+				Required: true,
 			},
 			"display_attribute": schema.StringAttribute{
 				MarkdownDescription: "The name of the attribute used to calculate the display value for an object in the schema.",
 				Optional:            true,
-				Computed:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"hierarchy_attribute": schema.StringAttribute{
 				MarkdownDescription: "The name of the attribute whose values represent other objects in a hierarchy. Only relevant to group schemas.",
 				Optional:            true,
-				Computed:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"include_permissions": schema.BoolAttribute{
-				MarkdownDescription: "Flag indicating whether to include permissions with the object data when aggregating the schema.",
+				MarkdownDescription: "Flag indicating whether to include permissions with the object data when aggregating the schema. Defaults to `false`.",
 				Optional:            true,
 				Computed:            true,
-				PlanModifiers: []planmodifier.Bool{
-					boolplanmodifier.UseStateForUnknown(),
-				},
+				Default:             booldefault.StaticBool(false),
 			},
 			"features": schema.ListAttribute{
-				MarkdownDescription: "Optional features supported by the source.",
+				MarkdownDescription: "Optional features supported by the source. Defaults to an empty list.",
 				Optional:            true,
 				Computed:            true,
 				ElementType:         types.StringType,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.UseStateForUnknown(),
-				},
+				Default:             listdefault.StaticValue(types.ListValueMust(types.StringType, []attr.Value{})),
 			},
 			"configuration": schema.StringAttribute{
 				MarkdownDescription: "Extra configuration data for the schema as a JSON object.",
 				Optional:            true,
-				Computed:            true,
 				CustomType:          jsontypes.NormalizedType{},
 			},
 			"attributes": schema.ListNestedAttribute{
-				MarkdownDescription: "The attribute definitions for the schema.",
-				Optional:            true,
-				Computed:            true,
+				MarkdownDescription: "The attribute definitions for the schema. " +
+					"Required because `identity_attribute` must reference an attribute defined in this list.",
+				Required: true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"name": schema.StringAttribute{
@@ -205,9 +186,6 @@ func (r *sourceSchemaResource) Schema(_ context.Context, _ resource.SchemaReques
 			"modified": schema.StringAttribute{
 				MarkdownDescription: "The date the schema was last modified.",
 				Computed:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 		},
 	}
@@ -215,7 +193,7 @@ func (r *sourceSchemaResource) Schema(_ context.Context, _ resource.SchemaReques
 
 // Create implements resource.Resource.
 func (r *sourceSchemaResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan sourceSchemaResourceModel
+	var plan sourceSchemaModel
 	tflog.Debug(ctx, "Getting plan for source schema resource")
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
@@ -229,7 +207,7 @@ func (r *sourceSchemaResource) Create(ctx context.Context, req resource.CreateRe
 		"source_id": sourceID,
 		"name":      plan.Name.ValueString(),
 	})
-	apiCreateRequest, diags := plan.ToAPICreateRequest(ctx)
+	apiCreateRequest, diags := plan.ToAPI(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -290,12 +268,12 @@ func (r *sourceSchemaResource) Create(ctx context.Context, req resource.CreateRe
 	}
 
 	// Map the authoritative GET response to the resource model
-	var state sourceSchemaResourceModel
+	var state sourceSchemaModel
 	tflog.Debug(ctx, "Mapping SailPoint Source Schema API response to resource model", map[string]any{
 		"source_id": sourceID,
 		"schema_id": schemaID,
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *schemaResponse, sourceID)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *schemaResponse, sourceID)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -318,7 +296,7 @@ func (r *sourceSchemaResource) Create(ctx context.Context, req resource.CreateRe
 
 // Read implements resource.Resource.
 func (r *sourceSchemaResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state sourceSchemaResourceModel
+	var state sourceSchemaModel
 	tflog.Debug(ctx, "Getting state for source schema resource read")
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
@@ -370,7 +348,7 @@ func (r *sourceSchemaResource) Read(ctx context.Context, req resource.ReadReques
 		"source_id": sourceID,
 		"schema_id": schemaID,
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *schemaResponse, sourceID)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *schemaResponse, sourceID)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -393,7 +371,7 @@ func (r *sourceSchemaResource) Read(ctx context.Context, req resource.ReadReques
 
 // Update implements resource.Resource.
 func (r *sourceSchemaResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan sourceSchemaResourceModel
+	var plan sourceSchemaModel
 	tflog.Debug(ctx, "Getting plan for source schema resource update")
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
@@ -401,7 +379,7 @@ func (r *sourceSchemaResource) Update(ctx context.Context, req resource.UpdateRe
 	}
 
 	// Get current state to retrieve the ID
-	var state sourceSchemaResourceModel
+	var state sourceSchemaModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -416,9 +394,9 @@ func (r *sourceSchemaResource) Update(ctx context.Context, req resource.UpdateRe
 		"schema_id": schemaID,
 	})
 
-	// Set the ID on the plan model so ToAPIUpdateRequest can include it
+	// Set the ID on the plan model so ToAPIUpdate can include it
 	plan.ID = state.ID
-	apiUpdateRequest, diags := plan.ToAPIUpdateRequest(ctx)
+	apiUpdateRequest, diags := plan.ToAPIUpdate(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -469,12 +447,12 @@ func (r *sourceSchemaResource) Update(ctx context.Context, req resource.UpdateRe
 	}
 
 	// Map the authoritative GET response to the resource model
-	var newState sourceSchemaResourceModel
+	var newState sourceSchemaModel
 	tflog.Debug(ctx, "Mapping SailPoint Source Schema API response to resource model", map[string]any{
 		"source_id": sourceID,
 		"schema_id": schemaID,
 	})
-	resp.Diagnostics.Append(newState.FromSailPointAPI(ctx, *schemaResponse, sourceID)...)
+	resp.Diagnostics.Append(newState.FromAPI(ctx, *schemaResponse, sourceID)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -497,7 +475,7 @@ func (r *sourceSchemaResource) Update(ctx context.Context, req resource.UpdateRe
 
 // Delete implements resource.Resource.
 func (r *sourceSchemaResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state sourceSchemaResourceModel
+	var state sourceSchemaModel
 	tflog.Debug(ctx, "Getting state for source schema resource deletion")
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
