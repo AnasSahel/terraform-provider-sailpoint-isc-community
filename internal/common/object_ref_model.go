@@ -55,9 +55,11 @@ func (m *ObjectRefModel) FromAPI(ctx context.Context, api client.ObjectRefAPI) d
 }
 
 func (m *ObjectRefModel) ToAPI(ctx context.Context) (client.ObjectRefAPI, diag.Diagnostics) {
+	// Note: Name is intentionally omitted — it's a server-resolved Computed field.
+	// Sending a stale name (e.g., from UseStateForUnknown) can cause API validation errors
+	// like "owner.name does not match the name of owner.id".
 	return client.ObjectRefAPI{
 		Type: m.Type.ValueString(),
 		ID:   m.ID.ValueString(),
-		Name: m.Name.ValueString(),
 	}, nil
 }

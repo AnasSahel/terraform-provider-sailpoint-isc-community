@@ -82,11 +82,8 @@ func (r *formDefinitionResource) Schema(_ context.Context, _ resource.SchemaRequ
 						Required:            true,
 					},
 					"name": schema.StringAttribute{
-						MarkdownDescription: "The name of the owner.",
+						MarkdownDescription: "The name of the owner. Resolved by the server from the owner ID.",
 						Computed:            true,
-						PlanModifiers: []planmodifier.String{
-							stringplanmodifier.UseStateForUnknown(),
-						},
 					},
 				},
 			},

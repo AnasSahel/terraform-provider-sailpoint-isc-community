@@ -180,7 +180,7 @@ Required:
 
 Read-Only:
 
-- `name` (String) The name of the owner.
+- `name` (String) The name of the owner. Resolved by the server from the owner ID.
 
 ## Import
 

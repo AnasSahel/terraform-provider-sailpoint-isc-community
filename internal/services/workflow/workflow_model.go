@@ -70,14 +70,10 @@ func (m *workflowModel) ToAPI(ctx context.Context) (client.WorkflowAPI, diag.Dia
 		if attrs != nil {
 			if t, ok := attrs["type"].(types.String); ok && !t.IsNull() && !t.IsUnknown() {
 				if id, ok := attrs["id"].(types.String); ok && !id.IsNull() && !id.IsUnknown() {
-					ownerRef := &client.ObjectRefAPI{
+					api.Owner = &client.ObjectRefAPI{
 						Type: t.ValueString(),
 						ID:   id.ValueString(),
 					}
-					if n, ok := attrs["name"].(types.String); ok && !n.IsNull() && !n.IsUnknown() {
-						ownerRef.Name = n.ValueString()
-					}
-					api.Owner = ownerRef
 				}
 			}
 		}
