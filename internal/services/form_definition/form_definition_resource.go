@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -69,7 +68,6 @@ func (r *formDefinitionResource) Schema(_ context.Context, _ resource.SchemaRequ
 			"description": schema.StringAttribute{
 				MarkdownDescription: "The description of the form definition.",
 				Optional:            true,
-				Computed:            true,
 			},
 			"owner": schema.SingleNestedAttribute{
 				MarkdownDescription: "The owner of the form definition.",
@@ -84,54 +82,129 @@ func (r *formDefinitionResource) Schema(_ context.Context, _ resource.SchemaRequ
 						Required:            true,
 					},
 					"name": schema.StringAttribute{
-						MarkdownDescription: "The name of the owner.",
+						MarkdownDescription: "The name of the owner. Resolved by the server from the owner ID.",
 						Computed:            true,
-						PlanModifiers: []planmodifier.String{
-							stringplanmodifier.UseStateForUnknown(),
-						},
 					},
 				},
 			},
 			"used_by": schema.ListNestedAttribute{
 				MarkdownDescription: "List of objects that use this form definition.",
-				Computed:            true,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.UseStateForUnknown(),
-				},
+				Optional:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"type": schema.StringAttribute{
 							MarkdownDescription: "The type of the referencing object (WORKFLOW, SOURCE, MySailPoint).",
-							Computed:            true,
+							Optional:            true,
 						},
 						"id": schema.StringAttribute{
 							MarkdownDescription: "The unique identifier of the referencing object.",
-							Computed:            true,
+							Optional:            true,
 						},
 						"name": schema.StringAttribute{
 							MarkdownDescription: "The name of the referencing object.",
+							Optional:            true,
 							Computed:            true,
 						},
 					},
 				},
 			},
-			"form_input": schema.StringAttribute{
-				MarkdownDescription: "JSON array of form inputs that can be passed into the form for use in conditional logic. Each input object has: id, type (STRING, ARRAY), label, description.",
+			"form_input": schema.ListNestedAttribute{
+				MarkdownDescription: "List of form inputs that can be passed into the form for use in conditional logic.",
 				Optional:            true,
-				Computed:            true,
-				CustomType:          jsontypes.NormalizedType{},
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"id": schema.StringAttribute{
+							MarkdownDescription: "The unique identifier of the form input.",
+							Optional:            true,
+							Computed:            true,
+						},
+						"type": schema.StringAttribute{
+							MarkdownDescription: "The type of the form input (STRING, ARRAY).",
+							Optional:            true,
+							Computed:            true,
+						},
+						"label": schema.StringAttribute{
+							MarkdownDescription: "The label of the form input.",
+							Required:            true,
+						},
+						"description": schema.StringAttribute{
+							MarkdownDescription: "The description of the form input.",
+							Optional:            true,
+							Computed:            true,
+						},
+					},
+				},
 			},
 			"form_elements": schema.StringAttribute{
-				MarkdownDescription: "JSON array of form elements (fields, sections, etc.). Elements must be wrapped in SECTION elements. Each element object has: id, elementType (TEXT, TOGGLE, TEXTAREA, HIDDEN, PHONE, EMAIL, SELECT, DATE, SECTION, COLUMN_SET, IMAGE, DESCRIPTION), config, key, validations.",
+				MarkdownDescription: "JSON array of form elements (fields, sections, etc.). Elements must be wrapped in SECTION elements. Each element object has: id, elementType (TEXT, TOGGLE, TEXTAREA, HIDDEN, PHONE, EMAIL, SELECT, DATE, SECTION, COLUMN_SET, IMAGE, DESCRIPTION), config, key, validations. **Important:** Omit fields with zero values (empty strings `\"\"`, empty arrays `[]`, `false`) from the JSON to avoid inconsistent plan errors.",
 				Optional:            true,
-				Computed:            true,
 				CustomType:          jsontypes.NormalizedType{},
 			},
-			"form_conditions": schema.StringAttribute{
-				MarkdownDescription: "JSON array of conditional logic that can dynamically modify the form. Each condition object has: ruleOperator (AND, OR), rules (sourceType, source, operator, valueType, value), effects (effectType, config).",
+			"form_conditions": schema.ListNestedAttribute{
+				MarkdownDescription: "List of conditions for the form definition. Conditions control the visibility and behavior of form elements based on form inputs and other conditions.",
 				Optional:            true,
-				Computed:            true,
-				CustomType:          jsontypes.NormalizedType{},
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"rule_operator": schema.StringAttribute{
+							MarkdownDescription: "The operator for the condition (AND, OR).",
+							Required:            true,
+						},
+						"rules": schema.ListNestedAttribute{
+							MarkdownDescription: "List of rules for the condition.",
+							Required:            true,
+							NestedObject: schema.NestedAttributeObject{
+								Attributes: map[string]schema.Attribute{
+									"source_type": schema.StringAttribute{
+										MarkdownDescription: "The type of the source for the rule (INPUT, ELEMENT).",
+										Required:            true,
+									},
+									"source": schema.StringAttribute{
+										MarkdownDescription: "The source for the rule.",
+										Required:            true,
+									},
+									"operator": schema.StringAttribute{
+										MarkdownDescription: "The operator for the rule (EQ, NE, CO, NOT_CO, IN, NOT_IN, EM, NOT_EM, SW, NOT_SW, EW, NOT_EW).",
+										Required:            true,
+									},
+									"value_type": schema.StringAttribute{
+										MarkdownDescription: "The type of the value for the rule (STRING, STRING_LIST, INPUT, ELEMENT, LIST, BOOLEAN).",
+										Required:            true,
+									},
+									"value": schema.StringAttribute{
+										MarkdownDescription: "The value for the rule.",
+										Required:            true,
+									},
+								},
+							},
+						},
+						"effects": schema.ListNestedAttribute{
+							MarkdownDescription: "List of effects for the condition.",
+							Required:            true,
+							NestedObject: schema.NestedAttributeObject{
+								Attributes: map[string]schema.Attribute{
+									"effect_type": schema.StringAttribute{
+										MarkdownDescription: "The type of the effect (HIDE, SHOW, DISABLE, ENABLE, REQUIRE, OPTIONAL, SUBMIT_MESSAGE, SUBMIT_NOTIFICATION, SET_DEFAULT_VALUE).",
+										Required:            true,
+									},
+									"config": schema.SingleNestedAttribute{
+										MarkdownDescription: "The configuration for the effect.",
+										Required:            true,
+										Attributes: map[string]schema.Attribute{
+											"default_value_label": schema.StringAttribute{
+												MarkdownDescription: "The default value label for the effect.",
+												Optional:            true,
+											},
+											"element": schema.StringAttribute{
+												MarkdownDescription: "The element targeted by the effect.",
+												Required:            true,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
 			},
 			"created": schema.StringAttribute{
 				MarkdownDescription: "The date and time when the form definition was created.",
@@ -162,7 +235,7 @@ func (r *formDefinitionResource) Create(ctx context.Context, req resource.Create
 	tflog.Debug(ctx, "Mapping form definition resource model to API create request", map[string]any{
 		"name": plan.Name.ValueString(),
 	})
-	apiCreateRequest, diags := plan.ToAPICreateRequest(ctx)
+	apiCreateRequest, diags := plan.ToAPI(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -198,7 +271,7 @@ func (r *formDefinitionResource) Create(ctx context.Context, req resource.Create
 	tflog.Debug(ctx, "Mapping SailPoint Form Definition API response to resource model", map[string]any{
 		"name": plan.Name.ValueString(),
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *formDefinitionAPIResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *formDefinitionAPIResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -265,7 +338,7 @@ func (r *formDefinitionResource) Read(ctx context.Context, req resource.ReadRequ
 	tflog.Debug(ctx, "Mapping SailPoint Form Definition API response to resource model", map[string]any{
 		"id": state.ID.ValueString(),
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *formDefinitionResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *formDefinitionResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -354,7 +427,7 @@ func (r *formDefinitionResource) Update(ctx context.Context, req resource.Update
 		"id":          state.ID.ValueString(),
 		"patch_count": len(patchOps),
 	})
-	formDefinitionAPIResponse, err := r.client.UpdateFormDefinition(ctx, state.ID.ValueString(), patchOps)
+	formDefinitionAPIResponse, err := r.client.PatchFormDefinition(ctx, state.ID.ValueString(), patchOps)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating SailPoint Form Definition",
@@ -380,7 +453,7 @@ func (r *formDefinitionResource) Update(ctx context.Context, req resource.Update
 	tflog.Debug(ctx, "Mapping SailPoint Form Definition API response to resource model", map[string]any{
 		"id": state.ID.ValueString(),
 	})
-	resp.Diagnostics.Append(newState.FromSailPointAPI(ctx, *formDefinitionAPIResponse)...)
+	resp.Diagnostics.Append(newState.FromAPI(ctx, *formDefinitionAPIResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

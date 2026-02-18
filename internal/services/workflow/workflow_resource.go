@@ -14,7 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int32planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -71,18 +71,12 @@ func (r *workflowResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			"description": schema.StringAttribute{
 				MarkdownDescription: "The description of the workflow.",
 				Optional:            true,
-				Computed:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"enabled": schema.BoolAttribute{
-				MarkdownDescription: "Whether the workflow is enabled. Workflows cannot be created in an enabled state. Default is `false`.",
+				MarkdownDescription: "Whether the workflow is enabled. Workflows cannot be created in an enabled state. Defaults to `false`.",
 				Optional:            true,
 				Computed:            true,
-				PlanModifiers: []planmodifier.Bool{
-					boolplanmodifier.UseStateForUnknown(),
-				},
+				Default:             booldefault.StaticBool(false),
 			},
 			"trigger": schema.StringAttribute{
 				MarkdownDescription: "The trigger configuration as JSON. This is a computed field - use `sailpoint_workflow_trigger` resource to manage triggers.",
@@ -172,11 +166,8 @@ func (r *workflowResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 						Required:            true,
 					},
 					"name": schema.StringAttribute{
-						MarkdownDescription: "The name of the owner.",
+						MarkdownDescription: "The name of the owner. Resolved by the server from the owner ID.",
 						Computed:            true,
-						PlanModifiers: []planmodifier.String{
-							stringplanmodifier.UseStateForUnknown(),
-						},
 					},
 				},
 			},
@@ -215,7 +206,7 @@ func (r *workflowResource) Create(ctx context.Context, req resource.CreateReques
 	tflog.Debug(ctx, "Mapping workflow resource model to API create request", map[string]any{
 		"name": plan.Name.ValueString(),
 	})
-	apiCreateRequest, diags := plan.ToAPICreateRequest(ctx)
+	apiCreateRequest, diags := plan.ToAPI(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -252,7 +243,7 @@ func (r *workflowResource) Create(ctx context.Context, req resource.CreateReques
 		"id":   workflowAPIResponse.ID,
 		"name": plan.Name.ValueString(),
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *workflowAPIResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *workflowAPIResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -318,7 +309,7 @@ func (r *workflowResource) Read(ctx context.Context, req resource.ReadRequest, r
 	tflog.Debug(ctx, "Mapping SailPoint Workflow API response to resource model", map[string]any{
 		"id": state.ID.ValueString(),
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *workflowResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *workflowResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -358,7 +349,7 @@ func (r *workflowResource) Update(ctx context.Context, req resource.UpdateReques
 		"id":   state.ID.ValueString(),
 		"name": plan.Name.ValueString(),
 	})
-	apiUpdateRequest, diags := plan.ToAPIUpdateRequest(ctx)
+	apiUpdateRequest, diags := plan.ToAPIUpdate(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -394,7 +385,7 @@ func (r *workflowResource) Update(ctx context.Context, req resource.UpdateReques
 	tflog.Debug(ctx, "Mapping SailPoint Workflow API response to resource model", map[string]any{
 		"id": state.ID.ValueString(),
 	})
-	resp.Diagnostics.Append(newState.FromSailPointAPI(ctx, *workflowAPIResponse)...)
+	resp.Diagnostics.Append(newState.FromAPI(ctx, *workflowAPIResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -430,7 +421,7 @@ func (r *workflowResource) Delete(ctx context.Context, req resource.DeleteReques
 		})
 
 		// Convert to API model and disable
-		apiWorkflow, diags := state.ToAPIUpdateRequest(ctx)
+		apiWorkflow, diags := state.ToAPIUpdate(ctx)
 		resp.Diagnostics.Append(diags...)
 		if resp.Diagnostics.HasError() {
 			return

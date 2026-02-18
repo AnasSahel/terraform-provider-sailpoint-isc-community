@@ -5,10 +5,19 @@ package common
 
 import "github.com/hashicorp/terraform-plugin-framework/types"
 
-// StringOrNullValue converts a *string to types.String, returning null if nil.
-func StringOrNullValue(value *string) types.String {
+// StringOrNull converts a *string to types.String, returning null if nil.
+func StringOrNull(value *string) types.String {
 	if value != nil {
 		return types.StringValue(*value)
 	}
 	return types.StringNull()
+}
+
+// StringOrNullIfEmpty converts a string to types.String, returning null if empty.
+// Use this for Optional (non-Computed) fields where the API defaults to "".
+func StringOrNullIfEmpty(value string) types.String {
+	if value == "" {
+		return types.StringNull()
+	}
+	return types.StringValue(value)
 }

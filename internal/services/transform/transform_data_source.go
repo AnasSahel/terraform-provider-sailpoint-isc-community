@@ -12,6 +12,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -68,26 +70,28 @@ func (d *transformDataSource) Schema(_ context.Context, _ datasource.SchemaReque
 }
 
 func (d *transformDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	tflog.Debug(ctx, "Reading SailPoint Transform data source")
-
-	var config transformModel
-	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	var config struct {
+		ID types.String `tfsdk:"id"`
+	}
+	tflog.Debug(ctx, "Getting config for transform data source")
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("id"), &config.ID)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Get the transform from SailPoint
+	id := config.ID.ValueString()
+
 	tflog.Debug(ctx, "Fetching transform from SailPoint", map[string]any{
-		"id": config.ID.ValueString(),
+		"id": id,
 	})
-	transformResponse, err := d.client.GetTransform(ctx, config.ID.ValueString())
+	transformResponse, err := d.client.GetTransform(ctx, id)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading SailPoint Transform",
-			fmt.Sprintf("Could not read SailPoint Transform %q: %s", config.ID.ValueString(), err.Error()),
+			fmt.Sprintf("Could not read SailPoint Transform %q: %s", id, err.Error()),
 		)
 		tflog.Error(ctx, "Failed to read SailPoint Transform", map[string]any{
-			"id":    config.ID.ValueString(),
+			"id":    id,
 			"error": err.Error(),
 		})
 		return
@@ -101,20 +105,18 @@ func (d *transformDataSource) Read(ctx context.Context, req datasource.ReadReque
 		return
 	}
 
-	// Map the response to the data source model
 	var state transformModel
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *transformResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *transformResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Set the state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 	tflog.Info(ctx, "Successfully read SailPoint Transform data source", map[string]any{
-		"id":   config.ID.ValueString(),
+		"id":   id,
 		"name": state.Name.ValueString(),
 	})
 }

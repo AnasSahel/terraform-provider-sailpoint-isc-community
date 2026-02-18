@@ -22,30 +22,8 @@ var schemaAttributeSchemaRefAttrTypes = map[string]attr.Type{
 	"name": types.StringType,
 }
 
-// sourceSchemaModel represents the Terraform model for a SailPoint source schema data source.
+// sourceSchemaModel represents the Terraform state for a Source Schema resource.
 type sourceSchemaModel struct {
-	// Input parameters
-	SourceID     types.String `tfsdk:"source_id"`
-	IncludeTypes types.String `tfsdk:"include_types"`
-	IncludeNames types.String `tfsdk:"include_names"`
-
-	// Output attributes
-	ID                 types.String         `tfsdk:"id"`
-	Name               types.String         `tfsdk:"name"`
-	NativeObjectType   types.String         `tfsdk:"native_object_type"`
-	IdentityAttribute  types.String         `tfsdk:"identity_attribute"`
-	DisplayAttribute   types.String         `tfsdk:"display_attribute"`
-	HierarchyAttribute types.String         `tfsdk:"hierarchy_attribute"`
-	IncludePermissions types.Bool           `tfsdk:"include_permissions"`
-	Features           types.List           `tfsdk:"features"`
-	Configuration      jsontypes.Normalized `tfsdk:"configuration"`
-	Attributes         types.List           `tfsdk:"attributes"`
-	Created            types.String         `tfsdk:"created"`
-	Modified           types.String         `tfsdk:"modified"`
-}
-
-// sourceSchemaResourceModel represents the Terraform model for a SailPoint source schema resource.
-type sourceSchemaResourceModel struct {
 	SourceID           types.String         `tfsdk:"source_id"`
 	ID                 types.String         `tfsdk:"id"`
 	Name               types.String         `tfsdk:"name"`
@@ -90,74 +68,53 @@ func sourceSchemaAttributeElementType() types.ObjectType {
 	}
 }
 
-// fromSourceSchemaAPI is a shared helper that populates common fields from a SailPoint API response.
-func fromSourceSchemaAPI(ctx context.Context, api client.SourceSchemaAPI) (
-	id types.String,
-	name types.String,
-	nativeObjectType types.String,
-	identityAttribute types.String,
-	displayAttribute types.String,
-	hierarchyAttribute types.String,
-	includePermissions types.Bool,
-	features types.List,
-	configuration jsontypes.Normalized,
-	attributes types.List,
-	created types.String,
-	modified types.String,
-	diags diag.Diagnostics,
-) {
-	id = types.StringValue(api.ID)
-	name = types.StringValue(api.Name)
+// FromAPI maps fields from the API model to the Terraform model.
+func (m *sourceSchemaModel) FromAPI(ctx context.Context, api client.SourceSchemaAPI, sourceID string) diag.Diagnostics {
+	var diags diag.Diagnostics
 
-	if api.NativeObjectType != "" {
-		nativeObjectType = types.StringValue(api.NativeObjectType)
-	} else {
-		nativeObjectType = types.StringNull()
-	}
+	m.SourceID = types.StringValue(sourceID)
+	m.ID = types.StringValue(api.ID)
+	m.Name = types.StringValue(api.Name)
 
-	if api.IdentityAttribute != "" {
-		identityAttribute = types.StringValue(api.IdentityAttribute)
-	} else {
-		identityAttribute = types.StringNull()
-	}
+	// Map required string fields
+	m.NativeObjectType = types.StringValue(api.NativeObjectType)
 
-	if api.DisplayAttribute != "" {
-		displayAttribute = types.StringValue(api.DisplayAttribute)
-	} else {
-		displayAttribute = types.StringNull()
-	}
+	// Map required string fields
+	m.IdentityAttribute = types.StringValue(api.IdentityAttribute)
 
-	hierarchyAttribute = common.StringOrNullValue(api.HierarchyAttribute)
-	includePermissions = types.BoolValue(api.IncludePermissions)
+	// Map optional string fields
+	m.DisplayAttribute = common.StringOrNullIfEmpty(api.DisplayAttribute)
+	m.HierarchyAttribute = common.StringOrNull(api.HierarchyAttribute)
+	m.IncludePermissions = types.BoolValue(api.IncludePermissions)
 
-	// Convert features
-	if api.Features != nil {
-		var d diag.Diagnostics
-		features, d = types.ListValueFrom(ctx, types.StringType, api.Features)
+	// Map features (default: empty list)
+	if len(api.Features) > 0 {
+		featuresList, d := types.ListValueFrom(ctx, types.StringType, api.Features)
 		diags.Append(d...)
+		m.Features = featuresList
 	} else {
-		features = types.ListNull(types.StringType)
+		m.Features = types.ListValueMust(types.StringType, []attr.Value{})
 	}
 
-	// Convert configuration to JSON
+	// Map configuration to JSON (default: {}, mapped to null when absent)
 	if api.Configuration != nil {
 		configJSON, err := json.Marshal(api.Configuration)
 		if err != nil {
 			diags.AddError("Error Mapping Configuration", "Could not marshal configuration to JSON: "+err.Error())
-			return
+			return diags
 		}
-		configuration = jsontypes.NewNormalizedValue(string(configJSON))
+		m.Configuration = jsontypes.NewNormalizedValue(string(configJSON))
 	} else {
-		configuration = jsontypes.NewNormalizedNull()
+		m.Configuration = jsontypes.NewNormalizedNull()
 	}
 
-	// Convert attributes
-	if api.Attributes != nil {
-		attrList := []sourceSchemaAttributeModel{}
-		for _, attrAPI := range api.Attributes {
-			attrModel := sourceSchemaAttributeModel{
+	// Map attributes (default: empty list)
+	if len(api.Attributes) > 0 {
+		attrList := make([]sourceSchemaAttributeModel, len(api.Attributes))
+		for i, attrAPI := range api.Attributes {
+			attrList[i] = sourceSchemaAttributeModel{
 				Name:          attrAPI.Name,
-				NativeName:    common.StringOrNullValue(attrAPI.NativeName),
+				NativeName:    common.StringOrNull(attrAPI.NativeName),
 				Type:          attrAPI.Type,
 				Description:   attrAPI.Description,
 				IsMulti:       attrAPI.IsMulti,
@@ -173,95 +130,37 @@ func fromSourceSchemaAPI(ctx context.Context, api client.SourceSchemaAPI) (
 					"name": types.StringValue(attrAPI.Schema.Name),
 				})
 				diags.Append(d...)
-				attrModel.Schema = schemaObj
+				attrList[i].Schema = schemaObj
 			} else {
-				attrModel.Schema = types.ObjectNull(schemaAttributeSchemaRefAttrTypes)
+				attrList[i].Schema = types.ObjectNull(schemaAttributeSchemaRefAttrTypes)
 			}
-
-			attrList = append(attrList, attrModel)
 		}
 
-		var d diag.Diagnostics
-		attributes, d = types.ListValueFrom(ctx, sourceSchemaAttributeElementType(), attrList)
+		attributesList, d := types.ListValueFrom(ctx, sourceSchemaAttributeElementType(), attrList)
 		diags.Append(d...)
+		m.Attributes = attributesList
 	} else {
-		attributes = types.ListNull(sourceSchemaAttributeElementType())
+		m.Attributes = types.ListValueMust(sourceSchemaAttributeElementType(), []attr.Value{})
 	}
 
-	// Convert timestamps
-	if api.Created != "" {
-		created = types.StringValue(api.Created)
-	} else {
-		created = types.StringNull()
-	}
-
-	modified = common.StringOrNullValue(api.Modified)
-
-	return
-}
-
-// FromSailPointAPI populates the data source Terraform model from a SailPoint API response.
-func (m *sourceSchemaModel) FromSailPointAPI(ctx context.Context, api client.SourceSchemaAPI) diag.Diagnostics {
-	id, name, nativeObjectType, identityAttribute, displayAttribute,
-		hierarchyAttribute, includePermissions, features, configuration,
-		attributes, created, modified, diags := fromSourceSchemaAPI(ctx, api)
-
-	m.ID = id
-	m.Name = name
-	m.NativeObjectType = nativeObjectType
-	m.IdentityAttribute = identityAttribute
-	m.DisplayAttribute = displayAttribute
-	m.HierarchyAttribute = hierarchyAttribute
-	m.IncludePermissions = includePermissions
-	m.Features = features
-	m.Configuration = configuration
-	m.Attributes = attributes
-	m.Created = created
-	m.Modified = modified
+	// Map timestamps
+	m.Created = common.StringOrNullIfEmpty(api.Created)
+	m.Modified = common.StringOrNull(api.Modified)
 
 	return diags
 }
 
-// FromSailPointAPI populates the resource Terraform model from a SailPoint API response.
-func (m *sourceSchemaResourceModel) FromSailPointAPI(ctx context.Context, api client.SourceSchemaAPI, sourceID string) diag.Diagnostics {
-	id, name, nativeObjectType, identityAttribute, displayAttribute,
-		hierarchyAttribute, includePermissions, features, configuration,
-		attributes, created, modified, diags := fromSourceSchemaAPI(ctx, api)
-
-	m.SourceID = types.StringValue(sourceID)
-	m.ID = id
-	m.Name = name
-	m.NativeObjectType = nativeObjectType
-	m.IdentityAttribute = identityAttribute
-	m.DisplayAttribute = displayAttribute
-	m.HierarchyAttribute = hierarchyAttribute
-	m.IncludePermissions = includePermissions
-	m.Features = features
-	m.Configuration = configuration
-	m.Attributes = attributes
-	m.Created = created
-	m.Modified = modified
-
-	return diags
-}
-
-// ToAPICreateRequest maps fields from the resource Terraform model to the API create request.
-func (m *sourceSchemaResourceModel) ToAPICreateRequest(ctx context.Context) (client.SourceSchemaAPI, diag.Diagnostics) {
+// ToAPI maps fields from the Terraform model to the API create request.
+func (m *sourceSchemaModel) ToAPI(ctx context.Context) (client.SourceSchemaAPI, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
 	apiRequest := client.SourceSchemaAPI{
-		Name: m.Name.ValueString(),
+		Name:              m.Name.ValueString(),
+		NativeObjectType:  m.NativeObjectType.ValueString(),
+		IdentityAttribute: m.IdentityAttribute.ValueString(),
 	}
 
 	// Map optional string fields
-	if !m.NativeObjectType.IsNull() && !m.NativeObjectType.IsUnknown() {
-		apiRequest.NativeObjectType = m.NativeObjectType.ValueString()
-	}
-
-	if !m.IdentityAttribute.IsNull() && !m.IdentityAttribute.IsUnknown() {
-		apiRequest.IdentityAttribute = m.IdentityAttribute.ValueString()
-	}
-
 	if !m.DisplayAttribute.IsNull() && !m.DisplayAttribute.IsUnknown() {
 		apiRequest.DisplayAttribute = m.DisplayAttribute.ValueString()
 	}
@@ -294,57 +193,67 @@ func (m *sourceSchemaResourceModel) ToAPICreateRequest(ctx context.Context) (cli
 		apiRequest.Configuration = config
 	}
 
-	// Map attributes
-	if !m.Attributes.IsNull() && !m.Attributes.IsUnknown() {
-		var attrModels []sourceSchemaAttributeModel
-		d := m.Attributes.ElementsAs(ctx, &attrModels, false)
-		diags.Append(d...)
-		if !diags.HasError() {
-			apiAttrs := make([]client.SourceSchemaAttributeAPI, len(attrModels))
-			for i, attrModel := range attrModels {
-				apiAttrs[i] = client.SourceSchemaAttributeAPI{
-					Name:          attrModel.Name,
-					Type:          attrModel.Type,
-					Description:   attrModel.Description,
-					IsMulti:       attrModel.IsMulti,
-					IsEntitlement: attrModel.IsEntitlement,
-					IsGroup:       attrModel.IsGroup,
-				}
-
-				// Convert native_name if present
-				if !attrModel.NativeName.IsNull() && !attrModel.NativeName.IsUnknown() {
-					nativeName := attrModel.NativeName.ValueString()
-					apiAttrs[i].NativeName = &nativeName
-				}
-
-				// Convert schema ref if present
-				if !attrModel.Schema.IsNull() && !attrModel.Schema.IsUnknown() {
-					schemaAttrs := attrModel.Schema.Attributes()
-					schemaRef := &client.SourceSchemaAttributeSchemaAPI{}
-					if v, ok := schemaAttrs["type"].(types.String); ok && !v.IsNull() {
-						schemaRef.Type = v.ValueString()
-					}
-					if v, ok := schemaAttrs["id"].(types.String); ok && !v.IsNull() {
-						schemaRef.ID = v.ValueString()
-					}
-					if v, ok := schemaAttrs["name"].(types.String); ok && !v.IsNull() {
-						schemaRef.Name = v.ValueString()
-					}
-					apiAttrs[i].Schema = schemaRef
-				}
+	// Map attributes (Required field)
+	var attrModels []sourceSchemaAttributeModel
+	d := m.Attributes.ElementsAs(ctx, &attrModels, false)
+	diags.Append(d...)
+	if !diags.HasError() {
+		apiAttrs := make([]client.SourceSchemaAttributeAPI, len(attrModels))
+		for i, attrModel := range attrModels {
+			apiAttrs[i] = client.SourceSchemaAttributeAPI{
+				Name:          attrModel.Name,
+				Type:          attrModel.Type,
+				Description:   attrModel.Description,
+				IsMulti:       attrModel.IsMulti,
+				IsEntitlement: attrModel.IsEntitlement,
+				IsGroup:       attrModel.IsGroup,
 			}
-			apiRequest.Attributes = apiAttrs
+
+			// Convert native_name if present
+			if !attrModel.NativeName.IsNull() && !attrModel.NativeName.IsUnknown() {
+				nativeName := attrModel.NativeName.ValueString()
+				apiAttrs[i].NativeName = &nativeName
+			}
+
+			// Convert schema ref if present
+			if !attrModel.Schema.IsNull() && !attrModel.Schema.IsUnknown() {
+				schemaAttrs := attrModel.Schema.Attributes()
+				schemaRef := &client.SourceSchemaAttributeSchemaAPI{}
+				if v, ok := schemaAttrs["type"].(types.String); ok && !v.IsNull() {
+					schemaRef.Type = v.ValueString()
+				}
+				if v, ok := schemaAttrs["id"].(types.String); ok && !v.IsNull() {
+					schemaRef.ID = v.ValueString()
+				}
+				if v, ok := schemaAttrs["name"].(types.String); ok && !v.IsNull() {
+					schemaRef.Name = v.ValueString()
+				}
+				apiAttrs[i].Schema = schemaRef
+			}
 		}
+		apiRequest.Attributes = apiAttrs
 	}
 
 	return apiRequest, diags
 }
 
-// ToAPIUpdateRequest maps fields from the resource Terraform model to the API update (PUT) request.
+// ToAPIUpdate maps fields from the Terraform model to the API update (PUT) request.
 // The PUT request requires the ID field to be included in the body.
-func (m *sourceSchemaResourceModel) ToAPIUpdateRequest(ctx context.Context) (client.SourceSchemaAPI, diag.Diagnostics) {
-	apiRequest, diags := m.ToAPICreateRequest(ctx)
+func (m *sourceSchemaModel) ToAPIUpdate(ctx context.Context) (client.SourceSchemaAPI, diag.Diagnostics) {
+	apiRequest, diags := m.ToAPI(ctx)
 	// PUT request requires the ID in the body
 	apiRequest.ID = m.ID.ValueString()
 	return apiRequest, diags
+}
+
+// sourceSchemaDataSourceModel embeds the resource model and adds data-source-specific input fields.
+type sourceSchemaDataSourceModel struct {
+	sourceSchemaModel
+	IncludeTypes types.String `tfsdk:"include_types"`
+	IncludeNames types.String `tfsdk:"include_names"`
+}
+
+// FromAPI maps fields from the API response to the data source model.
+func (m *sourceSchemaDataSourceModel) FromAPI(ctx context.Context, api client.SourceSchemaAPI, sourceID string) diag.Diagnostics {
+	return m.sourceSchemaModel.FromAPI(ctx, api, sourceID)
 }

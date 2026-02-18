@@ -12,6 +12,13 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
+const (
+	provisioningPolicyEndpointGet    = "/v2025/sources/{sourceId}/provisioning-policies/{usageType}"
+	provisioningPolicyEndpointCreate = "/v2025/sources/{sourceId}/provisioning-policies"
+	provisioningPolicyEndpointUpdate = "/v2025/sources/{sourceId}/provisioning-policies/{usageType}"
+	provisioningPolicyEndpointDelete = "/v2025/sources/{sourceId}/provisioning-policies/{usageType}"
+)
+
 // ProvisioningPolicyAPI represents a SailPoint provisioning policy from the API.
 type ProvisioningPolicyAPI struct {
 	Name        string                       `json:"name"`
@@ -38,15 +45,11 @@ type ProvisioningPolicyTransformAPI struct {
 
 // provisioningPolicyErrorContext provides context for error messages.
 type provisioningPolicyErrorContext struct {
-	Operation string
-	SourceID  string
-	UsageType string
+	Operation    string
+	SourceID     string
+	UsageType    string
+	ResponseBody string
 }
-
-const (
-	provisioningPoliciesEndpoint       = "/v2025/sources/%s/provisioning-policies/%s"
-	provisioningPoliciesCreateEndpoint = "/v2025/sources/%s/provisioning-policies"
-)
 
 // GetProvisioningPolicy retrieves a specific provisioning policy for a source and usage type.
 // Returns the ProvisioningPolicyAPI and any error encountered.
@@ -66,8 +69,12 @@ func (c *Client) GetProvisioningPolicy(ctx context.Context, sourceID, usageType 
 
 	var policy ProvisioningPolicyAPI
 
-	endpoint := fmt.Sprintf(provisioningPoliciesEndpoint, sourceID, usageType)
-	resp, err := c.doRequest(ctx, http.MethodGet, endpoint, nil, &policy)
+	resp, err := c.prepareRequest(ctx).
+		SetResult(&policy).
+		SetPathParam("sourceId", sourceID).
+		SetPathParam("usageType", usageType).
+		Get(provisioningPolicyEndpointGet)
+
 	if err != nil {
 		return nil, c.formatProvisioningPolicyError(
 			provisioningPolicyErrorContext{Operation: "get", SourceID: sourceID, UsageType: usageType},
@@ -78,7 +85,7 @@ func (c *Client) GetProvisioningPolicy(ctx context.Context, sourceID, usageType 
 
 	if resp.IsError() {
 		return nil, c.formatProvisioningPolicyError(
-			provisioningPolicyErrorContext{Operation: "get", SourceID: sourceID, UsageType: usageType},
+			provisioningPolicyErrorContext{Operation: "get", SourceID: sourceID, UsageType: usageType, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -118,8 +125,12 @@ func (c *Client) CreateProvisioningPolicy(ctx context.Context, sourceID string, 
 
 	var result ProvisioningPolicyAPI
 
-	endpoint := fmt.Sprintf(provisioningPoliciesCreateEndpoint, sourceID)
-	resp, err := c.doRequest(ctx, http.MethodPost, endpoint, policy, &result)
+	resp, err := c.prepareRequest(ctx).
+		SetBody(policy).
+		SetResult(&result).
+		SetPathParam("sourceId", sourceID).
+		Post(provisioningPolicyEndpointCreate)
+
 	if err != nil {
 		return nil, c.formatProvisioningPolicyError(
 			provisioningPolicyErrorContext{Operation: "create", SourceID: sourceID},
@@ -131,10 +142,10 @@ func (c *Client) CreateProvisioningPolicy(ctx context.Context, sourceID string, 
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatProvisioningPolicyError(
-			provisioningPolicyErrorContext{Operation: "create", SourceID: sourceID},
+			provisioningPolicyErrorContext{Operation: "create", SourceID: sourceID, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -174,8 +185,13 @@ func (c *Client) UpdateProvisioningPolicy(ctx context.Context, sourceID, usageTy
 
 	var result ProvisioningPolicyAPI
 
-	endpoint := fmt.Sprintf(provisioningPoliciesEndpoint, sourceID, usageType)
-	resp, err := c.doRequest(ctx, http.MethodPut, endpoint, policy, &result)
+	resp, err := c.prepareRequest(ctx).
+		SetBody(policy).
+		SetResult(&result).
+		SetPathParam("sourceId", sourceID).
+		SetPathParam("usageType", usageType).
+		Put(provisioningPolicyEndpointUpdate)
+
 	if err != nil {
 		return nil, c.formatProvisioningPolicyError(
 			provisioningPolicyErrorContext{Operation: "update", SourceID: sourceID, UsageType: usageType},
@@ -187,10 +203,10 @@ func (c *Client) UpdateProvisioningPolicy(ctx context.Context, sourceID, usageTy
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatProvisioningPolicyError(
-			provisioningPolicyErrorContext{Operation: "update", SourceID: sourceID, UsageType: usageType},
+			provisioningPolicyErrorContext{Operation: "update", SourceID: sourceID, UsageType: usageType, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -221,8 +237,11 @@ func (c *Client) DeleteProvisioningPolicy(ctx context.Context, sourceID, usageTy
 		"usage_type": usageType,
 	})
 
-	endpoint := fmt.Sprintf(provisioningPoliciesEndpoint, sourceID, usageType)
-	resp, err := c.doRequest(ctx, http.MethodDelete, endpoint, nil, nil)
+	resp, err := c.prepareRequest(ctx).
+		SetPathParam("sourceId", sourceID).
+		SetPathParam("usageType", usageType).
+		Delete(provisioningPolicyEndpointDelete)
+
 	if err != nil {
 		return c.formatProvisioningPolicyError(
 			provisioningPolicyErrorContext{Operation: "delete", SourceID: sourceID, UsageType: usageType},
@@ -242,7 +261,7 @@ func (c *Client) DeleteProvisioningPolicy(ctx context.Context, sourceID, usageTy
 		}
 
 		return c.formatProvisioningPolicyError(
-			provisioningPolicyErrorContext{Operation: "delete", SourceID: sourceID, UsageType: usageType},
+			provisioningPolicyErrorContext{Operation: "delete", SourceID: sourceID, UsageType: usageType, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -260,7 +279,6 @@ func (c *Client) DeleteProvisioningPolicy(ctx context.Context, sourceID, usageTy
 func (c *Client) formatProvisioningPolicyError(errCtx provisioningPolicyErrorContext, err error, statusCode int) error {
 	var baseMsg string
 
-	// Build base message with operation and identifier context
 	switch {
 	case errCtx.UsageType != "":
 		baseMsg = fmt.Sprintf("failed to %s provisioning policy '%s' for source '%s'", errCtx.Operation, errCtx.UsageType, errCtx.SourceID)
@@ -268,32 +286,35 @@ func (c *Client) formatProvisioningPolicyError(errCtx provisioningPolicyErrorCon
 		baseMsg = fmt.Sprintf("failed to %s provisioning policies for source '%s'", errCtx.Operation, errCtx.SourceID)
 	}
 
-	// Handle network or request errors
 	if err != nil {
 		return fmt.Errorf("%s: %w", baseMsg, err)
 	}
 
-	// Handle HTTP error status codes with clear, actionable messages
 	if statusCode != 0 {
+		detail := ""
+		if errCtx.ResponseBody != "" {
+			detail = fmt.Sprintf(" - response: %s", errCtx.ResponseBody)
+		}
+
 		switch statusCode {
 		case http.StatusBadRequest:
-			return fmt.Errorf("%s: invalid request - check parameters (400)", baseMsg)
+			return fmt.Errorf("%s: invalid request (400)%s", baseMsg, detail)
 		case http.StatusUnauthorized:
-			return fmt.Errorf("%s: authentication failed - check credentials (401)", baseMsg)
+			return fmt.Errorf("%s: authentication failed (401)%s", baseMsg, detail)
 		case http.StatusForbidden:
-			return fmt.Errorf("%s: access denied - insufficient permissions (403)", baseMsg)
+			return fmt.Errorf("%s: access denied (403)%s", baseMsg, detail)
 		case http.StatusNotFound:
-			// Wrap ErrNotFound so callers can use errors.Is() to check for 404
 			return fmt.Errorf("%s: %w", baseMsg, ErrNotFound)
+		case http.StatusConflict:
+			return fmt.Errorf("%s: conflict (409)%s", baseMsg, detail)
 		case http.StatusTooManyRequests:
-			return fmt.Errorf("%s: rate limit exceeded - retry after delay (429)", baseMsg)
+			return fmt.Errorf("%s: rate limit exceeded (429)%s", baseMsg, detail)
 		case http.StatusInternalServerError:
-			return fmt.Errorf("%s: server error - contact SailPoint support (500)", baseMsg)
+			return fmt.Errorf("%s: server error (500)%s", baseMsg, detail)
 		default:
-			return fmt.Errorf("%s: unexpected status code %d", baseMsg, statusCode)
+			return fmt.Errorf("%s: unexpected status code %d%s", baseMsg, statusCode, detail)
 		}
 	}
 
-	// Fallback for unknown error conditions
 	return fmt.Errorf("%s: unknown error", baseMsg)
 }

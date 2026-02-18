@@ -215,16 +215,16 @@ resource "sailpoint_identity_attribute" "protected" {
 
 ### Optional
 
-- `display_name` (String) The display name of the identity attribute.
-- `multi` (Boolean) Indicates if the identity attribute supports multiple values.
-- `searchable` (Boolean) Indicates if the identity attribute is searchable.
+- `display_name` (String) The display name of the identity attribute. Defaults to a server-computed value.
+- `multi` (Boolean) Indicates if the identity attribute supports multiple values. Defaults to `false`.
+- `searchable` (Boolean) Indicates if the identity attribute is searchable. Defaults to `false`.
 - `sources` (Attributes List) The sources associated with the identity attribute. (see [below for nested schema](#nestedatt--sources))
-- `standard` (Boolean) Indicates if the identity attribute is a standard attribute.
-- `type` (String) The type of the identity attribute.
+- `standard` (Boolean) Indicates if the identity attribute is a standard attribute. Defaults to `false`.
+- `type` (String) The type of the identity attribute. Defaults to `null`.
 
 ### Read-Only
 
-- `system` (Boolean) Indicates if the identity attribute is a system attribute.
+- `system` (Boolean) Indicates if the identity attribute is a system attribute. Always `false`.
 
 <a id="nestedatt--sources"></a>
 ### Nested Schema for `sources`

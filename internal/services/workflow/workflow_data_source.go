@@ -12,6 +12,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -161,25 +163,29 @@ func (d *workflowDataSource) Schema(_ context.Context, _ datasource.SchemaReques
 
 // Read implements datasource.DataSource.
 func (d *workflowDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var config workflowModel
+	var config struct {
+		ID types.String `tfsdk:"id"`
+	}
 	tflog.Debug(ctx, "Getting config for workflow data source")
-	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("id"), &config.ID)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
+	id := config.ID.ValueString()
+
 	// Read the workflow from SailPoint
 	tflog.Debug(ctx, "Fetching workflow from SailPoint", map[string]any{
-		"id": config.ID.ValueString(),
+		"id": id,
 	})
-	workflowResponse, err := d.client.GetWorkflow(ctx, config.ID.ValueString())
+	workflowResponse, err := d.client.GetWorkflow(ctx, id)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading SailPoint Workflow",
-			fmt.Sprintf("Could not read SailPoint Workflow %q: %s", config.ID.ValueString(), err.Error()),
+			fmt.Sprintf("Could not read SailPoint Workflow %q: %s", id, err.Error()),
 		)
 		tflog.Error(ctx, "Failed to read SailPoint Workflow", map[string]any{
-			"id":    config.ID.ValueString(),
+			"id":    id,
 			"error": err.Error(),
 		})
 		return
@@ -196,9 +202,9 @@ func (d *workflowDataSource) Read(ctx context.Context, req datasource.ReadReques
 	// Map the response to the data source model
 	var state workflowModel
 	tflog.Debug(ctx, "Mapping SailPoint Workflow API response to data source model", map[string]any{
-		"id": config.ID.ValueString(),
+		"id": id,
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *workflowResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *workflowResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

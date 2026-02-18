@@ -5,6 +5,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -12,7 +13,10 @@ import (
 )
 
 const (
-	lifecycleStatesEndpointTemplate = "/v2025/identity-profiles/%s/lifecycle-states"
+	lifecycleStatesEndpointGet    = "/v2025/identity-profiles/{profileId}/lifecycle-states/{lifecycleStateId}"
+	lifecycleStatesEndpointCreate = "/v2025/identity-profiles/{profileId}/lifecycle-states"
+	lifecycleStatesEndpointPatch  = "/v2025/identity-profiles/{profileId}/lifecycle-states/{lifecycleStateId}"
+	lifecycleStatesEndpointDelete = "/v2025/identity-profiles/{profileId}/lifecycle-states/{lifecycleStateId}"
 )
 
 // LifecycleStateAPI represents a SailPoint Lifecycle State from the API.
@@ -68,22 +72,17 @@ type AccessActionConfigurationAPI struct {
 	RemoveAllAccessEnabled bool `json:"removeAllAccessEnabled"`
 }
 
-// LifecycleStateDeleteResponseAPI represents the response from deleting a lifecycle state.
-type LifecycleStateDeleteResponseAPI struct {
-	Type string `json:"type"`
-	ID   string `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
-}
-
 // lifecycleStateErrorContext provides context for error messages.
 type lifecycleStateErrorContext struct {
 	Operation         string
 	IdentityProfileID string
 	LifecycleStateID  string
 	Name              string
+	ResponseBody      string
 }
 
 // GetLifecycleState retrieves a specific lifecycle state by ID.
+// Returns the LifecycleStateAPI and any error encountered.
 func (c *Client) GetLifecycleState(ctx context.Context, identityProfileID, lifecycleStateID string) (*LifecycleStateAPI, error) {
 	if identityProfileID == "" {
 		return nil, fmt.Errorf("identity profile ID cannot be empty")
@@ -100,8 +99,12 @@ func (c *Client) GetLifecycleState(ctx context.Context, identityProfileID, lifec
 
 	var lifecycleState LifecycleStateAPI
 
-	endpoint := fmt.Sprintf(lifecycleStatesEndpointTemplate+"/%s", identityProfileID, lifecycleStateID)
-	resp, err := c.doRequest(ctx, http.MethodGet, endpoint, nil, &lifecycleState)
+	resp, err := c.prepareRequest(ctx).
+		SetResult(&lifecycleState).
+		SetPathParam("profileId", identityProfileID).
+		SetPathParam("lifecycleStateId", lifecycleStateID).
+		Get(lifecycleStatesEndpointGet)
+
 	if err != nil {
 		return nil, c.formatLifecycleStateError(
 			lifecycleStateErrorContext{
@@ -120,6 +123,7 @@ func (c *Client) GetLifecycleState(ctx context.Context, identityProfileID, lifec
 				Operation:         "get",
 				IdentityProfileID: identityProfileID,
 				LifecycleStateID:  lifecycleStateID,
+				ResponseBody:      string(resp.Bytes()),
 			},
 			nil,
 			resp.StatusCode(),
@@ -136,6 +140,7 @@ func (c *Client) GetLifecycleState(ctx context.Context, identityProfileID, lifec
 }
 
 // CreateLifecycleState creates a new lifecycle state.
+// Returns the created LifecycleStateAPI and any error encountered.
 func (c *Client) CreateLifecycleState(ctx context.Context, identityProfileID string, lifecycleState *LifecycleStateCreateAPI) (*LifecycleStateAPI, error) {
 	if identityProfileID == "" {
 		return nil, fmt.Errorf("identity profile ID cannot be empty")
@@ -153,16 +158,23 @@ func (c *Client) CreateLifecycleState(ctx context.Context, identityProfileID str
 		return nil, fmt.Errorf("lifecycle state technical name cannot be empty")
 	}
 
+	// Log the full request body for debugging
+	requestBody, _ := json.Marshal(lifecycleState)
 	tflog.Debug(ctx, "Creating lifecycle state", map[string]any{
 		"identity_profile_id": identityProfileID,
 		"name":                lifecycleState.Name,
 		"technical_name":      lifecycleState.TechnicalName,
+		"request_body":        string(requestBody),
 	})
 
 	var result LifecycleStateAPI
 
-	endpoint := fmt.Sprintf(lifecycleStatesEndpointTemplate, identityProfileID)
-	resp, err := c.doRequest(ctx, http.MethodPost, endpoint, lifecycleState, &result)
+	resp, err := c.prepareRequest(ctx).
+		SetBody(lifecycleState).
+		SetResult(&result).
+		SetPathParam("profileId", identityProfileID).
+		Post(lifecycleStatesEndpointCreate)
+
 	if err != nil {
 		return nil, c.formatLifecycleStateError(
 			lifecycleStateErrorContext{
@@ -178,13 +190,14 @@ func (c *Client) CreateLifecycleState(ctx context.Context, identityProfileID str
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatLifecycleStateError(
 			lifecycleStateErrorContext{
 				Operation:         "create",
 				IdentityProfileID: identityProfileID,
 				Name:              lifecycleState.Name,
+				ResponseBody:      string(resp.Bytes()),
 			},
 			nil,
 			resp.StatusCode(),
@@ -201,7 +214,8 @@ func (c *Client) CreateLifecycleState(ctx context.Context, identityProfileID str
 }
 
 // UpdateLifecycleState performs a partial update (PATCH) of a lifecycle state using JSON Patch.
-func (c *Client) UpdateLifecycleState(ctx context.Context, identityProfileID, lifecycleStateID string, patchOperations []JSONPatchOperation) (*LifecycleStateAPI, error) {
+// Returns the updated LifecycleStateAPI and any error encountered.
+func (c *Client) UpdateLifecycleState(ctx context.Context, identityProfileID, lifecycleStateID string, patchOps []JSONPatchOperation) (*LifecycleStateAPI, error) {
 	if identityProfileID == "" {
 		return nil, fmt.Errorf("identity profile ID cannot be empty")
 	}
@@ -210,20 +224,30 @@ func (c *Client) UpdateLifecycleState(ctx context.Context, identityProfileID, li
 		return nil, fmt.Errorf("lifecycle state ID cannot be empty")
 	}
 
-	if len(patchOperations) == 0 {
-		return nil, fmt.Errorf("at least one patch operation is required")
+	if len(patchOps) == 0 {
+		// No changes to apply, fetch and return the current state
+		return c.GetLifecycleState(ctx, identityProfileID, lifecycleStateID)
 	}
 
+	// Log the full request body for debugging
+	requestBody, _ := json.Marshal(patchOps)
 	tflog.Debug(ctx, "Updating lifecycle state (PATCH)", map[string]any{
 		"identity_profile_id": identityProfileID,
 		"lifecycle_state_id":  lifecycleStateID,
-		"operations_count":    len(patchOperations),
+		"operations_count":    len(patchOps),
+		"request_body":        string(requestBody),
 	})
 
 	var result LifecycleStateAPI
 
-	endpoint := fmt.Sprintf(lifecycleStatesEndpointTemplate+"/%s", identityProfileID, lifecycleStateID)
-	resp, err := c.doRequest(ctx, http.MethodPatch, endpoint, patchOperations, &result)
+	resp, err := c.prepareRequest(ctx).
+		SetHeader("Content-Type", "application/json-patch+json").
+		SetBody(patchOps).
+		SetResult(&result).
+		SetPathParam("profileId", identityProfileID).
+		SetPathParam("lifecycleStateId", lifecycleStateID).
+		Patch(lifecycleStatesEndpointPatch)
+
 	if err != nil {
 		return nil, c.formatLifecycleStateError(
 			lifecycleStateErrorContext{
@@ -239,13 +263,14 @@ func (c *Client) UpdateLifecycleState(ctx context.Context, identityProfileID, li
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatLifecycleStateError(
 			lifecycleStateErrorContext{
 				Operation:         "update",
 				IdentityProfileID: identityProfileID,
 				LifecycleStateID:  lifecycleStateID,
+				ResponseBody:      string(resp.Bytes()),
 			},
 			nil,
 			resp.StatusCode(),
@@ -276,8 +301,11 @@ func (c *Client) DeleteLifecycleState(ctx context.Context, identityProfileID, li
 		"lifecycle_state_id":  lifecycleStateID,
 	})
 
-	endpoint := fmt.Sprintf(lifecycleStatesEndpointTemplate+"/%s", identityProfileID, lifecycleStateID)
-	resp, err := c.doRequest(ctx, http.MethodDelete, endpoint, nil, nil)
+	resp, err := c.prepareRequest(ctx).
+		SetPathParam("profileId", identityProfileID).
+		SetPathParam("lifecycleStateId", lifecycleStateID).
+		Delete(lifecycleStatesEndpointDelete)
+
 	if err != nil {
 		return c.formatLifecycleStateError(
 			lifecycleStateErrorContext{
@@ -305,6 +333,7 @@ func (c *Client) DeleteLifecycleState(ctx context.Context, identityProfileID, li
 				Operation:         "delete",
 				IdentityProfileID: identityProfileID,
 				LifecycleStateID:  lifecycleStateID,
+				ResponseBody:      string(resp.Bytes()),
 			},
 			nil,
 			resp.StatusCode(),
@@ -323,6 +352,7 @@ func (c *Client) DeleteLifecycleState(ctx context.Context, identityProfileID, li
 func (c *Client) formatLifecycleStateError(errCtx lifecycleStateErrorContext, err error, statusCode int) error {
 	var baseMsg string
 
+	// Build base message with operation and identifier context
 	switch {
 	case errCtx.LifecycleStateID != "":
 		baseMsg = fmt.Sprintf("failed to %s lifecycle state '%s' in identity profile '%s'",
@@ -335,30 +365,38 @@ func (c *Client) formatLifecycleStateError(errCtx lifecycleStateErrorContext, er
 			errCtx.Operation, errCtx.IdentityProfileID)
 	}
 
+	// Handle network or request errors
 	if err != nil {
 		return fmt.Errorf("%s: %w", baseMsg, err)
 	}
 
+	// Handle HTTP error status codes with clear, actionable messages
 	if statusCode != 0 {
+		detail := ""
+		if errCtx.ResponseBody != "" {
+			detail = fmt.Sprintf(" - response: %s", errCtx.ResponseBody)
+		}
+
 		switch statusCode {
 		case http.StatusBadRequest:
-			return fmt.Errorf("%s: invalid request - check lifecycle state properties (400)", baseMsg)
+			return fmt.Errorf("%s: invalid request (400)%s", baseMsg, detail)
 		case http.StatusUnauthorized:
-			return fmt.Errorf("%s: authentication failed - check credentials (401)", baseMsg)
+			return fmt.Errorf("%s: authentication failed (401)%s", baseMsg, detail)
 		case http.StatusForbidden:
-			return fmt.Errorf("%s: access denied - insufficient permissions (403)", baseMsg)
+			return fmt.Errorf("%s: access denied (403)%s", baseMsg, detail)
 		case http.StatusNotFound:
 			return fmt.Errorf("%s: %w", baseMsg, ErrNotFound)
 		case http.StatusConflict:
-			return fmt.Errorf("%s: conflict - lifecycle state may already exist (409)", baseMsg)
+			return fmt.Errorf("%s: conflict (409)%s", baseMsg, detail)
 		case http.StatusTooManyRequests:
-			return fmt.Errorf("%s: rate limit exceeded - retry after delay (429)", baseMsg)
+			return fmt.Errorf("%s: rate limit exceeded (429)%s", baseMsg, detail)
 		case http.StatusInternalServerError:
-			return fmt.Errorf("%s: server error - contact SailPoint support (500)", baseMsg)
+			return fmt.Errorf("%s: server error (500)%s", baseMsg, detail)
 		default:
-			return fmt.Errorf("%s: unexpected status code %d", baseMsg, statusCode)
+			return fmt.Errorf("%s: unexpected status code %d%s", baseMsg, statusCode, detail)
 		}
 	}
 
+	// Fallback for unknown error conditions
 	return fmt.Errorf("%s: unknown error", baseMsg)
 }

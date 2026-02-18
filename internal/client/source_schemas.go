@@ -8,9 +8,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+)
+
+const (
+	sourceSchemaEndpointList   = "/v2025/sources/{sourceId}/schemas"
+	sourceSchemaEndpointGet    = "/v2025/sources/{sourceId}/schemas/{schemaId}"
+	sourceSchemaEndpointCreate = "/v2025/sources/{sourceId}/schemas"
+	sourceSchemaEndpointUpdate = "/v2025/sources/{sourceId}/schemas/{schemaId}"
+	sourceSchemaEndpointDelete = "/v2025/sources/{sourceId}/schemas/{schemaId}"
 )
 
 // SourceSchemaAPI represents a SailPoint source schema from the API.
@@ -50,15 +57,11 @@ type SourceSchemaAttributeSchemaAPI struct {
 
 // sourceSchemaErrorContext provides context for error messages.
 type sourceSchemaErrorContext struct {
-	Operation string
-	SourceID  string
-	SchemaID  string
+	Operation    string
+	SourceID     string
+	SchemaID     string
+	ResponseBody string
 }
-
-const (
-	sourceSchemaEndpoint     = "/v2025/sources/%s/schemas"
-	sourceSchemaByIDEndpoint = "/v2025/sources/%s/schemas/%s"
-)
 
 // ListSourceSchemas retrieves schemas for a specific source from SailPoint.
 // includeTypes and includeNames are optional query parameters (pass empty string to omit).
@@ -75,20 +78,19 @@ func (c *Client) ListSourceSchemas(ctx context.Context, sourceID string, include
 
 	var schemas []SourceSchemaAPI
 
-	// Build endpoint URL with query parameters
-	endpoint := fmt.Sprintf(sourceSchemaEndpoint, sourceID)
-	params := url.Values{}
+	req := c.prepareRequest(ctx).
+		SetResult(&schemas).
+		SetPathParam("sourceId", sourceID)
+
 	if includeTypes != "" {
-		params.Set("include-types", includeTypes)
+		req.SetQueryParam("include-types", includeTypes)
 	}
 	if includeNames != "" {
-		params.Set("include-names", includeNames)
-	}
-	if len(params) > 0 {
-		endpoint = endpoint + "?" + params.Encode()
+		req.SetQueryParam("include-names", includeNames)
 	}
 
-	resp, err := c.doRequest(ctx, http.MethodGet, endpoint, nil, &schemas)
+	resp, err := req.Get(sourceSchemaEndpointList)
+
 	if err != nil {
 		return nil, c.formatSourceSchemaError(
 			sourceSchemaErrorContext{Operation: "list", SourceID: sourceID},
@@ -99,7 +101,7 @@ func (c *Client) ListSourceSchemas(ctx context.Context, sourceID string, include
 
 	if resp.IsError() {
 		return nil, c.formatSourceSchemaError(
-			sourceSchemaErrorContext{Operation: "list", SourceID: sourceID},
+			sourceSchemaErrorContext{Operation: "list", SourceID: sourceID, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -131,8 +133,12 @@ func (c *Client) GetSourceSchema(ctx context.Context, sourceID, schemaID string)
 
 	var schema SourceSchemaAPI
 
-	endpoint := fmt.Sprintf(sourceSchemaByIDEndpoint, sourceID, schemaID)
-	resp, err := c.doRequest(ctx, http.MethodGet, endpoint, nil, &schema)
+	resp, err := c.prepareRequest(ctx).
+		SetResult(&schema).
+		SetPathParam("sourceId", sourceID).
+		SetPathParam("schemaId", schemaID).
+		Get(sourceSchemaEndpointGet)
+
 	if err != nil {
 		return nil, c.formatSourceSchemaError(
 			sourceSchemaErrorContext{Operation: "get", SourceID: sourceID, SchemaID: schemaID},
@@ -143,7 +149,7 @@ func (c *Client) GetSourceSchema(ctx context.Context, sourceID, schemaID string)
 
 	if resp.IsError() {
 		return nil, c.formatSourceSchemaError(
-			sourceSchemaErrorContext{Operation: "get", SourceID: sourceID, SchemaID: schemaID},
+			sourceSchemaErrorContext{Operation: "get", SourceID: sourceID, SchemaID: schemaID, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -183,8 +189,12 @@ func (c *Client) CreateSourceSchema(ctx context.Context, sourceID string, schema
 
 	var result SourceSchemaAPI
 
-	endpoint := fmt.Sprintf(sourceSchemaEndpoint, sourceID)
-	resp, err := c.doRequest(ctx, http.MethodPost, endpoint, schema, &result)
+	resp, err := c.prepareRequest(ctx).
+		SetBody(schema).
+		SetResult(&result).
+		SetPathParam("sourceId", sourceID).
+		Post(sourceSchemaEndpointCreate)
+
 	if err != nil {
 		return nil, c.formatSourceSchemaError(
 			sourceSchemaErrorContext{Operation: "create", SourceID: sourceID},
@@ -196,10 +206,10 @@ func (c *Client) CreateSourceSchema(ctx context.Context, sourceID string, schema
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatSourceSchemaError(
-			sourceSchemaErrorContext{Operation: "create", SourceID: sourceID},
+			sourceSchemaErrorContext{Operation: "create", SourceID: sourceID, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -240,8 +250,13 @@ func (c *Client) UpdateSourceSchema(ctx context.Context, sourceID, schemaID stri
 
 	var result SourceSchemaAPI
 
-	endpoint := fmt.Sprintf(sourceSchemaByIDEndpoint, sourceID, schemaID)
-	resp, err := c.doRequest(ctx, http.MethodPut, endpoint, schema, &result)
+	resp, err := c.prepareRequest(ctx).
+		SetBody(schema).
+		SetResult(&result).
+		SetPathParam("sourceId", sourceID).
+		SetPathParam("schemaId", schemaID).
+		Put(sourceSchemaEndpointUpdate)
+
 	if err != nil {
 		return nil, c.formatSourceSchemaError(
 			sourceSchemaErrorContext{Operation: "update", SourceID: sourceID, SchemaID: schemaID},
@@ -253,10 +268,10 @@ func (c *Client) UpdateSourceSchema(ctx context.Context, sourceID, schemaID stri
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatSourceSchemaError(
-			sourceSchemaErrorContext{Operation: "update", SourceID: sourceID, SchemaID: schemaID},
+			sourceSchemaErrorContext{Operation: "update", SourceID: sourceID, SchemaID: schemaID, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -287,8 +302,11 @@ func (c *Client) DeleteSourceSchema(ctx context.Context, sourceID, schemaID stri
 		"schema_id": schemaID,
 	})
 
-	endpoint := fmt.Sprintf(sourceSchemaByIDEndpoint, sourceID, schemaID)
-	resp, err := c.doRequest(ctx, http.MethodDelete, endpoint, nil, nil)
+	resp, err := c.prepareRequest(ctx).
+		SetPathParam("sourceId", sourceID).
+		SetPathParam("schemaId", schemaID).
+		Delete(sourceSchemaEndpointDelete)
+
 	if err != nil {
 		return c.formatSourceSchemaError(
 			sourceSchemaErrorContext{Operation: "delete", SourceID: sourceID, SchemaID: schemaID},
@@ -308,7 +326,7 @@ func (c *Client) DeleteSourceSchema(ctx context.Context, sourceID, schemaID stri
 		}
 
 		return c.formatSourceSchemaError(
-			sourceSchemaErrorContext{Operation: "delete", SourceID: sourceID, SchemaID: schemaID},
+			sourceSchemaErrorContext{Operation: "delete", SourceID: sourceID, SchemaID: schemaID, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -338,23 +356,28 @@ func (c *Client) formatSourceSchemaError(errCtx sourceSchemaErrorContext, err er
 	}
 
 	if statusCode != 0 {
+		detail := ""
+		if errCtx.ResponseBody != "" {
+			detail = fmt.Sprintf(" - response: %s", errCtx.ResponseBody)
+		}
+
 		switch statusCode {
 		case http.StatusBadRequest:
-			return fmt.Errorf("%s: invalid request - check parameters (400)", baseMsg)
+			return fmt.Errorf("%s: invalid request (400)%s", baseMsg, detail)
 		case http.StatusUnauthorized:
-			return fmt.Errorf("%s: authentication failed - check credentials (401)", baseMsg)
+			return fmt.Errorf("%s: authentication failed (401)%s", baseMsg, detail)
 		case http.StatusForbidden:
-			return fmt.Errorf("%s: access denied - insufficient permissions (403)", baseMsg)
+			return fmt.Errorf("%s: access denied (403)%s", baseMsg, detail)
 		case http.StatusNotFound:
 			return fmt.Errorf("%s: %w", baseMsg, ErrNotFound)
 		case http.StatusConflict:
-			return fmt.Errorf("%s: conflict - schema may already exist (409)", baseMsg)
+			return fmt.Errorf("%s: conflict (409)%s", baseMsg, detail)
 		case http.StatusTooManyRequests:
-			return fmt.Errorf("%s: rate limit exceeded - retry after delay (429)", baseMsg)
+			return fmt.Errorf("%s: rate limit exceeded (429)%s", baseMsg, detail)
 		case http.StatusInternalServerError:
-			return fmt.Errorf("%s: server error - contact SailPoint support (500)", baseMsg)
+			return fmt.Errorf("%s: server error (500)%s", baseMsg, detail)
 		default:
-			return fmt.Errorf("%s: unexpected status code %d", baseMsg, statusCode)
+			return fmt.Errorf("%s: unexpected status code %d%s", baseMsg, statusCode, detail)
 		}
 	}
 

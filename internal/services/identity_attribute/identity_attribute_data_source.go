@@ -131,7 +131,7 @@ func (d *identityAttributeDataSource) Read(ctx context.Context, req datasource.R
 
 	// Map the response to the data source model
 	var state identityAttributeModel
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *identityAttributeResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *identityAttributeResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

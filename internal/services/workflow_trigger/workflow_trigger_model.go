@@ -5,9 +5,9 @@ package workflow_trigger
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -22,9 +22,9 @@ type workflowTriggerModel struct {
 	Attributes  jsontypes.Normalized `tfsdk:"attributes"` // Trigger-specific attributes as JSON
 }
 
-// ToAPIRequest converts the Terraform model to a SailPoint API WorkflowTrigger.
-func (m *workflowTriggerModel) ToAPIRequest(ctx context.Context) (*client.WorkflowTriggerAPI, diag.Diagnostics) {
-	var diags diag.Diagnostics
+// ToAPI converts the Terraform model to a SailPoint API WorkflowTrigger.
+func (m *workflowTriggerModel) ToAPI(ctx context.Context) (*client.WorkflowTriggerAPI, diag.Diagnostics) {
+	var diagnostics diag.Diagnostics
 
 	trigger := &client.WorkflowTriggerAPI{
 		Type: m.Type.ValueString(),
@@ -35,49 +35,38 @@ func (m *workflowTriggerModel) ToAPIRequest(ctx context.Context) (*client.Workfl
 		trigger.DisplayName = m.DisplayName.ValueString()
 	}
 
-	// Parse attributes JSON string to map
-	if !m.Attributes.IsNull() && !m.Attributes.IsUnknown() {
-		var attributes map[string]interface{}
-		if err := json.Unmarshal([]byte(m.Attributes.ValueString()), &attributes); err != nil {
-			diags.AddError("Invalid Attributes JSON", err.Error())
-			return nil, diags
-		}
-		trigger.Attributes = attributes
+	// Parse attributes JSON string to map using common helper
+	if attributes, diags := common.UnmarshalJSONField[map[string]interface{}](m.Attributes); attributes != nil {
+		trigger.Attributes = *attributes
+		diagnostics.Append(diags...)
 	}
 
-	return trigger, diags
+	return trigger, diagnostics
 }
 
-// FromSailPointAPI populates the Terraform model from a SailPoint API response.
+// FromAPI populates the Terraform model from a SailPoint API response.
 // The workflowID parameter is needed since the API doesn't return it in the trigger object.
-func (m *workflowTriggerModel) FromSailPointAPI(ctx context.Context, workflowID string, trigger *client.WorkflowTriggerAPI) diag.Diagnostics {
+func (m *workflowTriggerModel) FromAPI(ctx context.Context, workflowID string, trigger *client.WorkflowTriggerAPI) diag.Diagnostics {
+	var diagnostics diag.Diagnostics
 	var diags diag.Diagnostics
 
 	if trigger == nil {
-		return diags
+		return diagnostics
 	}
 
 	m.WorkflowID = types.StringValue(workflowID)
 	m.Type = types.StringValue(trigger.Type)
 
 	// Handle optional displayName
-	if trigger.DisplayName != "" {
-		m.DisplayName = types.StringValue(trigger.DisplayName)
-	} else {
-		m.DisplayName = types.StringNull()
-	}
+	m.DisplayName = common.StringOrNullIfEmpty(trigger.DisplayName)
 
-	// Convert attributes map to JSON string with normalization
-	if len(trigger.Attributes) > 0 {
-		attributesJSON, err := json.Marshal(trigger.Attributes)
-		if err != nil {
-			diags.AddError("Failed to marshal attributes", err.Error())
-			return diags
-		}
-		m.Attributes = jsontypes.NewNormalizedValue(string(attributesJSON))
+	// Convert attributes map to JSON string (nil → null, empty {} → "{}")
+	if trigger.Attributes != nil {
+		m.Attributes, diags = common.MarshalJSONOrDefault(trigger.Attributes, "{}")
+		diagnostics.Append(diags...)
 	} else {
 		m.Attributes = jsontypes.NewNormalizedNull()
 	}
 
-	return diags
+	return diagnostics
 }

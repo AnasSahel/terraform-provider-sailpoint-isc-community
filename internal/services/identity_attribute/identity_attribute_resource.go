@@ -14,8 +14,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -64,55 +62,38 @@ func (r *identityAttributeResource) Schema(_ context.Context, _ resource.SchemaR
 				},
 			},
 			"display_name": schema.StringAttribute{
-				MarkdownDescription: "The display name of the identity attribute.",
+				MarkdownDescription: "The display name of the identity attribute. Defaults to a server-computed value.",
 				Optional:            true,
 				Computed:            true,
 			},
 			"standard": schema.BoolAttribute{
-				MarkdownDescription: "Indicates if the identity attribute is a standard attribute.",
+				MarkdownDescription: "Indicates if the identity attribute is a standard attribute. Defaults to `false`.",
 				Optional:            true,
 				Computed:            true,
-				PlanModifiers: []planmodifier.Bool{
-					boolplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"type": schema.StringAttribute{
-				MarkdownDescription: "The type of the identity attribute.",
+				MarkdownDescription: "The type of the identity attribute. Defaults to `null`.",
 				Optional:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
+				Computed:            true,
 			},
 			"multi": schema.BoolAttribute{
-				MarkdownDescription: "Indicates if the identity attribute supports multiple values.",
+				MarkdownDescription: "Indicates if the identity attribute supports multiple values. Defaults to `false`.",
 				Optional:            true,
 				Computed:            true,
-				PlanModifiers: []planmodifier.Bool{
-					boolplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"searchable": schema.BoolAttribute{
-				MarkdownDescription: "Indicates if the identity attribute is searchable.",
+				MarkdownDescription: "Indicates if the identity attribute is searchable. Defaults to `false`.",
 				Optional:            true,
 				Computed:            true,
-				PlanModifiers: []planmodifier.Bool{
-					boolplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"system": schema.BoolAttribute{
-				MarkdownDescription: "Indicates if the identity attribute is a system attribute.",
+				MarkdownDescription: "Indicates if the identity attribute is a system attribute. Always `false`.",
 				Computed:            true,
-				PlanModifiers: []planmodifier.Bool{
-					boolplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"sources": schema.ListNestedAttribute{
 				MarkdownDescription: "The sources associated with the identity attribute.",
 				Optional:            true,
 				Computed:            true,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.UseStateForUnknown(),
-				},
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"type": schema.StringAttribute{
@@ -147,7 +128,7 @@ func (r *identityAttributeResource) Create(ctx context.Context, req resource.Cre
 	tflog.Debug(ctx, "Mapping identity attribute resource model to API create request", map[string]any{
 		"name": plan.Name.ValueString(),
 	})
-	apiCreateRequest, diags := plan.ToAPICreateRequest(ctx)
+	apiCreateRequest, diags := plan.ToAPI(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -183,7 +164,7 @@ func (r *identityAttributeResource) Create(ctx context.Context, req resource.Cre
 	tflog.Debug(ctx, "Mapping SailPoint Identity Attribute API response to resource model", map[string]any{
 		"name": plan.Name.ValueString(),
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *identityAttributeAPIResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *identityAttributeAPIResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -248,7 +229,7 @@ func (r *identityAttributeResource) Read(ctx context.Context, req resource.ReadR
 	tflog.Debug(ctx, "Mapping SailPoint Identity Attribute API response to resource model", map[string]any{
 		"name": state.Name.ValueString(),
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *identityAttributeResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *identityAttributeResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -308,7 +289,7 @@ func (r *identityAttributeResource) Update(ctx context.Context, req resource.Upd
 	tflog.Debug(ctx, "Mapping identity attribute resource model to API update request", map[string]any{
 		"name": plan.Name.ValueString(),
 	})
-	apiUpdateRequest, diags := plan.ToAPIUpdateRequest(ctx)
+	apiUpdateRequest, diags := plan.ToAPI(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -344,7 +325,7 @@ func (r *identityAttributeResource) Update(ctx context.Context, req resource.Upd
 	tflog.Debug(ctx, "Mapping SailPoint Identity Attribute API response to resource model", map[string]any{
 		"name": plan.Name.ValueString(),
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *identityAttributeAPIResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *identityAttributeAPIResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

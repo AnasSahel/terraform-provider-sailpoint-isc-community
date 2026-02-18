@@ -52,13 +52,64 @@ output "form_elements" {
 
 - `created` (String) The date and time when the form definition was created.
 - `description` (String) The description of the form definition.
-- `form_conditions` (String) JSON array of conditional logic that can dynamically modify the form. Each condition object has: ruleOperator (AND, OR), rules (sourceType, source, operator, valueType, value), effects (effectType, config).
+- `form_conditions` (Attributes List) List of conditions for the form definition. Conditions control the visibility and behavior of form elements based on form inputs and other conditions. (see [below for nested schema](#nestedatt--form_conditions))
 - `form_elements` (String) JSON array of form elements (fields, sections, etc.). Elements must be wrapped in SECTION elements. Each element object has: id, elementType (TEXT, TOGGLE, TEXTAREA, HIDDEN, PHONE, EMAIL, SELECT, DATE, SECTION, COLUMN_SET, IMAGE, DESCRIPTION), config, key, validations.
-- `form_input` (String) JSON array of form inputs that can be passed into the form for use in conditional logic. Each input object has: id, type (STRING, ARRAY), label, description.
+- `form_input` (Attributes List) List of form inputs that can be passed into the form for use in conditional logic. (see [below for nested schema](#nestedatt--form_input))
 - `modified` (String) The date and time when the form definition was last modified.
 - `name` (String) The name of the form definition.
 - `owner` (Attributes) The owner of the form definition. (see [below for nested schema](#nestedatt--owner))
 - `used_by` (Attributes List) List of objects that use this form definition. (see [below for nested schema](#nestedatt--used_by))
+
+<a id="nestedatt--form_conditions"></a>
+### Nested Schema for `form_conditions`
+
+Read-Only:
+
+- `effects` (Attributes List) List of effects for the condition. (see [below for nested schema](#nestedatt--form_conditions--effects))
+- `rule_operator` (String) The operator for the condition (AND, OR).
+- `rules` (Attributes List) List of rules for the condition. (see [below for nested schema](#nestedatt--form_conditions--rules))
+
+<a id="nestedatt--form_conditions--effects"></a>
+### Nested Schema for `form_conditions.effects`
+
+Read-Only:
+
+- `config` (Attributes) The configuration for the effect. (see [below for nested schema](#nestedatt--form_conditions--effects--config))
+- `effect_type` (String) The type of the effect.
+
+<a id="nestedatt--form_conditions--effects--config"></a>
+### Nested Schema for `form_conditions.effects.config`
+
+Read-Only:
+
+- `default_value_label` (String) The default value label for the effect.
+- `element` (String) The element targeted by the effect.
+
+
+
+<a id="nestedatt--form_conditions--rules"></a>
+### Nested Schema for `form_conditions.rules`
+
+Read-Only:
+
+- `operator` (String) The operator for the rule.
+- `source` (String) The source for the rule.
+- `source_type` (String) The type of the source for the rule.
+- `value` (String) The value for the rule.
+- `value_type` (String) The type of the value for the rule.
+
+
+
+<a id="nestedatt--form_input"></a>
+### Nested Schema for `form_input`
+
+Read-Only:
+
+- `description` (String) The description of the form input.
+- `id` (String) The unique identifier of the form input.
+- `label` (String) The label of the form input.
+- `type` (String) The type of the form input (STRING, ARRAY).
+
 
 <a id="nestedatt--owner"></a>
 ### Nested Schema for `owner`

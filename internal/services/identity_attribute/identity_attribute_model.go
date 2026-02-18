@@ -8,10 +8,66 @@ import (
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
+// Element type definition for types.List conversions.
+var identityAttributeSourceObjectType = types.ObjectType{AttrTypes: map[string]attr.Type{
+	"type":       types.StringType,
+	"properties": jsontypes.NormalizedType{},
+}}
+
+// identityAttributeSourceModel is the Terraform model for identity attribute sources.
+type identityAttributeSourceModel struct {
+	Type       types.String         `tfsdk:"type"`
+	Properties jsontypes.Normalized `tfsdk:"properties"`
+}
+
+func NewIdentityAttributeSourceFromAPI(ctx context.Context, api client.IdentityAttributeSourceAPI) (identityAttributeSourceModel, diag.Diagnostics) {
+	var m identityAttributeSourceModel
+
+	diags := m.FromAPI(ctx, api)
+
+	return m, diags
+}
+
+func NewIdentityAttributeSourceToAPI(ctx context.Context, m identityAttributeSourceModel) (client.IdentityAttributeSourceAPI, diag.Diagnostics) {
+	return m.ToAPI(ctx)
+}
+
+func (m *identityAttributeSourceModel) FromAPI(_ context.Context, api client.IdentityAttributeSourceAPI) diag.Diagnostics {
+	var diagnostics diag.Diagnostics
+
+	m.Type = types.StringValue(api.Type)
+
+	// Marshal properties map to JSON for Terraform state
+	var diags diag.Diagnostics
+	m.Properties, diags = common.MarshalJSONOrDefault(api.Properties, "{}")
+	diagnostics.Append(diags...)
+
+	return diagnostics
+}
+
+func (m *identityAttributeSourceModel) ToAPI(_ context.Context) (client.IdentityAttributeSourceAPI, diag.Diagnostics) {
+	var diagnostics diag.Diagnostics
+
+	api := client.IdentityAttributeSourceAPI{
+		Type: m.Type.ValueString(),
+	}
+
+	// Unmarshal properties JSON to map for API request
+	if props, diags := common.UnmarshalJSONField[map[string]interface{}](m.Properties); props != nil {
+		api.Properties = *props
+		diagnostics.Append(diags...)
+	}
+
+	return api, diagnostics
+}
+
+// identityAttributeModel represents the Terraform state for a SailPoint identity attribute.
 type identityAttributeModel struct {
 	Name        types.String `tfsdk:"name"`
 	DisplayName types.String `tfsdk:"display_name"`
@@ -23,103 +79,57 @@ type identityAttributeModel struct {
 	Sources     types.List   `tfsdk:"sources"`
 }
 
-// FromSailPointAPI maps fields from the API model to the data source model.
-func (ia *identityAttributeModel) FromSailPointAPI(ctx context.Context, identityAttributeApi client.IdentityAttributeAPI) diag.Diagnostics {
+// FromAPI maps fields from the API response to the Terraform model.
+func (m *identityAttributeModel) FromAPI(ctx context.Context, api client.IdentityAttributeAPI) diag.Diagnostics {
 	var diagnostics diag.Diagnostics
+	var diags diag.Diagnostics
 
-	// Map simple fields
-	ia.Name = types.StringValue(identityAttributeApi.Name)
-	ia.DisplayName = types.StringValue(identityAttributeApi.DisplayName)
-	ia.Standard = types.BoolValue(identityAttributeApi.Standard)
-	ia.Multi = types.BoolValue(identityAttributeApi.Multi)
-	ia.Searchable = types.BoolValue(identityAttributeApi.Searchable)
-	ia.System = types.BoolValue(identityAttributeApi.System)
+	m.Name = types.StringValue(api.Name)
+	m.DisplayName = types.StringValue(api.DisplayName)
+	m.Standard = types.BoolValue(api.Standard)
+	m.Multi = types.BoolValue(api.Multi)
+	m.Searchable = types.BoolValue(api.Searchable)
+	m.System = types.BoolValue(api.System)
 
 	// Handle nullable Type field
-	ia.Type = common.StringOrNullValue(identityAttributeApi.Type)
+	m.Type = common.StringOrNull(api.Type)
 
-	// Handle Sources
-	if identityAttributeApi.Sources == nil {
-		ia.Sources = types.ListNull(identityAttributeSourceElementType())
-	} else {
-		sourceList := []identityAttributeSourceModel{}
-		for _, sourceApi := range identityAttributeApi.Sources {
-			var sourceModel identityAttributeSourceModel
-			diagnostics.Append(sourceModel.FromSailPointAPI(ctx, sourceApi)...)
-			if diagnostics.HasError() {
-				return diagnostics
-			}
-			sourceList = append(sourceList, sourceModel)
-		}
-
-		sources, diags := types.ListValueFrom(ctx, identityAttributeSourceElementType(), sourceList)
+	// Map sources (Optional only — normalize empty to null)
+	if len(api.Sources) > 0 {
+		m.Sources, diags = common.MapListFromAPI(ctx, api.Sources, identityAttributeSourceObjectType, NewIdentityAttributeSourceFromAPI)
 		diagnostics.Append(diags...)
-		if diagnostics.HasError() {
-			return diagnostics
-		}
-		ia.Sources = sources
+	} else {
+		m.Sources = types.ListNull(identityAttributeSourceObjectType)
 	}
 
 	return diagnostics
 }
 
-// ToAPICreateRequest maps fields from the resource model to the API create request model.
-func (ia *identityAttributeModel) ToAPICreateRequest(ctx context.Context) (client.IdentityAttributeAPI, diag.Diagnostics) {
+// ToAPI maps fields from the Terraform model to the API create/update request.
+func (m *identityAttributeModel) ToAPI(ctx context.Context) (client.IdentityAttributeAPI, diag.Diagnostics) {
 	var diagnostics diag.Diagnostics
+
 	apiRequest := client.IdentityAttributeAPI{
-		Name: ia.Name.ValueString(),
+		Name:       m.Name.ValueString(),
+		Standard:   m.Standard.ValueBool(),
+		Multi:      m.Multi.ValueBool(),
+		Searchable: m.Searchable.ValueBool(),
 	}
 
-	// DisplayName defaults to Name if not provided
-	if !ia.DisplayName.IsNull() {
-		apiRequest.DisplayName = ia.DisplayName.ValueString()
-	} else {
-		apiRequest.DisplayName = ia.Name.ValueString()
-	}
-	if !ia.Standard.IsNull() {
-		apiRequest.Standard = ia.Standard.ValueBool()
-	}
-	if !ia.Type.IsNull() {
-		apiRequest.Type = ia.Type.ValueStringPointer()
-	}
-	if !ia.Multi.IsNull() {
-		apiRequest.Multi = ia.Multi.ValueBool()
-	}
-	if !ia.Searchable.IsNull() {
-		apiRequest.Searchable = ia.Searchable.ValueBool()
-	}
-	if !ia.System.IsNull() {
-		apiRequest.System = ia.System.ValueBool()
+	// Map DisplayName (optional — server computes default if not set)
+	if !m.DisplayName.IsNull() && !m.DisplayName.IsUnknown() {
+		apiRequest.DisplayName = m.DisplayName.ValueString()
 	}
 
-	// Handle Sources
-	if !ia.Sources.IsNull() && !ia.Sources.IsUnknown() {
-		// First convert to Terraform model (has tfsdk tags)
-		var tfSources []identityAttributeSourceModel
-		diags := ia.Sources.ElementsAs(ctx, &tfSources, false)
-		diagnostics.Append(diags...)
-		if diagnostics.HasError() {
-			return apiRequest, diagnostics
-		}
-
-		// Then convert each to API model using ToSailPointAPI
-		apiSources := make([]client.IdentityAttributeSourceAPI, 0, len(tfSources))
-		for _, tfSource := range tfSources {
-			apiSource, diags := tfSource.ToSailPointAPI(ctx)
-			diagnostics.Append(diags...)
-			if diagnostics.HasError() {
-				return apiRequest, diagnostics
-			}
-			apiSources = append(apiSources, apiSource)
-		}
-		apiRequest.Sources = apiSources
+	// Map Type (optional, nullable — server defaults to null)
+	if !m.Type.IsNull() && !m.Type.IsUnknown() {
+		apiRequest.Type = m.Type.ValueStringPointer()
 	}
+
+	// Parse sources from types.List
+	var diags diag.Diagnostics
+	apiRequest.Sources, diags = common.MapListToAPI(ctx, m.Sources, NewIdentityAttributeSourceToAPI)
+	diagnostics.Append(diags...)
 
 	return apiRequest, diagnostics
-}
-
-// ToAPIUpdateRequest maps fields from the resource model to the API update request model.
-func (ia *identityAttributeModel) ToAPIUpdateRequest(ctx context.Context) (client.IdentityAttributeAPI, diag.Diagnostics) {
-	// The update request has the same structure as the create request
-	return ia.ToAPICreateRequest(ctx)
 }

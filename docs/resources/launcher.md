@@ -18,13 +18,14 @@ Resource for SailPoint Launcher. Launchers are used to trigger workflows through
 ### Required
 
 - `config` (String) JSON configuration associated with this launcher, restricted to a max size of 4KB.
-- `description` (String) The description of the launcher, limited to 2000 characters.
-- `disabled` (Boolean) Whether the launcher is disabled.
 - `name` (String) The name of the launcher, limited to 255 characters.
+- `owner` (Attributes) The owner of the launcher. (see [below for nested schema](#nestedatt--owner))
 - `type` (String) The type of the launcher. Currently only `INTERACTIVE_PROCESS` is supported.
 
 ### Optional
 
+- `description` (String) The description of the launcher, limited to 2000 characters.
+- `disabled` (Boolean) Whether the launcher is disabled. Defaults to `false`.
 - `reference` (Attributes) The reference to the resource this launcher triggers (e.g., a workflow). (see [below for nested schema](#nestedatt--reference))
 
 ### Read-Only
@@ -32,12 +33,24 @@ Resource for SailPoint Launcher. Launchers are used to trigger workflows through
 - `created` (String) The date and time the launcher was created.
 - `id` (String) The unique identifier of the launcher.
 - `modified` (String) The date and time the launcher was last modified.
-- `owner` (Attributes) The owner of the launcher. (see [below for nested schema](#nestedatt--owner))
+
+<a id="nestedatt--owner"></a>
+### Nested Schema for `owner`
+
+Required:
+
+- `id` (String) The ID of the owner.
+- `type` (String) The type of the owner (e.g., `IDENTITY`).
+
+Read-Only:
+
+- `name` (String) The name of the owner. Resolved by the server from the owner ID.
+
 
 <a id="nestedatt--reference"></a>
 ### Nested Schema for `reference`
 
-Optional:
+Required:
 
 - `id` (String) The ID of the referenced resource.
 - `type` (String) The type of the reference (e.g., `WORKFLOW`).
@@ -45,13 +58,3 @@ Optional:
 Read-Only:
 
 - `name` (String) The name of the referenced resource.
-
-
-<a id="nestedatt--owner"></a>
-### Nested Schema for `owner`
-
-Read-Only:
-
-- `id` (String) The ID of the owner.
-- `name` (String) The name of the owner.
-- `type` (String) The type of the owner (e.g., `IDENTITY`).

@@ -125,7 +125,7 @@ func (r *sourceProvisioningPolicyResource) Schema(_ context.Context, _ resource.
 
 // Create implements resource.Resource.
 func (r *sourceProvisioningPolicyResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan sourceProvisioningPolicyResourceModel
+	var plan sourceProvisioningPolicyModel
 	tflog.Debug(ctx, "Getting plan for source provisioning policy resource")
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
@@ -141,7 +141,7 @@ func (r *sourceProvisioningPolicyResource) Create(ctx context.Context, req resou
 		"usage_type": usageType,
 		"name":       plan.Name.ValueString(),
 	})
-	apiCreateRequest, diags := plan.ToAPICreateRequest(ctx)
+	apiCreateRequest, diags := plan.ToAPI(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -202,12 +202,12 @@ func (r *sourceProvisioningPolicyResource) Create(ctx context.Context, req resou
 	}
 
 	// Map the authoritative GET response to the resource model
-	var state sourceProvisioningPolicyResourceModel
+	var state sourceProvisioningPolicyModel
 	tflog.Debug(ctx, "Mapping SailPoint Source Provisioning Policy API response to resource model", map[string]any{
 		"source_id":  sourceID,
 		"usage_type": usageType,
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, policyResponse, sourceID)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, policyResponse, sourceID)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -230,7 +230,7 @@ func (r *sourceProvisioningPolicyResource) Create(ctx context.Context, req resou
 
 // Read implements resource.Resource.
 func (r *sourceProvisioningPolicyResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state sourceProvisioningPolicyResourceModel
+	var state sourceProvisioningPolicyModel
 	tflog.Debug(ctx, "Getting state for source provisioning policy resource read")
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
@@ -282,7 +282,7 @@ func (r *sourceProvisioningPolicyResource) Read(ctx context.Context, req resourc
 		"source_id":  sourceID,
 		"usage_type": usageType,
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, policyResponse, sourceID)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, policyResponse, sourceID)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -305,7 +305,7 @@ func (r *sourceProvisioningPolicyResource) Read(ctx context.Context, req resourc
 
 // Update implements resource.Resource.
 func (r *sourceProvisioningPolicyResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan sourceProvisioningPolicyResourceModel
+	var plan sourceProvisioningPolicyModel
 	tflog.Debug(ctx, "Getting plan for source provisioning policy resource update")
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
@@ -313,7 +313,7 @@ func (r *sourceProvisioningPolicyResource) Update(ctx context.Context, req resou
 	}
 
 	// Get current state to retrieve the identifiers
-	var state sourceProvisioningPolicyResourceModel
+	var state sourceProvisioningPolicyModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -327,7 +327,7 @@ func (r *sourceProvisioningPolicyResource) Update(ctx context.Context, req resou
 		"source_id":  sourceID,
 		"usage_type": usageType,
 	})
-	apiUpdateRequest, diags := plan.ToAPIUpdateRequest(ctx)
+	apiUpdateRequest, diags := plan.ToAPIUpdate(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -378,12 +378,12 @@ func (r *sourceProvisioningPolicyResource) Update(ctx context.Context, req resou
 	}
 
 	// Map the authoritative GET response to the resource model
-	var newState sourceProvisioningPolicyResourceModel
+	var newState sourceProvisioningPolicyModel
 	tflog.Debug(ctx, "Mapping SailPoint Source Provisioning Policy API response to resource model", map[string]any{
 		"source_id":  sourceID,
 		"usage_type": usageType,
 	})
-	resp.Diagnostics.Append(newState.FromSailPointAPI(ctx, policyResponse, sourceID)...)
+	resp.Diagnostics.Append(newState.FromAPI(ctx, policyResponse, sourceID)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -406,7 +406,7 @@ func (r *sourceProvisioningPolicyResource) Update(ctx context.Context, req resou
 
 // Delete implements resource.Resource.
 func (r *sourceProvisioningPolicyResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state sourceProvisioningPolicyResourceModel
+	var state sourceProvisioningPolicyModel
 	tflog.Debug(ctx, "Getting state for source provisioning policy resource deletion")
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {

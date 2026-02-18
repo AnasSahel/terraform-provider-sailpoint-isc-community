@@ -13,7 +13,11 @@ import (
 )
 
 const (
-	formDefinitionsEndpoint = "/v2025/form-definitions"
+	formDefinitionsEndpointList   = "/v2025/form-definitions"
+	formDefinitionsEndpointGet    = "/v2025/form-definitions/{formId}"
+	formDefinitionsEndpointCreate = "/v2025/form-definitions"
+	formDefinitionsEndpointPatch  = "/v2025/form-definitions/{formId}"
+	formDefinitionsEndpointDelete = "/v2025/form-definitions/{formId}"
 )
 
 // FormDefinitionAPI represents a SailPoint Form Definition from the API.
@@ -71,15 +75,13 @@ type FormConditionRuleAPI struct {
 
 // FormConditionEffectAPI represents an effect triggered by a condition.
 type FormConditionEffectAPI struct {
-	EffectType string                 `json:"effectType,omitempty"` // HIDE, SHOW, DISABLE, ENABLE, REQUIRE, OPTIONAL, SUBMIT_MESSAGE, SUBMIT_NOTIFICATION, SET_DEFAULT_VALUE
-	Config     map[string]interface{} `json:"config,omitempty"`     // Arbitrary config based on effect type
+	EffectType string                       `json:"effectType,omitempty"` // HIDE, SHOW, DISABLE, ENABLE, REQUIRE, OPTIONAL, SUBMIT_MESSAGE, SUBMIT_NOTIFICATION, SET_DEFAULT_VALUE
+	Config     FormConditionEffectConfigAPI `json:"config,omitempty"`     // Arbitrary config based on effect type
 }
 
-// JSONPatchOperation represents a JSON Patch operation (RFC 6902).
-type JSONPatchOperation struct {
-	Op    string      `json:"op"`
-	Path  string      `json:"path"`
-	Value interface{} `json:"value,omitempty"`
+type FormConditionEffectConfigAPI struct {
+	Element           string `json:"element,omitempty"`
+	DefaultValueLabel string `json:"defaultValueLabel,omitempty"`
 }
 
 // formErrorContext provides context for error messages.
@@ -96,7 +98,11 @@ func (c *Client) ListFormDefinitions(ctx context.Context) ([]FormDefinitionAPI, 
 
 	var forms []FormDefinitionAPI
 
-	resp, err := c.doRequest(ctx, http.MethodGet, formDefinitionsEndpoint, nil, &forms)
+	// Prepare the request
+	resp, err := c.prepareRequest(ctx).
+		SetResult(&forms).
+		Get(formDefinitionsEndpointList)
+
 	if err != nil {
 		return nil, c.formatFormError(
 			formErrorContext{Operation: "list"},
@@ -133,13 +139,12 @@ func (c *Client) GetFormDefinition(ctx context.Context, id string) (*FormDefinit
 
 	var form FormDefinitionAPI
 
-	resp, err := c.doRequest(
-		ctx,
-		http.MethodGet,
-		fmt.Sprintf("%s/%s", formDefinitionsEndpoint, id),
-		nil,
-		&form,
-	)
+	// Prepare the request
+	resp, err := c.prepareRequest(ctx).
+		SetResult(&form).
+		SetPathParam("formId", id).
+		Get(formDefinitionsEndpointGet)
+
 	if err != nil {
 		return nil, c.formatFormError(
 			formErrorContext{Operation: "get", ID: id},
@@ -183,8 +188,11 @@ func (c *Client) CreateFormDefinition(ctx context.Context, form *FormDefinitionA
 	})
 
 	var result FormDefinitionAPI
+	resp, err := c.prepareRequest(ctx).
+		SetBody(&form).
+		SetResult(&result).
+		Post(formDefinitionsEndpointCreate)
 
-	resp, err := c.doRequest(ctx, http.MethodPost, formDefinitionsEndpoint, form, &result)
 	if err != nil {
 		return nil, c.formatFormError(
 			formErrorContext{Operation: "create", Name: form.Name},
@@ -196,7 +204,7 @@ func (c *Client) CreateFormDefinition(ctx context.Context, form *FormDefinitionA
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatFormError(
 			formErrorContext{Operation: "create", Name: form.Name},
@@ -216,7 +224,7 @@ func (c *Client) CreateFormDefinition(ctx context.Context, form *FormDefinitionA
 // UpdateFormDefinition updates an existing form definition by ID using PATCH with JSON Patch operations.
 // The patchOps parameter contains only the operations for fields that have changed.
 // Returns the updated FormDefinitionAPI and any error encountered.
-func (c *Client) UpdateFormDefinition(ctx context.Context, id string, patchOps []JSONPatchOperation) (*FormDefinitionAPI, error) {
+func (c *Client) PatchFormDefinition(ctx context.Context, id string, patchOps []JSONPatchOperation) (*FormDefinitionAPI, error) {
 	if id == "" {
 		return nil, fmt.Errorf("form definition ID cannot be empty")
 	}
@@ -236,13 +244,12 @@ func (c *Client) UpdateFormDefinition(ctx context.Context, id string, patchOps [
 
 	var result FormDefinitionAPI
 
-	resp, err := c.doRequest(
-		ctx,
-		http.MethodPatch,
-		fmt.Sprintf("%s/%s", formDefinitionsEndpoint, id),
-		patchOps,
-		&result,
-	)
+	resp, err := c.prepareRequest(ctx).
+		SetBody(patchOps).
+		SetResult(&result).
+		SetPathParam("formId", id).
+		Patch(formDefinitionsEndpointPatch)
+
 	if err != nil {
 		return nil, c.formatFormError(
 			formErrorContext{Operation: "update", ID: id},
@@ -252,7 +259,7 @@ func (c *Client) UpdateFormDefinition(ctx context.Context, id string, patchOps [
 	}
 
 	if resp.IsError() {
-		responseBody := string(resp.Body())
+		responseBody := string(resp.Bytes())
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": responseBody,
@@ -302,13 +309,10 @@ func (c *Client) DeleteFormDefinition(ctx context.Context, id string) error {
 		"id": id,
 	})
 
-	resp, err := c.doRequest(
-		ctx,
-		http.MethodDelete,
-		fmt.Sprintf("%s/%s", formDefinitionsEndpoint, id),
-		nil,
-		nil,
-	)
+	resp, err := c.prepareRequest(ctx).
+		SetPathParam("formId", id).
+		Delete(formDefinitionsEndpointDelete)
+
 	if err != nil {
 		return c.formatFormError(
 			formErrorContext{Operation: "delete", ID: id},

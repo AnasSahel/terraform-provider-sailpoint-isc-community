@@ -5,9 +5,9 @@ package transform
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -21,25 +21,19 @@ type transformModel struct {
 	Attributes jsontypes.Normalized `tfsdk:"attributes"`
 }
 
-// FromSailPointAPI maps fields from the API response to the Terraform model.
-func (t *transformModel) FromSailPointAPI(ctx context.Context, apiTransform client.TransformAPI) diag.Diagnostics {
+// FromAPI maps fields from the API response to the Terraform model.
+func (t *transformModel) FromAPI(ctx context.Context, api client.TransformAPI) diag.Diagnostics {
 	var diagnostics diag.Diagnostics
+	var diags diag.Diagnostics
 
-	t.ID = types.StringValue(apiTransform.ID)
-	t.Name = types.StringValue(apiTransform.Name)
-	t.Type = types.StringValue(apiTransform.Type)
+	t.ID = types.StringValue(api.ID)
+	t.Name = types.StringValue(api.Name)
+	t.Type = types.StringValue(api.Type)
 
 	// Marshal attributes map to JSON string for Terraform state
-	if apiTransform.Attributes != nil {
-		attributesJSON, err := json.Marshal(*apiTransform.Attributes)
-		if err != nil {
-			diagnostics.AddError(
-				"Error Mapping Transform Attributes",
-				"Could not marshal attributes to JSON: "+err.Error(),
-			)
-			return diagnostics
-		}
-		t.Attributes = jsontypes.NewNormalizedValue(string(attributesJSON))
+	if api.Attributes != nil {
+		t.Attributes, diags = common.MarshalJSONOrDefault(*api.Attributes, "{}")
+		diagnostics.Append(diags...)
 	} else {
 		t.Attributes = jsontypes.NewNormalizedNull()
 	}
@@ -47,8 +41,8 @@ func (t *transformModel) FromSailPointAPI(ctx context.Context, apiTransform clie
 	return diagnostics
 }
 
-// ToAPICreateRequest maps fields from the Terraform model to the API create request.
-func (t *transformModel) ToAPICreateRequest(ctx context.Context) (client.TransformAPI, diag.Diagnostics) {
+// ToAPI maps fields from the Terraform model to the API request.
+func (t *transformModel) ToAPI(ctx context.Context) (client.TransformAPI, diag.Diagnostics) {
 	var diagnostics diag.Diagnostics
 
 	apiRequest := client.TransformAPI{
@@ -57,23 +51,16 @@ func (t *transformModel) ToAPICreateRequest(ctx context.Context) (client.Transfo
 	}
 
 	// Parse attributes from JSON string
-	if !t.Attributes.IsNull() && !t.Attributes.IsUnknown() {
-		var attributes map[string]interface{}
-		if err := json.Unmarshal([]byte(t.Attributes.ValueString()), &attributes); err != nil {
-			diagnostics.AddError(
-				"Error Parsing Transform Attributes",
-				"Could not parse attributes JSON: "+err.Error(),
-			)
-			return apiRequest, diagnostics
-		}
-		apiRequest.Attributes = &attributes
+	if attributes, diags := common.UnmarshalJSONField[map[string]interface{}](t.Attributes); attributes != nil {
+		apiRequest.Attributes = attributes
+		diagnostics.Append(diags...)
 	}
 
 	return apiRequest, diagnostics
 }
 
-// ToAPIUpdateRequest maps fields from the Terraform model to the API update request.
+// ToAPIUpdate maps fields from the Terraform model to the API update request.
 // Note: name and type cannot be changed after creation, but they must still be included in the request.
-func (t *transformModel) ToAPIUpdateRequest(ctx context.Context) (client.TransformAPI, diag.Diagnostics) {
-	return t.ToAPICreateRequest(ctx)
+func (t *transformModel) ToAPIUpdate(ctx context.Context) (client.TransformAPI, diag.Diagnostics) {
+	return t.ToAPI(ctx)
 }

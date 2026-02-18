@@ -5,9 +5,9 @@ package workflow
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -15,12 +15,6 @@ import (
 )
 
 // Attribute type definitions for nested objects.
-var ownerAttrTypes = map[string]attr.Type{
-	"type": types.StringType,
-	"id":   types.StringType,
-	"name": types.StringType,
-}
-
 var definitionAttrTypes = map[string]attr.Type{
 	"start": types.StringType,
 	"steps": jsontypes.NormalizedType{},
@@ -43,9 +37,28 @@ type workflowModel struct {
 	FailureCount   types.Int32          `tfsdk:"failure_count"`
 }
 
-// ToAPICreateRequest converts the Terraform model to a SailPoint API create request.
-func (m *workflowModel) ToAPICreateRequest(ctx context.Context) (client.WorkflowAPI, diag.Diagnostics) {
-	var diags diag.Diagnostics
+// objectRefAttrTypes returns the attribute types for ObjectRef-like nested objects.
+func objectRefAttrTypes() map[string]attr.Type {
+	return common.ObjectRefObjectType.AttrTypes
+}
+
+// objectRefFromAPI converts a *client.ObjectRefAPI to a types.Object using the common ObjectRef attr types.
+// Returns types.ObjectNull if the API ref is nil or has no type.
+func objectRefFromAPI(api *client.ObjectRefAPI) (types.Object, diag.Diagnostics) {
+	if api == nil || api.Type == "" {
+		return types.ObjectNull(objectRefAttrTypes()), nil
+	}
+
+	return types.ObjectValue(objectRefAttrTypes(), map[string]attr.Value{
+		"type": types.StringValue(api.Type),
+		"id":   types.StringValue(api.ID),
+		"name": common.StringOrNullIfEmpty(api.Name),
+	})
+}
+
+// ToAPI converts the Terraform model to a SailPoint API create request.
+func (m *workflowModel) ToAPI(ctx context.Context) (client.WorkflowAPI, diag.Diagnostics) {
+	var diagnostics diag.Diagnostics
 
 	api := client.WorkflowAPI{
 		Name: m.Name.ValueString(),
@@ -57,14 +70,10 @@ func (m *workflowModel) ToAPICreateRequest(ctx context.Context) (client.Workflow
 		if attrs != nil {
 			if t, ok := attrs["type"].(types.String); ok && !t.IsNull() && !t.IsUnknown() {
 				if id, ok := attrs["id"].(types.String); ok && !id.IsNull() && !id.IsUnknown() {
-					ownerRef := &client.ObjectRefAPI{
+					api.Owner = &client.ObjectRefAPI{
 						Type: t.ValueString(),
 						ID:   id.ValueString(),
 					}
-					if n, ok := attrs["name"].(types.String); ok && !n.IsNull() && !n.IsUnknown() {
-						ownerRef.Name = n.ValueString()
-					}
-					api.Owner = ownerRef
 				}
 			}
 		}
@@ -84,14 +93,12 @@ func (m *workflowModel) ToAPICreateRequest(ctx context.Context) (client.Workflow
 					Start: start.ValueString(),
 				}
 
-				// Parse steps JSON
-				if steps, ok := attrs["steps"].(jsontypes.Normalized); ok && !steps.IsNull() && !steps.IsUnknown() {
-					var stepsMap map[string]interface{}
-					if err := json.Unmarshal([]byte(steps.ValueString()), &stepsMap); err != nil {
-						diags.AddError("Invalid Steps JSON", err.Error())
-						return api, diags
+				// Parse steps JSON using common helper
+				if steps, ok := attrs["steps"].(jsontypes.Normalized); ok {
+					if stepsMap, diags := common.UnmarshalJSONField[map[string]interface{}](steps); stepsMap != nil {
+						def.Steps = *stepsMap
+						diagnostics.Append(diags...)
 					}
-					def.Steps = stepsMap
 				}
 				api.Definition = def
 			}
@@ -105,66 +112,41 @@ func (m *workflowModel) ToAPICreateRequest(ctx context.Context) (client.Workflow
 
 	// Note: Trigger is not included in create/update requests - it's managed by workflow_trigger resource
 
-	return api, diags
+	return api, diagnostics
 }
 
-// ToAPIUpdateRequest converts the Terraform model to a SailPoint API update request (PUT).
-func (m *workflowModel) ToAPIUpdateRequest(ctx context.Context) (client.WorkflowAPI, diag.Diagnostics) {
+// ToAPIUpdate converts the Terraform model to a SailPoint API update request (PUT).
+func (m *workflowModel) ToAPIUpdate(ctx context.Context) (client.WorkflowAPI, diag.Diagnostics) {
 	// For PUT requests, we use the same conversion as create
-	return m.ToAPICreateRequest(ctx)
+	return m.ToAPI(ctx)
 }
 
-// FromSailPointAPI populates the Terraform model from a SailPoint API response.
-func (m *workflowModel) FromSailPointAPI(ctx context.Context, api client.WorkflowAPI) diag.Diagnostics {
+// FromAPI populates the Terraform model from a SailPoint API response.
+func (m *workflowModel) FromAPI(ctx context.Context, api client.WorkflowAPI) diag.Diagnostics {
+	var diagnostics diag.Diagnostics
 	var diags diag.Diagnostics
 
 	m.ID = types.StringValue(api.ID)
 	m.Name = types.StringValue(api.Name)
 
 	// Convert owner
-	if api.Owner != nil && api.Owner.Type != "" {
-		ownerObj, d := types.ObjectValue(ownerAttrTypes, map[string]attr.Value{
-			"type": types.StringValue(api.Owner.Type),
-			"id":   types.StringValue(api.Owner.ID),
-			"name": func() types.String {
-				if api.Owner.Name != "" {
-					return types.StringValue(api.Owner.Name)
-				}
-				return types.StringNull()
-			}(),
-		})
-		diags.Append(d...)
-		m.Owner = ownerObj
-	} else {
-		m.Owner = types.ObjectNull(ownerAttrTypes)
-	}
+	m.Owner, diags = objectRefFromAPI(api.Owner)
+	diagnostics.Append(diags...)
 
 	// Convert description
-	if api.Description != "" {
-		m.Description = types.StringValue(api.Description)
-	} else {
-		m.Description = types.StringNull()
-	}
+	m.Description = common.StringOrNullIfEmpty(api.Description)
 
 	// Convert definition
 	if api.Definition != nil && api.Definition.Start != "" {
 		var stepsValue jsontypes.Normalized
-		if api.Definition.Steps != nil {
-			stepsJSON, err := json.Marshal(api.Definition.Steps)
-			if err != nil {
-				diags.AddError("Failed to marshal steps", err.Error())
-				return diags
-			}
-			stepsValue = jsontypes.NewNormalizedValue(string(stepsJSON))
-		} else {
-			stepsValue = jsontypes.NewNormalizedValue("{}")
-		}
+		stepsValue, diags = common.MarshalJSONOrDefault(api.Definition.Steps, "{}")
+		diagnostics.Append(diags...)
 
 		defObj, d := types.ObjectValue(definitionAttrTypes, map[string]attr.Value{
 			"start": types.StringValue(api.Definition.Start),
 			"steps": stepsValue,
 		})
-		diags.Append(d...)
+		diagnostics.Append(d...)
 		m.Definition = defObj
 	} else {
 		m.Definition = types.ObjectNull(definitionAttrTypes)
@@ -172,12 +154,8 @@ func (m *workflowModel) FromSailPointAPI(ctx context.Context, api client.Workflo
 
 	// Convert trigger to JSON (computed field)
 	if api.Trigger != nil {
-		triggerJSON, err := json.Marshal(api.Trigger)
-		if err != nil {
-			diags.AddError("Failed to marshal trigger", err.Error())
-			return diags
-		}
-		m.Trigger = jsontypes.NewNormalizedValue(string(triggerJSON))
+		m.Trigger, diags = common.MarshalJSONOrDefault(api.Trigger, "{}")
+		diagnostics.Append(diags...)
 	} else {
 		m.Trigger = jsontypes.NewNormalizedNull()
 	}
@@ -186,57 +164,20 @@ func (m *workflowModel) FromSailPointAPI(ctx context.Context, api client.Workflo
 	m.Enabled = types.BoolValue(api.Enabled)
 
 	// Convert computed fields
-	if api.Created != "" {
-		m.Created = types.StringValue(api.Created)
-	} else {
-		m.Created = types.StringNull()
-	}
-
-	if api.Modified != "" {
-		m.Modified = types.StringValue(api.Modified)
-	} else {
-		m.Modified = types.StringNull()
-	}
+	m.Created = common.StringOrNullIfEmpty(api.Created)
+	m.Modified = common.StringOrNullIfEmpty(api.Modified)
 
 	// Convert creator
-	if api.Creator != nil && api.Creator.Type != "" {
-		creatorObj, d := types.ObjectValue(ownerAttrTypes, map[string]attr.Value{
-			"type": types.StringValue(api.Creator.Type),
-			"id":   types.StringValue(api.Creator.ID),
-			"name": func() types.String {
-				if api.Creator.Name != "" {
-					return types.StringValue(api.Creator.Name)
-				}
-				return types.StringNull()
-			}(),
-		})
-		diags.Append(d...)
-		m.Creator = creatorObj
-	} else {
-		m.Creator = types.ObjectNull(ownerAttrTypes)
-	}
+	m.Creator, diags = objectRefFromAPI(api.Creator)
+	diagnostics.Append(diags...)
 
 	// Convert modifiedBy
-	if api.ModifiedBy != nil && api.ModifiedBy.Type != "" {
-		modifiedByObj, d := types.ObjectValue(ownerAttrTypes, map[string]attr.Value{
-			"type": types.StringValue(api.ModifiedBy.Type),
-			"id":   types.StringValue(api.ModifiedBy.ID),
-			"name": func() types.String {
-				if api.ModifiedBy.Name != "" {
-					return types.StringValue(api.ModifiedBy.Name)
-				}
-				return types.StringNull()
-			}(),
-		})
-		diags.Append(d...)
-		m.ModifiedBy = modifiedByObj
-	} else {
-		m.ModifiedBy = types.ObjectNull(ownerAttrTypes)
-	}
+	m.ModifiedBy, diags = objectRefFromAPI(api.ModifiedBy)
+	diagnostics.Append(diags...)
 
 	// Convert execution and failure counts
 	m.ExecutionCount = types.Int32Value(api.ExecutionCount)
 	m.FailureCount = types.Int32Value(api.FailureCount)
 
-	return diags
+	return diagnostics
 }

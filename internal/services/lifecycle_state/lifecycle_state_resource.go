@@ -11,19 +11,18 @@ import (
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int32planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -94,10 +93,6 @@ func (r *lifecycleStateResource) Schema(_ context.Context, _ resource.SchemaRequ
 			"description": schema.StringAttribute{
 				MarkdownDescription: "The description of the lifecycle state.",
 				Optional:            true,
-				Computed:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"enabled": schema.BoolAttribute{
 				MarkdownDescription: "Whether the lifecycle state is enabled.",
@@ -107,20 +102,11 @@ func (r *lifecycleStateResource) Schema(_ context.Context, _ resource.SchemaRequ
 					boolplanmodifier.UseStateForUnknown(),
 				},
 			},
-			"identity_count": schema.Int32Attribute{
-				MarkdownDescription: "The number of identities that have this lifecycle state.",
-				Computed:            true,
-				PlanModifiers: []planmodifier.Int32{
-					int32planmodifier.UseStateForUnknown(),
-				},
-			},
 			"identity_state": schema.StringAttribute{
-				MarkdownDescription: "The identity state associated with this lifecycle state. Possible values: `ACTIVE`, `INACTIVE_SHORT_TERM`, `INACTIVE_LONG_TERM`. Can only be set during creation.",
-				Optional:            true,
-				Computed:            true,
+				MarkdownDescription: "The identity state associated with this lifecycle state. Possible values: `ACTIVE`, `INACTIVE_SHORT_TERM`, `INACTIVE_LONG_TERM`. Cannot be changed after creation.",
+				Required:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
-					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"priority": schema.Int32Attribute{
@@ -141,51 +127,53 @@ func (r *lifecycleStateResource) Schema(_ context.Context, _ resource.SchemaRequ
 			"modified": schema.StringAttribute{
 				MarkdownDescription: "The date and time the lifecycle state was last modified.",
 				Computed:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"email_notification_option": schema.SingleNestedAttribute{
-				MarkdownDescription: "Email notification configuration for the lifecycle state.",
-				Optional:            true,
-				Computed:            true,
-				PlanModifiers: []planmodifier.Object{
-					objectplanmodifier.UseStateForUnknown(),
-				},
+				MarkdownDescription: "Email notification configuration for the lifecycle state. " +
+					"Defaults to all notifications disabled with an empty email list. " +
+					"Remove this block from your configuration to reset to defaults.",
+				Optional: true,
+				Computed: true,
+				Default: objectdefault.StaticValue(types.ObjectValueMust(
+					emailNotificationOptionAttrTypes,
+					map[string]attr.Value{
+						"notify_managers":       types.BoolValue(false),
+						"notify_all_admins":     types.BoolValue(false),
+						"notify_specific_users": types.BoolValue(false),
+						"email_address_list":    types.ListValueMust(types.StringType, []attr.Value{}),
+					},
+				)),
 				Attributes: map[string]schema.Attribute{
 					"notify_managers": schema.BoolAttribute{
-						MarkdownDescription: "If true, managers are notified of lifecycle state changes.",
+						MarkdownDescription: "If true, managers are notified of lifecycle state changes. Defaults to `false`.",
 						Optional:            true,
 						Computed:            true,
+						Default:             booldefault.StaticBool(false),
 					},
 					"notify_all_admins": schema.BoolAttribute{
-						MarkdownDescription: "If true, all admins are notified of lifecycle state changes.",
+						MarkdownDescription: "If true, all admins are notified of lifecycle state changes. Defaults to `false`.",
 						Optional:            true,
 						Computed:            true,
+						Default:             booldefault.StaticBool(false),
 					},
 					"notify_specific_users": schema.BoolAttribute{
-						MarkdownDescription: "If true, users specified in `email_address_list` are notified of lifecycle state changes.",
+						MarkdownDescription: "If true, users specified in `email_address_list` are notified of lifecycle state changes. Defaults to `false`.",
 						Optional:            true,
 						Computed:            true,
+						Default:             booldefault.StaticBool(false),
 					},
 					"email_address_list": schema.ListAttribute{
-						MarkdownDescription: "List of email addresses to notify when `notify_specific_users` is true.",
+						MarkdownDescription: "List of email addresses to notify when `notify_specific_users` is true. Defaults to an empty list.",
 						Optional:            true,
 						Computed:            true,
 						ElementType:         types.StringType,
-						PlanModifiers: []planmodifier.List{
-							listplanmodifier.UseStateForUnknown(),
-						},
+						Default:             listdefault.StaticValue(types.ListValueMust(types.StringType, []attr.Value{})),
 					},
 				},
 			},
 			"account_actions": schema.ListNestedAttribute{
 				MarkdownDescription: "List of account actions to perform when an identity enters this lifecycle state.",
 				Optional:            true,
-				Computed:            true,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.UseStateForUnknown(),
-				},
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"action": schema.StringAttribute{
@@ -213,22 +201,23 @@ func (r *lifecycleStateResource) Schema(_ context.Context, _ resource.SchemaRequ
 			"access_profile_ids": schema.ListAttribute{
 				MarkdownDescription: "List of access profile IDs associated with this lifecycle state.",
 				Optional:            true,
-				Computed:            true,
 				ElementType:         types.StringType,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"access_action_configuration": schema.SingleNestedAttribute{
-				MarkdownDescription: "Access action configuration for the lifecycle state.",
-				Optional:            true,
-				Computed:            true,
-				PlanModifiers: []planmodifier.Object{
-					objectplanmodifier.UseStateForUnknown(),
-				},
+				MarkdownDescription: "Access action configuration for the lifecycle state. " +
+					"Defaults to `remove_all_access_enabled = false`. " +
+					"Remove this block from your configuration to reset to defaults.",
+				Optional: true,
+				Computed: true,
+				Default: objectdefault.StaticValue(types.ObjectValueMust(
+					accessActionConfigurationAttrTypes,
+					map[string]attr.Value{
+						"remove_all_access_enabled": types.BoolValue(false),
+					},
+				)),
 				Attributes: map[string]schema.Attribute{
 					"remove_all_access_enabled": schema.BoolAttribute{
-						MarkdownDescription: "If true, all access is removed when an identity enters this lifecycle state.",
+						MarkdownDescription: "If true, all access is removed when an identity enters this lifecycle state. Defaults to `false`.",
 						Optional:            true,
 						Computed:            true,
 						Default:             booldefault.StaticBool(false),
@@ -255,7 +244,7 @@ func (r *lifecycleStateResource) Create(ctx context.Context, req resource.Create
 		"identity_profile_id": identityProfileID,
 		"name":                plan.Name.ValueString(),
 	})
-	apiCreateRequest, diags := plan.ToAPICreateRequest(ctx)
+	apiCreateRequest, diags := plan.ToAPI(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -266,7 +255,7 @@ func (r *lifecycleStateResource) Create(ctx context.Context, req resource.Create
 		"identity_profile_id": identityProfileID,
 		"name":                plan.Name.ValueString(),
 	})
-	lifecycleStateAPIResponse, err := r.client.CreateLifecycleState(ctx, identityProfileID, &apiCreateRequest)
+	apiResponse, err := r.client.CreateLifecycleState(ctx, identityProfileID, &apiCreateRequest)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Creating SailPoint Lifecycle State",
@@ -281,7 +270,7 @@ func (r *lifecycleStateResource) Create(ctx context.Context, req resource.Create
 		return
 	}
 
-	if lifecycleStateAPIResponse == nil {
+	if apiResponse == nil {
 		resp.Diagnostics.AddError(
 			"Error Creating SailPoint Lifecycle State",
 			"Received nil response from SailPoint API",
@@ -295,16 +284,12 @@ func (r *lifecycleStateResource) Create(ctx context.Context, req resource.Create
 		"identity_profile_id": identityProfileID,
 		"name":                plan.Name.ValueString(),
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *lifecycleStateAPIResponse, identityProfileID)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *apiResponse, identityProfileID)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	// Set the state
-	tflog.Debug(ctx, "Setting state for lifecycle state resource", map[string]any{
-		"identity_profile_id": identityProfileID,
-		"id":                  state.ID.ValueString(),
-	})
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -333,7 +318,7 @@ func (r *lifecycleStateResource) Read(ctx context.Context, req resource.ReadRequ
 		"identity_profile_id": identityProfileID,
 		"lifecycle_state_id":  lifecycleStateID,
 	})
-	lifecycleStateResponse, err := r.client.GetLifecycleState(ctx, identityProfileID, lifecycleStateID)
+	apiResponse, err := r.client.GetLifecycleState(ctx, identityProfileID, lifecycleStateID)
 	if err != nil {
 		// If resource was deleted outside of Terraform, remove it from state
 		if errors.Is(err, client.ErrNotFound) {
@@ -357,7 +342,7 @@ func (r *lifecycleStateResource) Read(ctx context.Context, req resource.ReadRequ
 		return
 	}
 
-	if lifecycleStateResponse == nil {
+	if apiResponse == nil {
 		resp.Diagnostics.AddError(
 			"Error Reading SailPoint Lifecycle State",
 			"Received nil response from SailPoint API",
@@ -366,20 +351,12 @@ func (r *lifecycleStateResource) Read(ctx context.Context, req resource.ReadRequ
 	}
 
 	// Map the response to the resource model
-	tflog.Debug(ctx, "Mapping SailPoint Lifecycle State API response to resource model", map[string]any{
-		"identity_profile_id": identityProfileID,
-		"lifecycle_state_id":  lifecycleStateID,
-	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *lifecycleStateResponse, identityProfileID)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *apiResponse, identityProfileID)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	// Set the state
-	tflog.Debug(ctx, "Setting state for lifecycle state resource", map[string]any{
-		"identity_profile_id": identityProfileID,
-		"lifecycle_state_id":  lifecycleStateID,
-	})
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -415,7 +392,7 @@ func (r *lifecycleStateResource) Update(ctx context.Context, req resource.Update
 		"identity_profile_id": identityProfileID,
 		"lifecycle_state_id":  lifecycleStateID,
 	})
-	patchOperations, diags := r.buildPatchOperations(ctx, &state, &plan)
+	patchOperations, diags := plan.ToPatchOperations(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -435,7 +412,7 @@ func (r *lifecycleStateResource) Update(ctx context.Context, req resource.Update
 		"lifecycle_state_id":  lifecycleStateID,
 		"operations_count":    len(patchOperations),
 	})
-	lifecycleStateAPIResponse, err := r.client.UpdateLifecycleState(ctx, identityProfileID, lifecycleStateID, patchOperations)
+	apiResponse, err := r.client.UpdateLifecycleState(ctx, identityProfileID, lifecycleStateID, patchOperations)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating SailPoint Lifecycle State",
@@ -450,7 +427,7 @@ func (r *lifecycleStateResource) Update(ctx context.Context, req resource.Update
 		return
 	}
 
-	if lifecycleStateAPIResponse == nil {
+	if apiResponse == nil {
 		resp.Diagnostics.AddError(
 			"Error Updating SailPoint Lifecycle State",
 			"Received nil response from SailPoint API",
@@ -460,20 +437,12 @@ func (r *lifecycleStateResource) Update(ctx context.Context, req resource.Update
 
 	// Map the API response back to the resource model
 	var newState lifecycleStateModel
-	tflog.Debug(ctx, "Mapping SailPoint Lifecycle State API response to resource model", map[string]any{
-		"identity_profile_id": identityProfileID,
-		"lifecycle_state_id":  lifecycleStateID,
-	})
-	resp.Diagnostics.Append(newState.FromSailPointAPI(ctx, *lifecycleStateAPIResponse, identityProfileID)...)
+	resp.Diagnostics.Append(newState.FromAPI(ctx, *apiResponse, identityProfileID)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	// Set the state
-	tflog.Debug(ctx, "Setting state for lifecycle state resource", map[string]any{
-		"identity_profile_id": identityProfileID,
-		"lifecycle_state_id":  lifecycleStateID,
-	})
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -549,158 +518,4 @@ func (r *lifecycleStateResource) ImportState(ctx context.Context, req resource.I
 		"identity_profile_id": identityProfileID,
 		"lifecycle_state_id":  lifecycleStateID,
 	})
-}
-
-// buildPatchOperations creates JSON Patch operations for changes between state and plan.
-func (r *lifecycleStateResource) buildPatchOperations(ctx context.Context, state, plan *lifecycleStateModel) ([]client.JSONPatchOperation, diag.Diagnostics) {
-	var diags diag.Diagnostics
-	var operations []client.JSONPatchOperation
-
-	// Check for enabled change
-	if !plan.Enabled.Equal(state.Enabled) {
-		operations = append(operations, client.JSONPatchOperation{
-			Op:    "replace",
-			Path:  "/enabled",
-			Value: plan.Enabled.ValueBool(),
-		})
-	}
-
-	// Check for description change
-	if !plan.Description.Equal(state.Description) {
-		if plan.Description.IsNull() {
-			operations = append(operations, client.JSONPatchOperation{
-				Op:    "replace",
-				Path:  "/description",
-				Value: nil,
-			})
-		} else {
-			operations = append(operations, client.JSONPatchOperation{
-				Op:    "replace",
-				Path:  "/description",
-				Value: plan.Description.ValueString(),
-			})
-		}
-	}
-
-	// Check for priority change
-	if !plan.Priority.Equal(state.Priority) {
-		if plan.Priority.IsNull() {
-			operations = append(operations, client.JSONPatchOperation{
-				Op:    "replace",
-				Path:  "/priority",
-				Value: nil,
-			})
-		} else {
-			operations = append(operations, client.JSONPatchOperation{
-				Op:    "replace",
-				Path:  "/priority",
-				Value: plan.Priority.ValueInt32(),
-			})
-		}
-	}
-
-	// Check for email_notification_option change
-	if !plan.EmailNotificationOption.Equal(state.EmailNotificationOption) {
-		var emailNotifModel emailNotificationOptionModel
-		d := plan.EmailNotificationOption.As(ctx, &emailNotifModel, basetypes.ObjectAsOptions{})
-		diags.Append(d...)
-		if !diags.HasError() {
-			var emailList []string
-			if !emailNotifModel.EmailAddressList.IsNull() && !emailNotifModel.EmailAddressList.IsUnknown() {
-				d := emailNotifModel.EmailAddressList.ElementsAs(ctx, &emailList, false)
-				diags.Append(d...)
-			}
-			operations = append(operations, client.JSONPatchOperation{
-				Op:   "replace",
-				Path: "/emailNotificationOption",
-				Value: map[string]interface{}{
-					"notifyManagers":      emailNotifModel.NotifyManagers.ValueBool(),
-					"notifyAllAdmins":     emailNotifModel.NotifyAllAdmins.ValueBool(),
-					"notifySpecificUsers": emailNotifModel.NotifySpecificUsers.ValueBool(),
-					"emailAddressList":    emailList,
-				},
-			})
-		}
-	}
-
-	// Check for account_actions change
-	if !plan.AccountActions.Equal(state.AccountActions) {
-		if plan.AccountActions.IsNull() {
-			operations = append(operations, client.JSONPatchOperation{
-				Op:    "replace",
-				Path:  "/accountActions",
-				Value: []interface{}{},
-			})
-		} else {
-			var accountActionsModels []accountActionModel
-			d := plan.AccountActions.ElementsAs(ctx, &accountActionsModels, false)
-			diags.Append(d...)
-			if !diags.HasError() {
-				accountActionsAPI := make([]map[string]interface{}, len(accountActionsModels))
-				for i, actionModel := range accountActionsModels {
-					var sourceIds []string
-					if !actionModel.SourceIds.IsNull() && !actionModel.SourceIds.IsUnknown() {
-						d := actionModel.SourceIds.ElementsAs(ctx, &sourceIds, false)
-						diags.Append(d...)
-					}
-					var excludeSourceIds []string
-					if !actionModel.ExcludeSourceIds.IsNull() && !actionModel.ExcludeSourceIds.IsUnknown() {
-						d := actionModel.ExcludeSourceIds.ElementsAs(ctx, &excludeSourceIds, false)
-						diags.Append(d...)
-					}
-					accountActionsAPI[i] = map[string]interface{}{
-						"action":           actionModel.Action.ValueString(),
-						"sourceIds":        sourceIds,
-						"excludeSourceIds": excludeSourceIds,
-						"allSources":       actionModel.AllSources.ValueBool(),
-					}
-				}
-				operations = append(operations, client.JSONPatchOperation{
-					Op:    "replace",
-					Path:  "/accountActions",
-					Value: accountActionsAPI,
-				})
-			}
-		}
-	}
-
-	// Check for access_profile_ids change
-	if !plan.AccessProfileIds.Equal(state.AccessProfileIds) {
-		if plan.AccessProfileIds.IsNull() {
-			operations = append(operations, client.JSONPatchOperation{
-				Op:    "replace",
-				Path:  "/accessProfileIds",
-				Value: []string{},
-			})
-		} else {
-			var accessProfileIds []string
-			d := plan.AccessProfileIds.ElementsAs(ctx, &accessProfileIds, false)
-			diags.Append(d...)
-			if !diags.HasError() {
-				operations = append(operations, client.JSONPatchOperation{
-					Op:    "replace",
-					Path:  "/accessProfileIds",
-					Value: accessProfileIds,
-				})
-			}
-		}
-	}
-
-	// Check for access_action_configuration change
-	if !plan.AccessActionConfiguration.Equal(state.AccessActionConfiguration) {
-		var accessActionConfigModel accessActionConfigurationModel
-		d := plan.AccessActionConfiguration.As(ctx, &accessActionConfigModel, basetypes.ObjectAsOptions{})
-		diags.Append(d...)
-		if !diags.HasError() {
-			operations = append(operations, client.JSONPatchOperation{
-				Op:   "replace",
-				Path: "/accessActionConfiguration",
-				Value: map[string]interface{}{
-					"removeAllAccessEnabled": accessActionConfigModel.RemoveAllAccessEnabled.ValueBool(),
-				},
-			})
-		}
-	}
-
-	return operations, diags
 }

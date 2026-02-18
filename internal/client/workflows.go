@@ -12,7 +12,12 @@ import (
 )
 
 const (
-	workflowsEndpoint = "/v2025/workflows"
+	workflowEndpointList   = "/v2025/workflows"
+	workflowEndpointGet    = "/v2025/workflows/{id}"
+	workflowEndpointCreate = "/v2025/workflows"
+	workflowEndpointUpdate = "/v2025/workflows/{id}"
+	workflowEndpointPatch  = "/v2025/workflows/{id}"
+	workflowEndpointDelete = "/v2025/workflows/{id}"
 )
 
 // WorkflowAPI represents a SailPoint Workflow from the API.
@@ -47,9 +52,10 @@ type WorkflowTriggerAPI struct {
 
 // workflowErrorContext provides context for error messages.
 type workflowErrorContext struct {
-	Operation string
-	ID        string
-	Name      string
+	Operation    string
+	ID           string
+	Name         string
+	ResponseBody string
 }
 
 // GetWorkflow retrieves a specific workflow by ID.
@@ -64,13 +70,11 @@ func (c *Client) GetWorkflow(ctx context.Context, id string) (*WorkflowAPI, erro
 
 	var workflow WorkflowAPI
 
-	resp, err := c.doRequest(
-		ctx,
-		http.MethodGet,
-		fmt.Sprintf("%s/%s", workflowsEndpoint, id),
-		nil,
-		&workflow,
-	)
+	resp, err := c.prepareRequest(ctx).
+		SetResult(&workflow).
+		SetPathParam("id", id).
+		Get(workflowEndpointGet)
+
 	if err != nil {
 		return nil, c.formatWorkflowError(
 			workflowErrorContext{Operation: "get", ID: id},
@@ -81,7 +85,7 @@ func (c *Client) GetWorkflow(ctx context.Context, id string) (*WorkflowAPI, erro
 
 	if resp.IsError() {
 		return nil, c.formatWorkflowError(
-			workflowErrorContext{Operation: "get", ID: id},
+			workflowErrorContext{Operation: "get", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -111,7 +115,11 @@ func (c *Client) CreateWorkflow(ctx context.Context, workflow *WorkflowAPI) (*Wo
 
 	var result WorkflowAPI
 
-	resp, err := c.doRequest(ctx, http.MethodPost, workflowsEndpoint, workflow, &result)
+	resp, err := c.prepareRequest(ctx).
+		SetBody(workflow).
+		SetResult(&result).
+		Post(workflowEndpointCreate)
+
 	if err != nil {
 		return nil, c.formatWorkflowError(
 			workflowErrorContext{Operation: "create", Name: workflow.Name},
@@ -123,10 +131,10 @@ func (c *Client) CreateWorkflow(ctx context.Context, workflow *WorkflowAPI) (*Wo
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatWorkflowError(
-			workflowErrorContext{Operation: "create", Name: workflow.Name},
+			workflowErrorContext{Operation: "create", Name: workflow.Name, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -157,13 +165,12 @@ func (c *Client) UpdateWorkflow(ctx context.Context, id string, workflow *Workfl
 
 	var result WorkflowAPI
 
-	resp, err := c.doRequest(
-		ctx,
-		http.MethodPut,
-		fmt.Sprintf("%s/%s", workflowsEndpoint, id),
-		workflow,
-		&result,
-	)
+	resp, err := c.prepareRequest(ctx).
+		SetBody(workflow).
+		SetResult(&result).
+		SetPathParam("id", id).
+		Put(workflowEndpointUpdate)
+
 	if err != nil {
 		return nil, c.formatWorkflowError(
 			workflowErrorContext{Operation: "update", ID: id},
@@ -175,10 +182,10 @@ func (c *Client) UpdateWorkflow(ctx context.Context, id string, workflow *Workfl
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatWorkflowError(
-			workflowErrorContext{Operation: "update", ID: id},
+			workflowErrorContext{Operation: "update", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -209,13 +216,13 @@ func (c *Client) PatchWorkflow(ctx context.Context, id string, operations []JSON
 
 	var result WorkflowAPI
 
-	resp, err := c.doRequest(
-		ctx,
-		http.MethodPatch,
-		fmt.Sprintf("%s/%s", workflowsEndpoint, id),
-		operations,
-		&result,
-	)
+	resp, err := c.prepareRequest(ctx).
+		SetHeader("Content-Type", "application/json-patch+json").
+		SetBody(operations).
+		SetResult(&result).
+		SetPathParam("id", id).
+		Patch(workflowEndpointPatch)
+
 	if err != nil {
 		return nil, c.formatWorkflowError(
 			workflowErrorContext{Operation: "patch", ID: id},
@@ -227,10 +234,10 @@ func (c *Client) PatchWorkflow(ctx context.Context, id string, operations []JSON
 	if resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
-			"response_body": string(resp.Body()),
+			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatWorkflowError(
-			workflowErrorContext{Operation: "patch", ID: id},
+			workflowErrorContext{Operation: "patch", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -255,13 +262,10 @@ func (c *Client) DeleteWorkflow(ctx context.Context, id string) error {
 		"id": id,
 	})
 
-	resp, err := c.doRequest(
-		ctx,
-		http.MethodDelete,
-		fmt.Sprintf("%s/%s", workflowsEndpoint, id),
-		nil,
-		nil,
-	)
+	resp, err := c.prepareRequest(ctx).
+		SetPathParam("id", id).
+		Delete(workflowEndpointDelete)
+
 	if err != nil {
 		return c.formatWorkflowError(
 			workflowErrorContext{Operation: "delete", ID: id},
@@ -280,7 +284,7 @@ func (c *Client) DeleteWorkflow(ctx context.Context, id string) error {
 		}
 
 		return c.formatWorkflowError(
-			workflowErrorContext{Operation: "delete", ID: id},
+			workflowErrorContext{Operation: "delete", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -355,23 +359,28 @@ func (c *Client) formatWorkflowError(errCtx workflowErrorContext, err error, sta
 	}
 
 	if statusCode != 0 {
+		detail := ""
+		if errCtx.ResponseBody != "" {
+			detail = fmt.Sprintf(" - response: %s", errCtx.ResponseBody)
+		}
+
 		switch statusCode {
 		case http.StatusBadRequest:
-			return fmt.Errorf("%s: invalid request - check workflow properties (400)", baseMsg)
+			return fmt.Errorf("%s: invalid request (400)%s", baseMsg, detail)
 		case http.StatusUnauthorized:
-			return fmt.Errorf("%s: authentication failed - check credentials (401)", baseMsg)
+			return fmt.Errorf("%s: authentication failed (401)%s", baseMsg, detail)
 		case http.StatusForbidden:
-			return fmt.Errorf("%s: access denied - insufficient permissions (403)", baseMsg)
+			return fmt.Errorf("%s: access denied (403)%s", baseMsg, detail)
 		case http.StatusNotFound:
 			return fmt.Errorf("%s: %w", baseMsg, ErrNotFound)
 		case http.StatusConflict:
-			return fmt.Errorf("%s: conflict - workflow may already exist (409)", baseMsg)
+			return fmt.Errorf("%s: conflict (409)%s", baseMsg, detail)
 		case http.StatusTooManyRequests:
-			return fmt.Errorf("%s: rate limit exceeded - retry after delay (429)", baseMsg)
+			return fmt.Errorf("%s: rate limit exceeded (429)%s", baseMsg, detail)
 		case http.StatusInternalServerError:
-			return fmt.Errorf("%s: server error - contact SailPoint support (500)", baseMsg)
+			return fmt.Errorf("%s: server error (500)%s", baseMsg, detail)
 		default:
-			return fmt.Errorf("%s: unexpected status code %d", baseMsg, statusCode)
+			return fmt.Errorf("%s: unexpected status code %d%s", baseMsg, statusCode, detail)
 		}
 	}
 

@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -68,15 +67,16 @@ func (r *launcherResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			},
 			"description": schema.StringAttribute{
 				MarkdownDescription: "The description of the launcher, limited to 2000 characters.",
-				Required:            true,
+				Optional:            true,
 			},
 			"type": schema.StringAttribute{
 				MarkdownDescription: "The type of the launcher. Currently only `INTERACTIVE_PROCESS` is supported.",
 				Required:            true,
 			},
 			"disabled": schema.BoolAttribute{
-				MarkdownDescription: "Whether the launcher is disabled.",
-				Required:            true,
+				MarkdownDescription: "Whether the launcher is disabled. Defaults to `false`.",
+				Optional:            true,
+				Computed:            true,
 			},
 			"config": schema.StringAttribute{
 				MarkdownDescription: "JSON configuration associated with this launcher, restricted to a max size of 4KB.",
@@ -92,64 +92,40 @@ func (r *launcherResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			"modified": schema.StringAttribute{
 				MarkdownDescription: "The date and time the launcher was last modified.",
 				Computed:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"owner": schema.SingleNestedAttribute{
 				MarkdownDescription: "The owner of the launcher.",
-				Computed:            true,
-				PlanModifiers: []planmodifier.Object{
-					objectplanmodifier.UseStateForUnknown(),
-				},
+				Required:            true,
 				Attributes: map[string]schema.Attribute{
 					"type": schema.StringAttribute{
 						MarkdownDescription: "The type of the owner (e.g., `IDENTITY`).",
-						Computed:            true,
+						Required:            true,
 					},
 					"id": schema.StringAttribute{
 						MarkdownDescription: "The ID of the owner.",
-						Computed:            true,
+						Required:            true,
 					},
 					"name": schema.StringAttribute{
-						MarkdownDescription: "The name of the owner.",
+						MarkdownDescription: "The name of the owner. Resolved by the server from the owner ID.",
 						Computed:            true,
-						PlanModifiers: []planmodifier.String{
-							stringplanmodifier.UseStateForUnknown(),
-						},
 					},
 				},
 			},
 			"reference": schema.SingleNestedAttribute{
 				MarkdownDescription: "The reference to the resource this launcher triggers (e.g., a workflow).",
 				Optional:            true,
-				Computed:            true,
-				PlanModifiers: []planmodifier.Object{
-					objectplanmodifier.UseStateForUnknown(),
-				},
 				Attributes: map[string]schema.Attribute{
 					"type": schema.StringAttribute{
 						MarkdownDescription: "The type of the reference (e.g., `WORKFLOW`).",
-						Optional:            true,
-						Computed:            true,
-						PlanModifiers: []planmodifier.String{
-							stringplanmodifier.UseStateForUnknown(),
-						},
+						Required:            true,
 					},
 					"id": schema.StringAttribute{
 						MarkdownDescription: "The ID of the referenced resource.",
-						Optional:            true,
-						Computed:            true,
-						PlanModifiers: []planmodifier.String{
-							stringplanmodifier.UseStateForUnknown(),
-						},
+						Required:            true,
 					},
 					"name": schema.StringAttribute{
 						MarkdownDescription: "The name of the referenced resource.",
 						Computed:            true,
-						PlanModifiers: []planmodifier.String{
-							stringplanmodifier.UseStateForUnknown(),
-						},
 					},
 				},
 			},
@@ -170,7 +146,7 @@ func (r *launcherResource) Create(ctx context.Context, req resource.CreateReques
 	tflog.Debug(ctx, "Mapping launcher resource model to API create request", map[string]any{
 		"name": plan.Name.ValueString(),
 	})
-	apiCreateRequest, diags := plan.ToAPICreateRequest(ctx)
+	apiCreateRequest, diags := plan.ToAPI(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -206,7 +182,7 @@ func (r *launcherResource) Create(ctx context.Context, req resource.CreateReques
 	tflog.Debug(ctx, "Mapping SailPoint Launcher API response to resource model", map[string]any{
 		"name": plan.Name.ValueString(),
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *launcherAPIResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *launcherAPIResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -272,7 +248,7 @@ func (r *launcherResource) Read(ctx context.Context, req resource.ReadRequest, r
 	tflog.Debug(ctx, "Mapping SailPoint Launcher API response to resource model", map[string]any{
 		"id": state.ID.ValueString(),
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *launcherResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *launcherResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -311,7 +287,7 @@ func (r *launcherResource) Update(ctx context.Context, req resource.UpdateReques
 	tflog.Debug(ctx, "Mapping launcher resource model to API update request", map[string]any{
 		"id": state.ID.ValueString(),
 	})
-	apiUpdateRequest, diags := plan.ToAPICreateRequest(ctx)
+	apiUpdateRequest, diags := plan.ToAPI(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -347,7 +323,7 @@ func (r *launcherResource) Update(ctx context.Context, req resource.UpdateReques
 	tflog.Debug(ctx, "Mapping SailPoint Launcher API response to resource model", map[string]any{
 		"id": state.ID.ValueString(),
 	})
-	resp.Diagnostics.Append(newState.FromSailPointAPI(ctx, *launcherAPIResponse)...)
+	resp.Diagnostics.Append(newState.FromAPI(ctx, *launcherAPIResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
