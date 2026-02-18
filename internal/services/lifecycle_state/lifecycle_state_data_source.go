@@ -11,6 +11,7 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
@@ -164,9 +165,16 @@ func (d *lifecycleStateDataSource) Schema(_ context.Context, _ datasource.Schema
 
 // Read implements datasource.DataSource.
 func (d *lifecycleStateDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var config lifecycleStateModel
+	var config struct {
+		ID                types.String `tfsdk:"id"`
+		IdentityProfileID types.String `tfsdk:"identity_profile_id"`
+	}
 	tflog.Debug(ctx, "Getting config for lifecycle state data source")
-	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("id"), &config.ID)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("identity_profile_id"), &config.IdentityProfileID)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -179,7 +187,7 @@ func (d *lifecycleStateDataSource) Read(ctx context.Context, req datasource.Read
 		"identity_profile_id": identityProfileID,
 		"lifecycle_state_id":  lifecycleStateID,
 	})
-	lifecycleStateResponse, err := d.client.GetLifecycleState(ctx, identityProfileID, lifecycleStateID)
+	apiResponse, err := d.client.GetLifecycleState(ctx, identityProfileID, lifecycleStateID)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading SailPoint Lifecycle State",
@@ -194,7 +202,7 @@ func (d *lifecycleStateDataSource) Read(ctx context.Context, req datasource.Read
 		return
 	}
 
-	if lifecycleStateResponse == nil {
+	if apiResponse == nil {
 		resp.Diagnostics.AddError(
 			"Error Reading SailPoint Lifecycle State",
 			"Received nil response from SailPoint API",
@@ -203,20 +211,17 @@ func (d *lifecycleStateDataSource) Read(ctx context.Context, req datasource.Read
 	}
 
 	// Map the response to the data source model
-	var state lifecycleStateModel
+	var state lifecycleStateDataSourceModel
 	tflog.Debug(ctx, "Mapping SailPoint Lifecycle State API response to data source model", map[string]any{
 		"identity_profile_id": identityProfileID,
 		"lifecycle_state_id":  lifecycleStateID,
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *lifecycleStateResponse, identityProfileID)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *apiResponse, identityProfileID)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	// Set the state
-	tflog.Debug(ctx, "Setting state for lifecycle state data source", map[string]any{
-		"id": state.ID.ValueString(),
-	})
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return

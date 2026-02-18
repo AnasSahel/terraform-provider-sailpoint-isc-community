@@ -18,25 +18,24 @@ Resource for SailPoint Lifecycle State. Lifecycle states define the different st
 ### Required
 
 - `identity_profile_id` (String) The ID of the identity profile this lifecycle state belongs to.
+- `identity_state` (String) The identity state associated with this lifecycle state. Possible values: `ACTIVE`, `INACTIVE_SHORT_TERM`, `INACTIVE_LONG_TERM`. Cannot be changed after creation.
 - `name` (String) The name of the lifecycle state. Cannot be changed after creation.
 - `technical_name` (String) The technical name of the lifecycle state. This is used for internal purposes and cannot be changed after creation.
 
 ### Optional
 
-- `access_action_configuration` (Attributes) Access action configuration for the lifecycle state. (see [below for nested schema](#nestedatt--access_action_configuration))
+- `access_action_configuration` (Attributes) Access action configuration for the lifecycle state. Defaults to `remove_all_access_enabled = false`. Remove this block from your configuration to reset to defaults. (see [below for nested schema](#nestedatt--access_action_configuration))
 - `access_profile_ids` (List of String) List of access profile IDs associated with this lifecycle state.
 - `account_actions` (Attributes List) List of account actions to perform when an identity enters this lifecycle state. (see [below for nested schema](#nestedatt--account_actions))
 - `description` (String) The description of the lifecycle state.
-- `email_notification_option` (Attributes) Email notification configuration for the lifecycle state. (see [below for nested schema](#nestedatt--email_notification_option))
+- `email_notification_option` (Attributes) Email notification configuration for the lifecycle state. Defaults to all notifications disabled with an empty email list. Remove this block from your configuration to reset to defaults. (see [below for nested schema](#nestedatt--email_notification_option))
 - `enabled` (Boolean) Whether the lifecycle state is enabled.
-- `identity_state` (String) The identity state associated with this lifecycle state. Possible values: `ACTIVE`, `INACTIVE_SHORT_TERM`, `INACTIVE_LONG_TERM`. Can only be set during creation.
 - `priority` (Number) The priority of the lifecycle state. Lower numbers appear first when listing with `?sorters=priority`.
 
 ### Read-Only
 
 - `created` (String) The date and time the lifecycle state was created.
 - `id` (String) The unique identifier of the lifecycle state.
-- `identity_count` (Number) The number of identities that have this lifecycle state.
 - `modified` (String) The date and time the lifecycle state was last modified.
 
 <a id="nestedatt--access_action_configuration"></a>
@@ -44,7 +43,7 @@ Resource for SailPoint Lifecycle State. Lifecycle states define the different st
 
 Optional:
 
-- `remove_all_access_enabled` (Boolean) If true, all access is removed when an identity enters this lifecycle state.
+- `remove_all_access_enabled` (Boolean) If true, all access is removed when an identity enters this lifecycle state. Defaults to `false`.
 
 
 <a id="nestedatt--account_actions"></a>
@@ -66,7 +65,7 @@ Optional:
 
 Optional:
 
-- `email_address_list` (List of String) List of email addresses to notify when `notify_specific_users` is true.
-- `notify_all_admins` (Boolean) If true, all admins are notified of lifecycle state changes.
-- `notify_managers` (Boolean) If true, managers are notified of lifecycle state changes.
-- `notify_specific_users` (Boolean) If true, users specified in `email_address_list` are notified of lifecycle state changes.
+- `email_address_list` (List of String) List of email addresses to notify when `notify_specific_users` is true. Defaults to an empty list.
+- `notify_all_admins` (Boolean) If true, all admins are notified of lifecycle state changes. Defaults to `false`.
+- `notify_managers` (Boolean) If true, managers are notified of lifecycle state changes. Defaults to `false`.
+- `notify_specific_users` (Boolean) If true, users specified in `email_address_list` are notified of lifecycle state changes. Defaults to `false`.

@@ -7,13 +7,14 @@ import (
 	"context"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
-// lifecycleStateModel represents the Terraform state for a Lifecycle State.
+// lifecycleStateModel represents the Terraform state for a Lifecycle State resource.
 type lifecycleStateModel struct {
 	ID                        types.String `tfsdk:"id"`
 	IdentityProfileID         types.String `tfsdk:"identity_profile_id"`
@@ -21,7 +22,6 @@ type lifecycleStateModel struct {
 	TechnicalName             types.String `tfsdk:"technical_name"`
 	Description               types.String `tfsdk:"description"`
 	Enabled                   types.Bool   `tfsdk:"enabled"`
-	IdentityCount             types.Int32  `tfsdk:"identity_count"`
 	IdentityState             types.String `tfsdk:"identity_state"`
 	Priority                  types.Int32  `tfsdk:"priority"`
 	Created                   types.String `tfsdk:"created"`
@@ -74,8 +74,8 @@ var accessActionConfigurationAttrTypes = map[string]attr.Type{
 	"remove_all_access_enabled": types.BoolType,
 }
 
-// FromSailPointAPI maps fields from the API model to the Terraform model.
-func (m *lifecycleStateModel) FromSailPointAPI(ctx context.Context, api client.LifecycleStateAPI, identityProfileID string) diag.Diagnostics {
+// FromAPI maps fields from the API model to the Terraform model.
+func (m *lifecycleStateModel) FromAPI(ctx context.Context, api client.LifecycleStateAPI, identityProfileID string) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	m.ID = types.StringValue(api.ID)
@@ -83,23 +83,12 @@ func (m *lifecycleStateModel) FromSailPointAPI(ctx context.Context, api client.L
 	m.Name = types.StringValue(api.Name)
 	m.TechnicalName = types.StringValue(api.TechnicalName)
 	m.Enabled = types.BoolValue(api.Enabled)
-	m.IdentityCount = types.Int32Value(api.IdentityCount)
 	m.Created = types.StringValue(api.Created)
 	m.Modified = types.StringValue(api.Modified)
 
-	// Map Description (nullable)
-	if api.Description != nil {
-		m.Description = types.StringValue(*api.Description)
-	} else {
-		m.Description = types.StringNull()
-	}
-
-	// Map IdentityState (nullable)
-	if api.IdentityState != nil {
-		m.IdentityState = types.StringValue(*api.IdentityState)
-	} else {
-		m.IdentityState = types.StringNull()
-	}
+	// Map nullable string fields
+	m.Description = common.StringOrNull(api.Description)
+	m.IdentityState = common.StringOrNull(api.IdentityState)
 
 	// Map Priority (nullable)
 	if api.Priority != nil {
@@ -164,8 +153,8 @@ func (m *lifecycleStateModel) FromSailPointAPI(ctx context.Context, api client.L
 	return diags
 }
 
-// ToAPICreateRequest maps fields from the Terraform model to the API create request.
-func (m *lifecycleStateModel) ToAPICreateRequest(ctx context.Context) (client.LifecycleStateCreateAPI, diag.Diagnostics) {
+// ToAPI maps fields from the Terraform model to the API create request.
+func (m *lifecycleStateModel) ToAPI(ctx context.Context) (client.LifecycleStateCreateAPI, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
 	apiRequest := client.LifecycleStateCreateAPI{
@@ -174,19 +163,19 @@ func (m *lifecycleStateModel) ToAPICreateRequest(ctx context.Context) (client.Li
 		Enabled:       m.Enabled.ValueBool(),
 	}
 
-	// Map Description (optional)
+	// Map Description (optional, nullable)
 	if !m.Description.IsNull() && !m.Description.IsUnknown() {
 		desc := m.Description.ValueString()
 		apiRequest.Description = &desc
 	}
 
-	// Map IdentityState (optional)
+	// Map IdentityState (optional, nullable)
 	if !m.IdentityState.IsNull() && !m.IdentityState.IsUnknown() {
 		identityState := m.IdentityState.ValueString()
 		apiRequest.IdentityState = &identityState
 	}
 
-	// Map Priority (optional)
+	// Map Priority (optional, nullable)
 	if !m.Priority.IsNull() && !m.Priority.IsUnknown() {
 		priority := m.Priority.ValueInt32()
 		apiRequest.Priority = &priority
@@ -259,4 +248,132 @@ func (m *lifecycleStateModel) ToAPICreateRequest(ctx context.Context) (client.Li
 	}
 
 	return apiRequest, diags
+}
+
+// ToPatchOperations compares the plan (m) with the current state and generates JSON Patch operations
+// for fields that have changed.
+func (m *lifecycleStateModel) ToPatchOperations(ctx context.Context, state *lifecycleStateModel) ([]client.JSONPatchOperation, diag.Diagnostics) {
+	var diags diag.Diagnostics
+	var operations []client.JSONPatchOperation
+
+	// Enabled
+	if !m.Enabled.Equal(state.Enabled) {
+		operations = append(operations, client.NewReplacePatch("/enabled", m.Enabled.ValueBool()))
+	}
+
+	// Description
+	if !m.Description.Equal(state.Description) {
+		if !m.Description.IsNull() {
+			operations = append(operations, client.NewReplacePatch("/description", m.Description.ValueString()))
+		} else {
+			operations = append(operations, client.NewRemovePatch("/description"))
+		}
+	}
+
+	// Priority
+	if !m.Priority.Equal(state.Priority) {
+		if !m.Priority.IsNull() {
+			operations = append(operations, client.NewReplacePatch("/priority", m.Priority.ValueInt32()))
+		} else {
+			operations = append(operations, client.NewRemovePatch("/priority"))
+		}
+	}
+
+	// EmailNotificationOption
+	if !m.EmailNotificationOption.Equal(state.EmailNotificationOption) {
+		var emailNotifModel emailNotificationOptionModel
+		d := m.EmailNotificationOption.As(ctx, &emailNotifModel, basetypes.ObjectAsOptions{})
+		diags.Append(d...)
+		if !diags.HasError() {
+			var emailList []string
+			if !emailNotifModel.EmailAddressList.IsNull() && !emailNotifModel.EmailAddressList.IsUnknown() {
+				d := emailNotifModel.EmailAddressList.ElementsAs(ctx, &emailList, false)
+				diags.Append(d...)
+			}
+			operations = append(operations, client.NewReplacePatch("/emailNotificationOption", client.EmailNotificationOptionAPI{
+				NotifyManagers:      emailNotifModel.NotifyManagers.ValueBool(),
+				NotifyAllAdmins:     emailNotifModel.NotifyAllAdmins.ValueBool(),
+				NotifySpecificUsers: emailNotifModel.NotifySpecificUsers.ValueBool(),
+				EmailAddressList:    emailList,
+			}))
+		}
+	}
+
+	// AccountActions
+	if !m.AccountActions.Equal(state.AccountActions) {
+		if m.AccountActions.IsNull() {
+			operations = append(operations, client.NewReplacePatch("/accountActions", []client.AccountActionAPI{}))
+		} else {
+			var accountActionsModels []accountActionModel
+			d := m.AccountActions.ElementsAs(ctx, &accountActionsModels, false)
+			diags.Append(d...)
+			if !diags.HasError() {
+				accountActionsAPI := make([]client.AccountActionAPI, len(accountActionsModels))
+				for i, actionModel := range accountActionsModels {
+					var sourceIds []string
+					if !actionModel.SourceIds.IsNull() && !actionModel.SourceIds.IsUnknown() {
+						d := actionModel.SourceIds.ElementsAs(ctx, &sourceIds, false)
+						diags.Append(d...)
+					}
+					var excludeSourceIds []string
+					if !actionModel.ExcludeSourceIds.IsNull() && !actionModel.ExcludeSourceIds.IsUnknown() {
+						d := actionModel.ExcludeSourceIds.ElementsAs(ctx, &excludeSourceIds, false)
+						diags.Append(d...)
+					}
+					accountActionsAPI[i] = client.AccountActionAPI{
+						Action:           actionModel.Action.ValueString(),
+						SourceIds:        sourceIds,
+						ExcludeSourceIds: excludeSourceIds,
+						AllSources:       actionModel.AllSources.ValueBool(),
+					}
+				}
+				operations = append(operations, client.NewReplacePatch("/accountActions", accountActionsAPI))
+			}
+		}
+	}
+
+	// AccessProfileIds
+	if !m.AccessProfileIds.Equal(state.AccessProfileIds) {
+		if m.AccessProfileIds.IsNull() {
+			operations = append(operations, client.NewReplacePatch("/accessProfileIds", []string{}))
+		} else {
+			var accessProfileIds []string
+			d := m.AccessProfileIds.ElementsAs(ctx, &accessProfileIds, false)
+			diags.Append(d...)
+			if !diags.HasError() {
+				operations = append(operations, client.NewReplacePatch("/accessProfileIds", accessProfileIds))
+			}
+		}
+	}
+
+	// AccessActionConfiguration
+	if !m.AccessActionConfiguration.Equal(state.AccessActionConfiguration) {
+		var accessActionConfigModel accessActionConfigurationModel
+		d := m.AccessActionConfiguration.As(ctx, &accessActionConfigModel, basetypes.ObjectAsOptions{})
+		diags.Append(d...)
+		if !diags.HasError() {
+			operations = append(operations, client.NewReplacePatch("/accessActionConfiguration", client.AccessActionConfigurationAPI{
+				RemoveAllAccessEnabled: accessActionConfigModel.RemoveAllAccessEnabled.ValueBool(),
+			}))
+		}
+	}
+
+	return operations, diags
+}
+
+// lifecycleStateDataSourceModel embeds the resource model and adds server-managed read-only fields.
+type lifecycleStateDataSourceModel struct {
+	lifecycleStateModel
+	IdentityCount types.Int32 `tfsdk:"identity_count"`
+}
+
+// FromAPI maps fields from the API response to the data source model.
+func (m *lifecycleStateDataSourceModel) FromAPI(ctx context.Context, api client.LifecycleStateAPI, identityProfileID string) diag.Diagnostics {
+	// Map shared fields via the embedded resource model
+	diagnostics := m.lifecycleStateModel.FromAPI(ctx, api, identityProfileID)
+
+	// Map server-managed read-only fields
+	m.IdentityCount = types.Int32Value(api.IdentityCount)
+
+	return diagnostics
 }
