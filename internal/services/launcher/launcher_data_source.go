@@ -160,7 +160,7 @@ func (d *launcherDataSource) Read(ctx context.Context, req datasource.ReadReques
 	tflog.Debug(ctx, "Mapping SailPoint Launcher API response to data source model", map[string]any{
 		"id": config.ID.ValueString(),
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, *launcherResponse)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, *launcherResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

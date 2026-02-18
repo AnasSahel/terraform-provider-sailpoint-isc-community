@@ -5,6 +5,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -12,46 +13,43 @@ import (
 )
 
 const (
-	launchersEndpoint = "/v2025/launchers"
+	launchersEndpointGet    = "/v2025/launchers/{launcherId}"
+	launchersEndpointCreate = "/v2025/launchers"
+	launchersEndpointUpdate = "/v2025/launchers/{launcherId}"
+	launchersEndpointDelete = "/v2025/launchers/{launcherId}"
 )
 
 // LauncherAPI represents a SailPoint Launcher from the API.
 type LauncherAPI struct {
-	ID          string          `json:"id,omitempty"`
-	Created     string          `json:"created,omitempty"`
-	Modified    string          `json:"modified,omitempty"`
-	Owner       *ObjectRefAPI   `json:"owner,omitempty"`
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	Type        string          `json:"type"`
-	Disabled    bool            `json:"disabled"`
-	Reference   *LauncherRefAPI `json:"reference,omitempty"`
-	Config      string          `json:"config"`
-}
-
-// LauncherRefAPI represents the reference object for a Launcher.
-// It contains the type and ID of the referenced resource (e.g., WORKFLOW).
-type LauncherRefAPI struct {
-	Type string `json:"type"`
-	ID   string `json:"id"`
-	Name string `json:"name,omitempty"`
+	ID          string        `json:"id,omitempty"`
+	Created     string        `json:"created,omitempty"`
+	Modified    string        `json:"modified,omitempty"`
+	Owner       *ObjectRefAPI `json:"owner,omitempty"`
+	Name        string        `json:"name"`
+	Description string        `json:"description"`
+	Type        string        `json:"type"`
+	Disabled    bool          `json:"disabled"`
+	Reference   *ObjectRefAPI `json:"reference,omitempty"`
+	Config      string        `json:"config"`
 }
 
 // LauncherCreateAPI represents the request body for creating a Launcher.
 type LauncherCreateAPI struct {
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	Type        string          `json:"type"`
-	Disabled    bool            `json:"disabled"`
-	Reference   *LauncherRefAPI `json:"reference,omitempty"`
-	Config      string          `json:"config"`
+	Name        string        `json:"name"`
+	Description string        `json:"description"`
+	Type        string        `json:"type"`
+	Disabled    bool          `json:"disabled"`
+	Owner       *ObjectRefAPI `json:"owner,omitempty"`
+	Reference   *ObjectRefAPI `json:"reference,omitempty"`
+	Config      string        `json:"config"`
 }
 
 // launcherErrorContext provides context for error messages.
 type launcherErrorContext struct {
-	Operation string
-	ID        string
-	Name      string
+	Operation    string
+	ID           string
+	Name         string
+	ResponseBody string
 }
 
 // GetLauncher retrieves a specific launcher by ID.
@@ -66,13 +64,11 @@ func (c *Client) GetLauncher(ctx context.Context, id string) (*LauncherAPI, erro
 
 	var launcher LauncherAPI
 
-	resp, err := c.doRequest(
-		ctx,
-		http.MethodGet,
-		fmt.Sprintf("%s/%s", launchersEndpoint, id),
-		nil,
-		&launcher,
-	)
+	resp, err := c.prepareRequest(ctx).
+		SetResult(&launcher).
+		SetPathParam("launcherId", id).
+		Get(launchersEndpointGet)
+
 	if err != nil {
 		return nil, c.formatLauncherError(
 			launcherErrorContext{Operation: "get", ID: id},
@@ -83,7 +79,7 @@ func (c *Client) GetLauncher(ctx context.Context, id string) (*LauncherAPI, erro
 
 	if resp.IsError() {
 		return nil, c.formatLauncherError(
-			launcherErrorContext{Operation: "get", ID: id},
+			launcherErrorContext{Operation: "get", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -107,14 +103,21 @@ func (c *Client) CreateLauncher(ctx context.Context, launcher *LauncherCreateAPI
 		return nil, fmt.Errorf("launcher name cannot be empty")
 	}
 
+	// Log the full request body for debugging
+	requestBody, _ := json.Marshal(launcher)
 	tflog.Debug(ctx, "Creating launcher", map[string]any{
-		"name": launcher.Name,
-		"type": launcher.Type,
+		"name":         launcher.Name,
+		"type":         launcher.Type,
+		"request_body": string(requestBody),
 	})
 
 	var result LauncherAPI
 
-	resp, err := c.doRequest(ctx, http.MethodPost, launchersEndpoint, launcher, &result)
+	resp, err := c.prepareRequest(ctx).
+		SetBody(launcher).
+		SetResult(&result).
+		Post(launchersEndpointCreate)
+
 	if err != nil {
 		return nil, c.formatLauncherError(
 			launcherErrorContext{Operation: "create", Name: launcher.Name},
@@ -129,7 +132,7 @@ func (c *Client) CreateLauncher(ctx context.Context, launcher *LauncherCreateAPI
 			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatLauncherError(
-			launcherErrorContext{Operation: "create", Name: launcher.Name},
+			launcherErrorContext{Operation: "create", Name: launcher.Name, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -153,20 +156,22 @@ func (c *Client) UpdateLauncher(ctx context.Context, id string, launcher *Launch
 		return nil, fmt.Errorf("launcher cannot be nil")
 	}
 
+	// Log the full request body for debugging
+	requestBody, _ := json.Marshal(launcher)
 	tflog.Debug(ctx, "Updating launcher (PUT)", map[string]any{
-		"id":   id,
-		"name": launcher.Name,
+		"id":           id,
+		"name":         launcher.Name,
+		"request_body": string(requestBody),
 	})
 
 	var result LauncherAPI
 
-	resp, err := c.doRequest(
-		ctx,
-		http.MethodPut,
-		fmt.Sprintf("%s/%s", launchersEndpoint, id),
-		launcher,
-		&result,
-	)
+	resp, err := c.prepareRequest(ctx).
+		SetBody(launcher).
+		SetResult(&result).
+		SetPathParam("launcherId", id).
+		Put(launchersEndpointUpdate)
+
 	if err != nil {
 		return nil, c.formatLauncherError(
 			launcherErrorContext{Operation: "update", ID: id},
@@ -181,7 +186,7 @@ func (c *Client) UpdateLauncher(ctx context.Context, id string, launcher *Launch
 			"response_body": string(resp.Bytes()),
 		})
 		return nil, c.formatLauncherError(
-			launcherErrorContext{Operation: "update", ID: id},
+			launcherErrorContext{Operation: "update", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -205,13 +210,10 @@ func (c *Client) DeleteLauncher(ctx context.Context, id string) error {
 		"id": id,
 	})
 
-	resp, err := c.doRequest(
-		ctx,
-		http.MethodDelete,
-		fmt.Sprintf("%s/%s", launchersEndpoint, id),
-		nil,
-		nil,
-	)
+	resp, err := c.prepareRequest(ctx).
+		SetPathParam("launcherId", id).
+		Delete(launchersEndpointDelete)
+
 	if err != nil {
 		return c.formatLauncherError(
 			launcherErrorContext{Operation: "delete", ID: id},
@@ -230,7 +232,7 @@ func (c *Client) DeleteLauncher(ctx context.Context, id string) error {
 		}
 
 		return c.formatLauncherError(
-			launcherErrorContext{Operation: "delete", ID: id},
+			launcherErrorContext{Operation: "delete", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
 		)
@@ -261,23 +263,28 @@ func (c *Client) formatLauncherError(errCtx launcherErrorContext, err error, sta
 	}
 
 	if statusCode != 0 {
+		detail := ""
+		if errCtx.ResponseBody != "" {
+			detail = fmt.Sprintf(" - response: %s", errCtx.ResponseBody)
+		}
+
 		switch statusCode {
 		case http.StatusBadRequest:
-			return fmt.Errorf("%s: invalid request - check launcher properties (400)", baseMsg)
+			return fmt.Errorf("%s: invalid request (400)%s", baseMsg, detail)
 		case http.StatusUnauthorized:
-			return fmt.Errorf("%s: authentication failed - check credentials (401)", baseMsg)
+			return fmt.Errorf("%s: authentication failed (401)%s", baseMsg, detail)
 		case http.StatusForbidden:
-			return fmt.Errorf("%s: access denied - insufficient permissions (403)", baseMsg)
+			return fmt.Errorf("%s: access denied (403)%s", baseMsg, detail)
 		case http.StatusNotFound:
 			return fmt.Errorf("%s: %w", baseMsg, ErrNotFound)
 		case http.StatusConflict:
-			return fmt.Errorf("%s: conflict - launcher may already exist (409)", baseMsg)
+			return fmt.Errorf("%s: conflict (409)%s", baseMsg, detail)
 		case http.StatusTooManyRequests:
-			return fmt.Errorf("%s: rate limit exceeded - retry after delay (429)", baseMsg)
+			return fmt.Errorf("%s: rate limit exceeded (429)%s", baseMsg, detail)
 		case http.StatusInternalServerError:
-			return fmt.Errorf("%s: server error - contact SailPoint support (500)", baseMsg)
+			return fmt.Errorf("%s: server error (500)%s", baseMsg, detail)
 		default:
-			return fmt.Errorf("%s: unexpected status code %d", baseMsg, statusCode)
+			return fmt.Errorf("%s: unexpected status code %d%s", baseMsg, statusCode, detail)
 		}
 	}
 

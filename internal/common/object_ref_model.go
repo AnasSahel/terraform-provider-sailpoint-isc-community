@@ -42,6 +42,11 @@ func NewObjectRefToAPI(ctx context.Context, m ObjectRefModel) (client.ObjectRefA
 	return m.ToAPI(ctx)
 }
 
+func NewObjectRefToAPIPtr(ctx context.Context, m ObjectRefModel) (*client.ObjectRefAPI, diag.Diagnostics) {
+	api, diags := m.ToAPI(ctx)
+	return &api, diags
+}
+
 func (m *ObjectRefModel) FromAPI(ctx context.Context, api client.ObjectRefAPI) diag.Diagnostics {
 	m.Type = types.StringValue(api.Type)
 	m.ID = types.StringValue(api.ID)
