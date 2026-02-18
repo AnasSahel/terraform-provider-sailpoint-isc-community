@@ -92,7 +92,7 @@ func (r *workflowTriggerResource) Create(ctx context.Context, req resource.Creat
 		"workflow_id":  workflowID,
 		"trigger_type": plan.Type.ValueString(),
 	})
-	apiTrigger, diags := plan.ToAPIRequest(ctx)
+	apiTrigger, diags := plan.ToAPI(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -129,7 +129,7 @@ func (r *workflowTriggerResource) Create(ctx context.Context, req resource.Creat
 	tflog.Debug(ctx, "Mapping SailPoint API response to resource model", map[string]any{
 		"workflow_id": workflowID,
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, workflowID, workflow.Trigger)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, workflowID, workflow.Trigger)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -186,7 +186,7 @@ func (r *workflowTriggerResource) Read(ctx context.Context, req resource.ReadReq
 	tflog.Debug(ctx, "Mapping SailPoint API response to resource model", map[string]any{
 		"workflow_id": workflowID,
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, workflowID, workflow.Trigger)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, workflowID, workflow.Trigger)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -217,7 +217,7 @@ func (r *workflowTriggerResource) Update(ctx context.Context, req resource.Updat
 		"workflow_id":  workflowID,
 		"trigger_type": plan.Type.ValueString(),
 	})
-	apiTrigger, diags := plan.ToAPIRequest(ctx)
+	apiTrigger, diags := plan.ToAPI(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -254,7 +254,7 @@ func (r *workflowTriggerResource) Update(ctx context.Context, req resource.Updat
 	tflog.Debug(ctx, "Mapping SailPoint API response to resource model", map[string]any{
 		"workflow_id": workflowID,
 	})
-	resp.Diagnostics.Append(state.FromSailPointAPI(ctx, workflowID, workflow.Trigger)...)
+	resp.Diagnostics.Append(state.FromAPI(ctx, workflowID, workflow.Trigger)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

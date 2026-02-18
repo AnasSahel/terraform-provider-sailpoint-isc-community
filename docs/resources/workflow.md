@@ -24,7 +24,7 @@ Manages a SailPoint Workflow. Workflows are custom automation scripts that respo
 
 - `definition` (Attributes) The workflow definition containing the steps to execute. If not specified, the workflow will have no definition. (see [below for nested schema](#nestedatt--definition))
 - `description` (String) The description of the workflow.
-- `enabled` (Boolean) Whether the workflow is enabled. Workflows cannot be created in an enabled state. Default is `false`.
+- `enabled` (Boolean) Whether the workflow is enabled. Workflows cannot be created in an enabled state. Defaults to `false`.
 
 ### Read-Only
 
