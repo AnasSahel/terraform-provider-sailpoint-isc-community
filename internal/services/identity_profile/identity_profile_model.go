@@ -10,20 +10,21 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// identityExceptionReportRefModel represents the identity exception report reference in Terraform state.
+// Attribute types for identity exception report reference (used with types.Object).
+var identityExceptionReportRefAttrTypes = map[string]attr.Type{
+	"task_result_id": types.StringType,
+	"report_name":    types.StringType,
+}
+
+// identityExceptionReportRefModel represents the identity exception report reference.
 type identityExceptionReportRefModel struct {
 	TaskResultID types.String `tfsdk:"task_result_id"`
 	ReportName   types.String `tfsdk:"report_name"`
-}
-
-func (m *identityExceptionReportRefModel) FromAPI(_ context.Context, api client.IdentityExceptionReportRefAPI) diag.Diagnostics {
-	m.TaskResultID = types.StringValue(api.TaskResultID)
-	m.ReportName = types.StringValue(api.ReportName)
-	return nil
 }
 
 // transformDefinitionModel represents a transform definition in Terraform state.
@@ -138,21 +139,17 @@ func (m *identityAttributeConfigModel) ToAPI(ctx context.Context) (client.Identi
 	return api, diagnostics
 }
 
-// identityProfileModel represents the Terraform state for an Identity Profile.
+// identityProfileModel represents the Terraform state for an Identity Profile resource.
 type identityProfileModel struct {
-	ID                               types.String                     `tfsdk:"id"`
-	Name                             types.String                     `tfsdk:"name"`
-	Description                      types.String                     `tfsdk:"description"`
-	Owner                            *common.ObjectRefModel           `tfsdk:"owner"`
-	Priority                         types.Int64                      `tfsdk:"priority"`
-	AuthoritativeSource              common.ObjectRefModel            `tfsdk:"authoritative_source"`
-	IdentityRefreshRequired          types.Bool                       `tfsdk:"identity_refresh_required"`
-	IdentityCount                    types.Int32                      `tfsdk:"identity_count"`
-	IdentityAttributeConfig          *identityAttributeConfigModel    `tfsdk:"identity_attribute_config"`
-	IdentityExceptionReportReference *identityExceptionReportRefModel `tfsdk:"identity_exception_report_reference"`
-	HasTimeBasedAttr                 types.Bool                       `tfsdk:"has_time_based_attr"`
-	Created                          types.String                     `tfsdk:"created"`
-	Modified                         types.String                     `tfsdk:"modified"`
+	ID                      types.String                  `tfsdk:"id"`
+	Name                    types.String                  `tfsdk:"name"`
+	Description             types.String                  `tfsdk:"description"`
+	Owner                   *common.ObjectRefModel        `tfsdk:"owner"`
+	Priority                types.Int64                   `tfsdk:"priority"`
+	AuthoritativeSource     common.ObjectRefModel         `tfsdk:"authoritative_source"`
+	IdentityAttributeConfig *identityAttributeConfigModel `tfsdk:"identity_attribute_config"`
+	Created                 types.String                  `tfsdk:"created"`
+	Modified                types.String                  `tfsdk:"modified"`
 }
 
 // FromAPI maps fields from the API response to the Terraform model.
@@ -164,9 +161,6 @@ func (m *identityProfileModel) FromAPI(ctx context.Context, api client.IdentityP
 	m.Created = types.StringValue(api.Created)
 	m.Modified = types.StringValue(api.Modified)
 	m.Priority = types.Int64Value(api.Priority)
-	m.IdentityRefreshRequired = types.BoolValue(api.IdentityRefreshRequired)
-	m.IdentityCount = types.Int32Value(api.IdentityCount)
-	m.HasTimeBasedAttr = types.BoolValue(api.HasTimeBasedAttr)
 
 	// Map Description (nullable)
 	m.Description = common.StringOrNull(api.Description)
@@ -184,12 +178,6 @@ func (m *identityProfileModel) FromAPI(ctx context.Context, api client.IdentityP
 	// Map IdentityAttributeConfig
 	m.IdentityAttributeConfig = &identityAttributeConfigModel{}
 	diagnostics.Append(m.IdentityAttributeConfig.FromAPI(ctx, api.IdentityAttributeConfig)...)
-
-	// Map IdentityExceptionReportReference (nullable)
-	if api.IdentityExceptionReportReference != nil {
-		m.IdentityExceptionReportReference = &identityExceptionReportRefModel{}
-		diagnostics.Append(m.IdentityExceptionReportReference.FromAPI(ctx, *api.IdentityExceptionReportReference)...)
-	}
 
 	return diagnostics
 }
@@ -224,7 +212,7 @@ func (m *identityProfileModel) ToAPI(ctx context.Context) (client.IdentityProfil
 	apiRequest.AuthoritativeSource, diags = m.AuthoritativeSource.ToAPI(ctx)
 	diagnostics.Append(diags...)
 
-	// Map IdentityAttributeConfig (optional)
+	// Map IdentityAttributeConfig (required)
 	if m.IdentityAttributeConfig != nil {
 		apiRequest.IdentityAttributeConfig, diags = m.IdentityAttributeConfig.ToAPI(ctx)
 		diagnostics.Append(diags...)
@@ -267,16 +255,48 @@ func (m *identityProfileModel) ToPatchOperations(ctx context.Context, state *ide
 		}
 	}
 
-	// IdentityAttributeConfig
+	// IdentityAttributeConfig (required, always present)
 	if !reflect.DeepEqual(m.IdentityAttributeConfig, state.IdentityAttributeConfig) {
 		if m.IdentityAttributeConfig != nil {
 			configAPI, diags := m.IdentityAttributeConfig.ToAPI(ctx)
 			diagnostics.Append(diags...)
 			patchOps = append(patchOps, client.NewReplacePatch("/identityAttributeConfig", configAPI))
-		} else {
-			patchOps = append(patchOps, client.NewRemovePatch("/identityAttributeConfig"))
 		}
 	}
 
 	return patchOps, diagnostics
+}
+
+// identityProfileDataSourceModel embeds the resource model and adds server-managed read-only fields.
+type identityProfileDataSourceModel struct {
+	identityProfileModel
+	IdentityRefreshRequired          types.Bool   `tfsdk:"identity_refresh_required"`
+	IdentityCount                    types.Int32  `tfsdk:"identity_count"`
+	IdentityExceptionReportReference types.Object `tfsdk:"identity_exception_report_reference"`
+	HasTimeBasedAttr                 types.Bool   `tfsdk:"has_time_based_attr"`
+}
+
+// FromAPI maps fields from the API response to the data source model.
+func (m *identityProfileDataSourceModel) FromAPI(ctx context.Context, api client.IdentityProfileAPI) diag.Diagnostics {
+	// Map shared fields via the embedded resource model
+	diagnostics := m.identityProfileModel.FromAPI(ctx, api)
+
+	// Map server-managed read-only fields
+	m.IdentityRefreshRequired = types.BoolValue(api.IdentityRefreshRequired)
+	m.IdentityCount = types.Int32Value(api.IdentityCount)
+	m.HasTimeBasedAttr = types.BoolValue(api.HasTimeBasedAttr)
+
+	// Map IdentityExceptionReportReference (nullable)
+	if api.IdentityExceptionReportReference != nil {
+		var diags diag.Diagnostics
+		m.IdentityExceptionReportReference, diags = types.ObjectValueFrom(ctx, identityExceptionReportRefAttrTypes, &identityExceptionReportRefModel{
+			TaskResultID: types.StringValue(api.IdentityExceptionReportReference.TaskResultID),
+			ReportName:   types.StringValue(api.IdentityExceptionReportReference.ReportName),
+		})
+		diagnostics.Append(diags...)
+	} else {
+		m.IdentityExceptionReportReference = types.ObjectNull(identityExceptionReportRefAttrTypes)
+	}
+
+	return diagnostics
 }

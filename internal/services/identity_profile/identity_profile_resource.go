@@ -125,21 +125,9 @@ func (r *identityProfileResource) Schema(_ context.Context, _ resource.SchemaReq
 					},
 				},
 			},
-			"identity_refresh_required": schema.BoolAttribute{
-				MarkdownDescription: "Indicates whether an identity refresh is required.",
-				Computed:            true,
-			},
-			"identity_count": schema.Int32Attribute{
-				MarkdownDescription: "The number of identities belonging to this identity profile.",
-				Computed:            true,
-			},
 			"identity_attribute_config": schema.SingleNestedAttribute{
 				MarkdownDescription: "The identity attribute configuration that defines how identity attributes are mapped.",
-				Optional:            true,
-				Computed:            true,
-				PlanModifiers: []planmodifier.Object{
-					objectplanmodifier.UseStateForUnknown(),
-				},
+				Required:            true,
 				Attributes: map[string]schema.Attribute{
 					"enabled": schema.BoolAttribute{
 						MarkdownDescription: "Whether the identity attribute configuration is enabled.",
@@ -148,8 +136,7 @@ func (r *identityProfileResource) Schema(_ context.Context, _ resource.SchemaReq
 					},
 					"attribute_transforms": schema.ListNestedAttribute{
 						MarkdownDescription: "List of identity attribute transforms.",
-						Optional:            true,
-						Computed:            true,
+						Required:            true,
 						NestedObject: schema.NestedAttributeObject{
 							Attributes: map[string]schema.Attribute{
 								"identity_attribute_name": schema.StringAttribute{
@@ -176,27 +163,6 @@ func (r *identityProfileResource) Schema(_ context.Context, _ resource.SchemaReq
 						},
 					},
 				},
-			},
-			"identity_exception_report_reference": schema.SingleNestedAttribute{
-				MarkdownDescription: "Reference to the identity exception report.",
-				Computed:            true,
-				PlanModifiers: []planmodifier.Object{
-					objectplanmodifier.UseStateForUnknown(),
-				},
-				Attributes: map[string]schema.Attribute{
-					"task_result_id": schema.StringAttribute{
-						MarkdownDescription: "The task result ID of the identity exception report.",
-						Computed:            true,
-					},
-					"report_name": schema.StringAttribute{
-						MarkdownDescription: "The name of the identity exception report.",
-						Computed:            true,
-					},
-				},
-			},
-			"has_time_based_attr": schema.BoolAttribute{
-				MarkdownDescription: "Indicates the value of `requiresPeriodicRefresh` attribute for the identity profile.",
-				Computed:            true,
 			},
 			"created": schema.StringAttribute{
 				MarkdownDescription: "The date and time the identity profile was created.",

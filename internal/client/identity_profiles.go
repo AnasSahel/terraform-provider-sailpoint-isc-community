@@ -208,6 +208,7 @@ func (c *Client) PatchIdentityProfile(ctx context.Context, id string, patchOps [
 	var result IdentityProfileAPI
 
 	resp, err := c.prepareRequest(ctx).
+		SetHeader("Content-Type", "application/json-patch+json").
 		SetBody(patchOps).
 		SetResult(&result).
 		SetPathParam("profileId", id).

@@ -12,6 +12,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -179,9 +181,11 @@ func (d *identityProfileDataSource) Schema(_ context.Context, _ datasource.Schem
 
 // Read implements datasource.DataSource.
 func (d *identityProfileDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var config identityProfileModel
+	var config struct {
+		ID types.String `tfsdk:"id"`
+	}
 	tflog.Debug(ctx, "Getting config for identity profile data source")
-	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("id"), &config.ID)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -214,7 +218,7 @@ func (d *identityProfileDataSource) Read(ctx context.Context, req datasource.Rea
 	}
 
 	// Map the response to the data source model
-	var state identityProfileModel
+	var state identityProfileDataSourceModel
 	tflog.Debug(ctx, "Mapping SailPoint Identity Profile API response to data source model", map[string]any{
 		"id": identityProfileID,
 	})
@@ -224,9 +228,6 @@ func (d *identityProfileDataSource) Read(ctx context.Context, req datasource.Rea
 	}
 
 	// Set the state
-	tflog.Debug(ctx, "Setting state for identity profile data source", map[string]any{
-		"id": state.ID.ValueString(),
-	})
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return

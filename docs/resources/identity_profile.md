@@ -109,23 +109,19 @@ resource "sailpoint_identity_profile" "with_mappings" {
 ### Required
 
 - `authoritative_source` (Attributes) The authoritative source for the identity profile. Changing this will recreate the resource. (see [below for nested schema](#nestedatt--authoritative_source))
+- `identity_attribute_config` (Attributes) The identity attribute configuration that defines how identity attributes are mapped. (see [below for nested schema](#nestedatt--identity_attribute_config))
 - `name` (String) The name of the identity profile.
 - `owner` (Attributes) The owner of the identity profile. (see [below for nested schema](#nestedatt--owner))
 
 ### Optional
 
 - `description` (String) The description of the identity profile.
-- `identity_attribute_config` (Attributes) The identity attribute configuration that defines how identity attributes are mapped. (see [below for nested schema](#nestedatt--identity_attribute_config))
 - `priority` (Number) The priority of the identity profile.
 
 ### Read-Only
 
 - `created` (String) The date and time the identity profile was created.
-- `has_time_based_attr` (Boolean) Indicates the value of `requiresPeriodicRefresh` attribute for the identity profile.
 - `id` (String) The unique identifier of the identity profile.
-- `identity_count` (Number) The number of identities belonging to this identity profile.
-- `identity_exception_report_reference` (Attributes) Reference to the identity exception report. (see [below for nested schema](#nestedatt--identity_exception_report_reference))
-- `identity_refresh_required` (Boolean) Indicates whether an identity refresh is required.
 - `modified` (String) The date and time the identity profile was last modified.
 
 <a id="nestedatt--authoritative_source"></a>
@@ -141,25 +137,15 @@ Read-Only:
 - `name` (String) The name of the authoritative source.
 
 
-<a id="nestedatt--owner"></a>
-### Nested Schema for `owner`
-
-Required:
-
-- `id` (String) The ID of the owner.
-- `type` (String) The type of the owner object. Must be `IDENTITY`.
-
-Read-Only:
-
-- `name` (String) The name of the owner.
-
-
 <a id="nestedatt--identity_attribute_config"></a>
 ### Nested Schema for `identity_attribute_config`
 
-Optional:
+Required:
 
 - `attribute_transforms` (Attributes List) List of identity attribute transforms. (see [below for nested schema](#nestedatt--identity_attribute_config--attribute_transforms))
+
+Optional:
+
 - `enabled` (Boolean) Whether the identity attribute configuration is enabled.
 
 <a id="nestedatt--identity_attribute_config--attribute_transforms"></a>
@@ -184,13 +170,17 @@ Optional:
 
 
 
-<a id="nestedatt--identity_exception_report_reference"></a>
-### Nested Schema for `identity_exception_report_reference`
+<a id="nestedatt--owner"></a>
+### Nested Schema for `owner`
+
+Required:
+
+- `id` (String) The ID of the owner.
+- `type` (String) The type of the owner object. Must be `IDENTITY`.
 
 Read-Only:
 
-- `report_name` (String) The name of the identity exception report.
-- `task_result_id` (String) The task result ID of the identity exception report.
+- `name` (String) The name of the owner.
 
 ## Import
 
