@@ -110,12 +110,12 @@ resource "sailpoint_identity_profile" "with_mappings" {
 
 - `authoritative_source` (Attributes) The authoritative source for the identity profile. Changing this will recreate the resource. (see [below for nested schema](#nestedatt--authoritative_source))
 - `name` (String) The name of the identity profile.
+- `owner` (Attributes) The owner of the identity profile. (see [below for nested schema](#nestedatt--owner))
 
 ### Optional
 
 - `description` (String) The description of the identity profile.
 - `identity_attribute_config` (Attributes) The identity attribute configuration that defines how identity attributes are mapped. (see [below for nested schema](#nestedatt--identity_attribute_config))
-- `owner` (Attributes) The owner of the identity profile. (see [below for nested schema](#nestedatt--owner))
 - `priority` (Number) The priority of the identity profile.
 
 ### Read-Only
@@ -139,6 +139,19 @@ Required:
 Read-Only:
 
 - `name` (String) The name of the authoritative source.
+
+
+<a id="nestedatt--owner"></a>
+### Nested Schema for `owner`
+
+Required:
+
+- `id` (String) The ID of the owner.
+- `type` (String) The type of the owner object. Must be `IDENTITY`.
+
+Read-Only:
+
+- `name` (String) The name of the owner.
 
 
 <a id="nestedatt--identity_attribute_config"></a>
@@ -169,19 +182,6 @@ Optional:
 - `attributes` (String) The attributes of the transform definition as a JSON string.
 
 
-
-
-<a id="nestedatt--owner"></a>
-### Nested Schema for `owner`
-
-Required:
-
-- `id` (String) The ID of the owner.
-- `type` (String) The type of the owner object. Must be `IDENTITY`.
-
-Read-Only:
-
-- `name` (String) The name of the owner.
 
 
 <a id="nestedatt--identity_exception_report_reference"></a>
