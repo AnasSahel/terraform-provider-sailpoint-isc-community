@@ -36,7 +36,7 @@ type sourceProvisioningPolicyModel struct {
 
 // provisioningPolicyFieldModel represents a single field within a provisioning policy.
 type provisioningPolicyFieldModel struct {
-	Name          string               `tfsdk:"name"`
+	Name          types.String         `tfsdk:"name"`
 	Type          types.String         `tfsdk:"type"`
 	IsRequired    types.Bool           `tfsdk:"is_required"`
 	IsMultiValued types.Bool           `tfsdk:"is_multi_valued"`
@@ -57,7 +57,7 @@ func NewProvisioningPolicyFieldToAPI(ctx context.Context, m provisioningPolicyFi
 func (m *provisioningPolicyFieldModel) FromAPI(ctx context.Context, api client.ProvisioningPolicyFieldAPI) diag.Diagnostics {
 	var diagnostics diag.Diagnostics
 
-	m.Name = api.Name
+	m.Name = types.StringValue(api.Name)
 	m.Type = common.StringOrNull(api.Type)
 	m.IsRequired = types.BoolValue(api.IsRequired)
 	m.IsMultiValued = types.BoolValue(api.IsMultiValued)
@@ -93,7 +93,7 @@ func (m *provisioningPolicyFieldModel) ToAPI(ctx context.Context) (client.Provis
 	var diagnostics diag.Diagnostics
 
 	api := client.ProvisioningPolicyFieldAPI{
-		Name:          m.Name,
+		Name:          m.Name.ValueString(),
 		IsRequired:    m.IsRequired.ValueBool(),
 		IsMultiValued: m.IsMultiValued.ValueBool(),
 	}

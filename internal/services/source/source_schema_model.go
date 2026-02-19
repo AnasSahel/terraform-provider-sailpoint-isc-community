@@ -41,13 +41,13 @@ type sourceSchemaModel struct {
 
 // sourceSchemaAttributeModel represents a single attribute within a source schema.
 type sourceSchemaAttributeModel struct {
-	Name          string       `tfsdk:"name"`
+	Name          types.String `tfsdk:"name"`
 	NativeName    types.String `tfsdk:"native_name"`
-	Type          string       `tfsdk:"type"`
-	Description   string       `tfsdk:"description"`
-	IsMulti       bool         `tfsdk:"is_multi"`
-	IsEntitlement bool         `tfsdk:"is_entitlement"`
-	IsGroup       bool         `tfsdk:"is_group"`
+	Type          types.String `tfsdk:"type"`
+	Description   types.String `tfsdk:"description"`
+	IsMulti       types.Bool   `tfsdk:"is_multi"`
+	IsEntitlement types.Bool   `tfsdk:"is_entitlement"`
+	IsGroup       types.Bool   `tfsdk:"is_group"`
 	Schema        types.Object `tfsdk:"schema"`
 }
 
@@ -113,13 +113,13 @@ func (m *sourceSchemaModel) FromAPI(ctx context.Context, api client.SourceSchema
 		attrList := make([]sourceSchemaAttributeModel, len(api.Attributes))
 		for i, attrAPI := range api.Attributes {
 			attrList[i] = sourceSchemaAttributeModel{
-				Name:          attrAPI.Name,
+				Name:          types.StringValue(attrAPI.Name),
 				NativeName:    common.StringOrNull(attrAPI.NativeName),
-				Type:          attrAPI.Type,
-				Description:   attrAPI.Description,
-				IsMulti:       attrAPI.IsMulti,
-				IsEntitlement: attrAPI.IsEntitlement,
-				IsGroup:       attrAPI.IsGroup,
+				Type:          types.StringValue(attrAPI.Type),
+				Description:   common.StringOrNullIfEmpty(attrAPI.Description),
+				IsMulti:       types.BoolValue(attrAPI.IsMulti),
+				IsEntitlement: types.BoolValue(attrAPI.IsEntitlement),
+				IsGroup:       types.BoolValue(attrAPI.IsGroup),
 			}
 
 			// Convert schema ref
@@ -201,12 +201,12 @@ func (m *sourceSchemaModel) ToAPI(ctx context.Context) (client.SourceSchemaAPI, 
 		apiAttrs := make([]client.SourceSchemaAttributeAPI, len(attrModels))
 		for i, attrModel := range attrModels {
 			apiAttrs[i] = client.SourceSchemaAttributeAPI{
-				Name:          attrModel.Name,
-				Type:          attrModel.Type,
-				Description:   attrModel.Description,
-				IsMulti:       attrModel.IsMulti,
-				IsEntitlement: attrModel.IsEntitlement,
-				IsGroup:       attrModel.IsGroup,
+				Name:          attrModel.Name.ValueString(),
+				Type:          attrModel.Type.ValueString(),
+				Description:   attrModel.Description.ValueString(),
+				IsMulti:       attrModel.IsMulti.ValueBool(),
+				IsEntitlement: attrModel.IsEntitlement.ValueBool(),
+				IsGroup:       attrModel.IsGroup.ValueBool(),
 			}
 
 			// Convert native_name if present
