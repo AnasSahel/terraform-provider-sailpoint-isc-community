@@ -124,10 +124,12 @@ func (r *sourceResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				},
 			},
 			"connector_attributes": schema.StringAttribute{
-				MarkdownDescription: "A JSON object containing connector-specific configuration. The server populates default values on creation.",
-				Optional:            true,
-				Computed:            true,
-				CustomType:          jsontypes.NormalizedType{},
+				MarkdownDescription: "A JSON object containing connector-specific configuration. " +
+					"The server may add extra fields (e.g., `beforeProvisioningRule`, `since`) and modify values (e.g., `cloudDisplayName`) on creation and updates. " +
+					"Only the keys you specify in your configuration are managed by Terraform; server-added keys will appear in state after the first refresh.",
+				Optional:   true,
+				Computed:   true,
+				CustomType: jsontypes.NormalizedType{},
 			},
 			"connection_type": schema.StringAttribute{
 				MarkdownDescription: "The connection type (e.g., `direct`, `file`).",
@@ -247,6 +249,13 @@ func (r *sourceResource) Create(ctx context.Context, req resource.CreateRequest,
 	resp.Diagnostics.Append(state.FromAPI(ctx, *sourceAPIResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	// Preserve the planned connector_attributes to avoid "inconsistent result after apply".
+	// The API enriches this field with server-populated defaults (e.g., beforeProvisioningRule,
+	// since, status) and may modify user-provided values (e.g., cloudDisplayName).
+	if !plan.ConnectorAttributes.IsNull() && !plan.ConnectorAttributes.IsUnknown() {
+		state.ConnectorAttributes = plan.ConnectorAttributes
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
