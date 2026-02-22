@@ -5,6 +5,7 @@ package source
 
 import (
 	"context"
+	"reflect"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
@@ -23,6 +24,7 @@ type sourceModel struct {
 	Connector                 types.String           `tfsdk:"connector"`
 	ConnectorClass            types.String           `tfsdk:"connector_class"`
 	ConnectorAttributes       jsontypes.Normalized   `tfsdk:"connector_attributes"`
+	ConnectorAttributesAll    jsontypes.Normalized   `tfsdk:"connector_attributes_all"`
 	ConnectionType            types.String           `tfsdk:"connection_type"`
 	Type                      types.String           `tfsdk:"type"`
 	DeleteThreshold           types.Int64            `tfsdk:"delete_threshold"`
@@ -94,10 +96,13 @@ func (m *sourceModel) FromAPI(ctx context.Context, api client.SourceAPI) diag.Di
 
 	// Map connector attributes
 	if api.ConnectorAttributes != nil {
-		m.ConnectorAttributes, diags = common.MarshalJSONOrDefault(api.ConnectorAttributes, "{}")
-		diagnostics.Append(diags...)
+		normalized, d := common.MarshalJSONOrDefault(api.ConnectorAttributes, "{}")
+		diagnostics.Append(d...)
+		m.ConnectorAttributes = normalized
+		m.ConnectorAttributesAll = normalized
 	} else {
 		m.ConnectorAttributes = jsontypes.NewNormalizedNull()
+		m.ConnectorAttributesAll = jsontypes.NewNormalizedNull()
 	}
 
 	// Map features
@@ -179,4 +184,93 @@ func (m *sourceModel) ToAPI(ctx context.Context) (client.SourceAPI, diag.Diagnos
 	}
 
 	return apiRequest, diagnostics
+}
+
+// ToPatchOperations compares the plan (m) with the current state and generates JSON Patch operations
+// for mutable fields that have changed. Immutable fields (connector, connector_class, type, authoritative)
+// use RequiresReplace and are not included here.
+func (m *sourceModel) ToPatchOperations(ctx context.Context, state *sourceModel) ([]client.JSONPatchOperation, diag.Diagnostics) {
+	var diagnostics diag.Diagnostics
+	var patchOps []client.JSONPatchOperation
+
+	// Name
+	if !m.Name.Equal(state.Name) {
+		patchOps = append(patchOps, client.NewReplacePatch("/name", m.Name.ValueString()))
+	}
+
+	// Description
+	if !m.Description.Equal(state.Description) {
+		if !m.Description.IsNull() {
+			patchOps = append(patchOps, client.NewReplacePatch("/description", m.Description.ValueString()))
+		} else {
+			patchOps = append(patchOps, client.NewReplacePatch("/description", ""))
+		}
+	}
+
+	// Owner
+	if !reflect.DeepEqual(m.Owner, state.Owner) {
+		if m.Owner != nil {
+			ownerAPI, diags := common.NewObjectRefToAPIPtr(ctx, *m.Owner)
+			diagnostics.Append(diags...)
+			patchOps = append(patchOps, client.NewReplacePatch("/owner", ownerAPI))
+		}
+	}
+
+	// Cluster
+	if !reflect.DeepEqual(m.Cluster, state.Cluster) {
+		if m.Cluster != nil {
+			clusterAPI, diags := common.NewObjectRefToAPIPtr(ctx, *m.Cluster)
+			diagnostics.Append(diags...)
+			patchOps = append(patchOps, client.NewReplacePatch("/cluster", clusterAPI))
+		} else {
+			patchOps = append(patchOps, client.NewRemovePatch("/cluster"))
+		}
+	}
+
+	// Connector Attributes
+	if !m.ConnectorAttributes.Equal(state.ConnectorAttributes) {
+		if !m.ConnectorAttributes.IsNull() && !m.ConnectorAttributes.IsUnknown() {
+			if connAttrs, diags := common.UnmarshalJSONField[map[string]interface{}](m.ConnectorAttributes); connAttrs != nil {
+				diagnostics.Append(diags...)
+				patchOps = append(patchOps, client.NewReplacePatch("/connectorAttributes", *connAttrs))
+			} else {
+				diagnostics.Append(diags...)
+			}
+		}
+	}
+
+	// Delete Threshold
+	if !m.DeleteThreshold.Equal(state.DeleteThreshold) {
+		if !m.DeleteThreshold.IsNull() && !m.DeleteThreshold.IsUnknown() {
+			patchOps = append(patchOps, client.NewReplacePatch("/deleteThreshold", m.DeleteThreshold.ValueInt64()))
+		}
+	}
+
+	// Features
+	if !m.Features.Equal(state.Features) {
+		if !m.Features.IsNull() && !m.Features.IsUnknown() {
+			var features []string
+			diags := m.Features.ElementsAs(ctx, &features, false)
+			diagnostics.Append(diags...)
+			patchOps = append(patchOps, client.NewReplacePatch("/features", features))
+		}
+	}
+
+	// Credential Provider Enabled
+	if !m.CredentialProviderEnabled.Equal(state.CredentialProviderEnabled) {
+		if !m.CredentialProviderEnabled.IsNull() && !m.CredentialProviderEnabled.IsUnknown() {
+			patchOps = append(patchOps, client.NewReplacePatch("/credentialProviderEnabled", m.CredentialProviderEnabled.ValueBool()))
+		}
+	}
+
+	// Category
+	if !m.Category.Equal(state.Category) {
+		if !m.Category.IsNull() {
+			patchOps = append(patchOps, client.NewReplacePatch("/category", m.Category.ValueString()))
+		} else {
+			patchOps = append(patchOps, client.NewRemovePatch("/category"))
+		}
+	}
+
+	return patchOps, diagnostics
 }

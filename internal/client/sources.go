@@ -5,6 +5,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -15,6 +16,7 @@ const (
 	sourceEndpointGet    = "/v2025/sources/{id}"
 	sourceEndpointCreate = "/v2025/sources"
 	sourceEndpointUpdate = "/v2025/sources/{id}"
+	sourceEndpointPatch  = "/v2025/sources/{id}"
 	sourceEndpointDelete = "/v2025/sources/{id}"
 )
 
@@ -189,6 +191,60 @@ func (c *Client) UpdateSource(ctx context.Context, id string, source *SourceAPI)
 	}
 
 	tflog.Info(ctx, "Successfully updated source", map[string]any{
+		"id":   id,
+		"name": result.Name,
+	})
+
+	return &result, nil
+}
+
+// PatchSource performs a partial update (PATCH) of a source using JSON Patch.
+func (c *Client) PatchSource(ctx context.Context, id string, patchOps []JSONPatchOperation) (*SourceAPI, error) {
+	if id == "" {
+		return nil, fmt.Errorf("source ID cannot be empty")
+	}
+
+	if len(patchOps) == 0 {
+		return c.GetSource(ctx, id)
+	}
+
+	requestBody, _ := json.Marshal(patchOps)
+	tflog.Debug(ctx, "Updating source (PATCH)", map[string]any{
+		"id":               id,
+		"operations_count": len(patchOps),
+		"request_body":     string(requestBody),
+	})
+
+	var result SourceAPI
+
+	resp, err := c.prepareRequest(ctx).
+		SetHeader("Content-Type", "application/json-patch+json").
+		SetBody(patchOps).
+		SetResult(&result).
+		SetPathParam("id", id).
+		Patch(sourceEndpointPatch)
+
+	if err != nil {
+		return nil, c.formatSourceError(
+			sourceErrorContext{Operation: "update", ID: id},
+			err,
+			0,
+		)
+	}
+
+	if resp.IsError() {
+		tflog.Error(ctx, "SailPoint API error response", map[string]any{
+			"status_code":   resp.StatusCode(),
+			"response_body": string(resp.Bytes()),
+		})
+		return nil, c.formatSourceError(
+			sourceErrorContext{Operation: "update", ID: id, ResponseBody: string(resp.Bytes())},
+			nil,
+			resp.StatusCode(),
+		)
+	}
+
+	tflog.Info(ctx, "Successfully patched source", map[string]any{
 		"id":   id,
 		"name": result.Name,
 	})

@@ -27,6 +27,7 @@ Data source for SailPoint Source. Sources represent managed systems (e.g., Activ
 - `connection_type` (String) The connection type.
 - `connector` (String) The connector script name.
 - `connector_attributes` (String) A JSON object containing connector-specific configuration.
+- `connector_attributes_all` (String) The full connector attributes as returned by the API, including both user-configured and server-managed keys.
 - `connector_class` (String) The fully qualified name of the Java class that implements the connector interface.
 - `created` (String) The date and time when the source was created.
 - `credential_provider_enabled` (Boolean) Whether credential provider is enabled for the source.

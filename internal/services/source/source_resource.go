@@ -124,12 +124,17 @@ func (r *sourceResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				},
 			},
 			"connector_attributes": schema.StringAttribute{
-				MarkdownDescription: "A JSON object containing connector-specific configuration. " +
-					"The server may add extra fields (e.g., `beforeProvisioningRule`, `since`) and modify values (e.g., `cloudDisplayName`) on creation and updates. " +
-					"Only the keys you specify in your configuration are managed by Terraform; server-added keys will appear in state after the first refresh.",
+				MarkdownDescription: "A JSON object containing the user-managed connector-specific configuration. " +
+					"Only the keys you specify in your configuration are managed by Terraform. " +
+					"The server may add extra fields on creation and updates; see `connector_attributes_all` for the full set.",
 				Optional:   true,
 				Computed:   true,
 				CustomType: jsontypes.NormalizedType{},
+			},
+			"connector_attributes_all": schema.StringAttribute{
+				MarkdownDescription: "The full connector attributes as returned by the API, including both user-configured and server-managed keys (e.g., `beforeProvisioningRule`, `since`, `cloudDisplayName`).",
+				Computed:            true,
+				CustomType:          jsontypes.NormalizedType{},
 			},
 			"connection_type": schema.StringAttribute{
 				MarkdownDescription: "The connection type (e.g., `direct`, `file`).",
@@ -270,28 +275,28 @@ func (r *sourceResource) Create(ctx context.Context, req resource.CreateRequest,
 
 // Read implements resource.Resource.
 func (r *sourceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state sourceModel
+	var priorState sourceModel
 	tflog.Debug(ctx, "Getting state for source resource read")
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &priorState)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	tflog.Debug(ctx, "Fetching source from SailPoint", map[string]any{
-		"id": state.ID.ValueString(),
+		"id": priorState.ID.ValueString(),
 	})
-	sourceResponse, err := r.client.GetSource(ctx, state.ID.ValueString())
+	sourceResponse, err := r.client.GetSource(ctx, priorState.ID.ValueString())
 	if err != nil {
 		if errors.Is(err, client.ErrNotFound) {
 			tflog.Info(ctx, "SailPoint Source not found, removing from state", map[string]any{
-				"id": state.ID.ValueString(),
+				"id": priorState.ID.ValueString(),
 			})
 			resp.State.RemoveResource(ctx)
 			return
 		}
 		resp.Diagnostics.AddError(
 			"Error Reading SailPoint Source",
-			fmt.Sprintf("Could not read SailPoint Source %q: %s", state.ID.ValueString(), err.Error()),
+			fmt.Sprintf("Could not read SailPoint Source %q: %s", priorState.ID.ValueString(), err.Error()),
 		)
 		return
 	}
@@ -304,9 +309,17 @@ func (r *sourceResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
+	var state sourceModel
 	resp.Diagnostics.Append(state.FromAPI(ctx, *sourceResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	// Preserve user-managed connector_attributes from prior state to avoid drift
+	// from server-added keys. On import (no prior state), ConnectorAttributes
+	// keeps the full API response as a default from FromAPI.
+	if !priorState.ConnectorAttributes.IsNull() && !priorState.ConnectorAttributes.IsUnknown() {
+		state.ConnectorAttributes = priorState.ConnectorAttributes
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
@@ -334,20 +347,34 @@ func (r *sourceResource) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 
-	apiUpdateRequest, diags := plan.ToAPI(ctx)
+	sourceID := state.ID.ValueString()
+
+	// Build patch operations for changed fields
+	tflog.Debug(ctx, "Building patch operations for source update", map[string]any{
+		"id": sourceID,
+	})
+	patchOperations, diags := plan.ToPatchOperations(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
+	if len(patchOperations) == 0 {
+		tflog.Debug(ctx, "No changes detected, skipping update", map[string]any{
+			"id": sourceID,
+		})
+		return
+	}
+
 	tflog.Debug(ctx, "Updating source via SailPoint API", map[string]any{
-		"id": state.ID.ValueString(),
+		"id":               sourceID,
+		"operations_count": len(patchOperations),
 	})
-	sourceAPIResponse, err := r.client.UpdateSource(ctx, state.ID.ValueString(), &apiUpdateRequest)
+	sourceAPIResponse, err := r.client.PatchSource(ctx, sourceID, patchOperations)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating SailPoint Source",
-			fmt.Sprintf("Could not update SailPoint Source %q: %s", state.ID.ValueString(), err.Error()),
+			fmt.Sprintf("Could not update SailPoint Source %q: %s", sourceID, err.Error()),
 		)
 		return
 	}
@@ -366,12 +393,15 @@ func (r *sourceResource) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 
+	// Preserve user-managed connector_attributes from the plan
+	newState.ConnectorAttributes = plan.ConnectorAttributes
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 	tflog.Info(ctx, "Successfully updated SailPoint Source resource", map[string]any{
-		"id":   state.ID.ValueString(),
+		"id":   sourceID,
 		"name": newState.Name.ValueString(),
 	})
 }

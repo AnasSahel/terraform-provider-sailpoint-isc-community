@@ -108,6 +108,11 @@ func (d *sourceDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 				Computed:            true,
 				CustomType:          jsontypes.NormalizedType{},
 			},
+			"connector_attributes_all": schema.StringAttribute{
+				MarkdownDescription: "The full connector attributes as returned by the API, including both user-configured and server-managed keys.",
+				Computed:            true,
+				CustomType:          jsontypes.NormalizedType{},
+			},
 			"connection_type": schema.StringAttribute{
 				MarkdownDescription: "The connection type.",
 				Computed:            true,
