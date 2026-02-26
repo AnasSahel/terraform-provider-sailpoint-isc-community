@@ -86,6 +86,9 @@ func (r *sourceResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 					"name": schema.StringAttribute{
 						MarkdownDescription: "The name of the owner. Resolved by the server from the owner ID.",
 						Computed:            true,
+						PlanModifiers: []planmodifier.String{
+							stringplanmodifier.UseStateForUnknown(),
+						},
 					},
 				},
 			},
@@ -104,6 +107,9 @@ func (r *sourceResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 					"name": schema.StringAttribute{
 						MarkdownDescription: "The name of the cluster. Resolved by the server from the cluster ID.",
 						Computed:            true,
+						PlanModifiers: []planmodifier.String{
+							stringplanmodifier.UseStateForUnknown(),
+						},
 					},
 				},
 			},
@@ -127,8 +133,7 @@ func (r *sourceResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				MarkdownDescription: "A JSON object containing the user-managed connector-specific configuration. " +
 					"Only the keys you specify in your configuration are managed by Terraform. " +
 					"The server may add extra fields on creation and updates; see `connector_attributes_all` for the full set.",
-				Optional:   true,
-				Computed:   true,
+				Required:   true,
 				CustomType: jsontypes.NormalizedType{},
 			},
 			"connector_attributes_all": schema.StringAttribute{

@@ -18,6 +18,7 @@ Resource for SailPoint Source. Sources represent managed systems (e.g., Active D
 ### Required
 
 - `connector` (String) The connector script name. Cannot be changed after creation.
+- `connector_attributes` (String) A JSON object containing the user-managed connector-specific configuration. Only the keys you specify in your configuration are managed by Terraform. The server may add extra fields on creation and updates; see `connector_attributes_all` for the full set.
 - `name` (String) The human-readable name of the source.
 - `owner` (Attributes) The owner of the source. (see [below for nested schema](#nestedatt--owner))
 
@@ -27,7 +28,6 @@ Resource for SailPoint Source. Sources represent managed systems (e.g., Active D
 - `category` (String) The source category (e.g., `CredentialProvider`).
 - `cluster` (Attributes) The cluster associated with this source. Required for on-premise sources. (see [below for nested schema](#nestedatt--cluster))
 - `connection_type` (String) The connection type (e.g., `direct`, `file`).
-- `connector_attributes` (String) A JSON object containing the user-managed connector-specific configuration. Only the keys you specify in your configuration are managed by Terraform. The server may add extra fields on creation and updates; see `connector_attributes_all` for the full set.
 - `connector_class` (String) The fully qualified name of the Java class that implements the connector interface. Cannot be changed after creation.
 - `credential_provider_enabled` (Boolean) Whether credential provider is enabled for the source.
 - `delete_threshold` (Number) The percentage threshold for skipping the delete phase (0-100).

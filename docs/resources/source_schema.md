@@ -4,11 +4,14 @@ page_title: "sailpoint_source_schema Resource - sailpoint"
 subcategory: ""
 description: |-
   Manages a SailPoint Source Schema. Source schemas define the structure of account and entitlement data from a source. Use this resource to create, update, and delete custom schemas for a source.
+  Note: When a source is created, SailPoint automatically creates default schemas (e.g., account and group). If you declare a sailpoint_source_schema with a name that matches an existing schema on the source, the provider will automatically adopt and manage the existing schema instead of creating a new one. Any differences between your configuration and the existing schema will be reconciled on the next terraform apply.
 ---
 
 # sailpoint_source_schema (Resource)
 
 Manages a SailPoint Source Schema. Source schemas define the structure of account and entitlement data from a source. Use this resource to create, update, and delete custom schemas for a source.
+
+**Note:** When a source is created, SailPoint automatically creates default schemas (e.g., `account` and `group`). If you declare a `sailpoint_source_schema` with a name that matches an existing schema on the source, the provider will automatically adopt and manage the existing schema instead of creating a new one. Any differences between your configuration and the existing schema will be reconciled on the next `terraform apply`.
 
 
 
