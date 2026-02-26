@@ -68,19 +68,19 @@ func (c *Client) GetSource(ctx context.Context, id string) (*SourceAPI, error) {
 		SetPathParam("id", id).
 		Get(sourceEndpointGet)
 
+	if resp != nil && resp.IsError() {
+		return nil, c.formatSourceError(
+			sourceErrorContext{Operation: "get", ID: id, ResponseBody: string(resp.Bytes())},
+			nil,
+			resp.StatusCode(),
+		)
+	}
+
 	if err != nil {
 		return nil, c.formatSourceError(
 			sourceErrorContext{Operation: "get", ID: id},
 			err,
 			0,
-		)
-	}
-
-	if resp.IsError() {
-		return nil, c.formatSourceError(
-			sourceErrorContext{Operation: "get", ID: id, ResponseBody: string(resp.Bytes())},
-			nil,
-			resp.StatusCode(),
 		)
 	}
 
@@ -119,15 +119,7 @@ func (c *Client) CreateSource(ctx context.Context, source *SourceAPI, provisionA
 
 	resp, err := req.Post(sourceEndpointCreate)
 
-	if err != nil {
-		return nil, c.formatSourceError(
-			sourceErrorContext{Operation: "create", Name: source.Name},
-			err,
-			0,
-		)
-	}
-
-	if resp.IsError() {
+	if resp != nil && resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -136,6 +128,14 @@ func (c *Client) CreateSource(ctx context.Context, source *SourceAPI, provisionA
 			sourceErrorContext{Operation: "create", Name: source.Name, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
+		)
+	}
+
+	if err != nil {
+		return nil, c.formatSourceError(
+			sourceErrorContext{Operation: "create", Name: source.Name},
+			err,
+			0,
 		)
 	}
 
@@ -170,15 +170,7 @@ func (c *Client) UpdateSource(ctx context.Context, id string, source *SourceAPI)
 		SetPathParam("id", id).
 		Put(sourceEndpointUpdate)
 
-	if err != nil {
-		return nil, c.formatSourceError(
-			sourceErrorContext{Operation: "update", ID: id},
-			err,
-			0,
-		)
-	}
-
-	if resp.IsError() {
+	if resp != nil && resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -187,6 +179,14 @@ func (c *Client) UpdateSource(ctx context.Context, id string, source *SourceAPI)
 			sourceErrorContext{Operation: "update", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
+		)
+	}
+
+	if err != nil {
+		return nil, c.formatSourceError(
+			sourceErrorContext{Operation: "update", ID: id},
+			err,
+			0,
 		)
 	}
 
@@ -224,15 +224,7 @@ func (c *Client) PatchSource(ctx context.Context, id string, patchOps []JSONPatc
 		SetPathParam("id", id).
 		Patch(sourceEndpointPatch)
 
-	if err != nil {
-		return nil, c.formatSourceError(
-			sourceErrorContext{Operation: "update", ID: id},
-			err,
-			0,
-		)
-	}
-
-	if resp.IsError() {
+	if resp != nil && resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -241,6 +233,14 @@ func (c *Client) PatchSource(ctx context.Context, id string, patchOps []JSONPatc
 			sourceErrorContext{Operation: "update", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
+		)
+	}
+
+	if err != nil {
+		return nil, c.formatSourceError(
+			sourceErrorContext{Operation: "update", ID: id},
+			err,
+			0,
 		)
 	}
 
@@ -267,15 +267,7 @@ func (c *Client) DeleteSource(ctx context.Context, id string) error {
 		SetPathParam("id", id).
 		Delete(sourceEndpointDelete)
 
-	if err != nil {
-		return c.formatSourceError(
-			sourceErrorContext{Operation: "delete", ID: id},
-			err,
-			0,
-		)
-	}
-
-	if resp.IsError() {
+	if resp != nil && resp.IsError() {
 		// 404 is acceptable for delete - resource might already be deleted
 		if resp.StatusCode() == http.StatusNotFound {
 			tflog.Debug(ctx, "Source not found, treating as already deleted", map[string]any{
@@ -288,6 +280,14 @@ func (c *Client) DeleteSource(ctx context.Context, id string) error {
 			sourceErrorContext{Operation: "delete", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
+		)
+	}
+
+	if err != nil {
+		return c.formatSourceError(
+			sourceErrorContext{Operation: "delete", ID: id},
+			err,
+			0,
 		)
 	}
 
