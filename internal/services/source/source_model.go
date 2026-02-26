@@ -227,14 +227,27 @@ func (m *sourceModel) ToPatchOperations(ctx context.Context, state *sourceModel)
 		}
 	}
 
-	// Connector Attributes
+	// Connector Attributes — merge user-managed keys onto the full current
+	// attributes so server-managed keys (healthy, status, etc.) are preserved.
 	if !m.ConnectorAttributes.Equal(state.ConnectorAttributes) {
 		if !m.ConnectorAttributes.IsNull() && !m.ConnectorAttributes.IsUnknown() {
-			if connAttrs, diags := common.UnmarshalJSONField[map[string]interface{}](m.ConnectorAttributes); connAttrs != nil {
-				diagnostics.Append(diags...)
-				patchOps = append(patchOps, client.NewReplacePatch("/connectorAttributes", *connAttrs))
-			} else {
-				diagnostics.Append(diags...)
+			userAttrs, diags := common.UnmarshalJSONField[map[string]interface{}](m.ConnectorAttributes)
+			diagnostics.Append(diags...)
+			if userAttrs != nil {
+				// Start from the full current attributes, then overlay user keys
+				merged := make(map[string]interface{})
+				if fullAttrs, d := common.UnmarshalJSONField[map[string]interface{}](state.ConnectorAttributesAll); fullAttrs != nil {
+					diagnostics.Append(d...)
+					for k, v := range *fullAttrs {
+						merged[k] = v
+					}
+				} else {
+					diagnostics.Append(d...)
+				}
+				for k, v := range *userAttrs {
+					merged[k] = v
+				}
+				patchOps = append(patchOps, client.NewReplacePatch("/connectorAttributes", merged))
 			}
 		}
 	}
