@@ -91,19 +91,19 @@ func (c *Client) ListSourceSchemas(ctx context.Context, sourceID string, include
 
 	resp, err := req.Get(sourceSchemaEndpointList)
 
+	if resp != nil && resp.IsError() {
+		return nil, c.formatSourceSchemaError(
+			sourceSchemaErrorContext{Operation: "list", SourceID: sourceID, ResponseBody: string(resp.Bytes())},
+			nil,
+			resp.StatusCode(),
+		)
+	}
+
 	if err != nil {
 		return nil, c.formatSourceSchemaError(
 			sourceSchemaErrorContext{Operation: "list", SourceID: sourceID},
 			err,
 			0,
-		)
-	}
-
-	if resp.IsError() {
-		return nil, c.formatSourceSchemaError(
-			sourceSchemaErrorContext{Operation: "list", SourceID: sourceID, ResponseBody: string(resp.Bytes())},
-			nil,
-			resp.StatusCode(),
 		)
 	}
 
@@ -139,19 +139,22 @@ func (c *Client) GetSourceSchema(ctx context.Context, sourceID, schemaID string)
 		SetPathParam("schemaId", schemaID).
 		Get(sourceSchemaEndpointGet)
 
+	// Check HTTP status first — Resty v3 may return a decoding error
+	// (e.g., "content decoder not found") for non-JSON error responses
+	// before we get a chance to inspect the status code.
+	if resp != nil && resp.IsError() {
+		return nil, c.formatSourceSchemaError(
+			sourceSchemaErrorContext{Operation: "get", SourceID: sourceID, SchemaID: schemaID, ResponseBody: string(resp.Bytes())},
+			nil,
+			resp.StatusCode(),
+		)
+	}
+
 	if err != nil {
 		return nil, c.formatSourceSchemaError(
 			sourceSchemaErrorContext{Operation: "get", SourceID: sourceID, SchemaID: schemaID},
 			err,
 			0,
-		)
-	}
-
-	if resp.IsError() {
-		return nil, c.formatSourceSchemaError(
-			sourceSchemaErrorContext{Operation: "get", SourceID: sourceID, SchemaID: schemaID, ResponseBody: string(resp.Bytes())},
-			nil,
-			resp.StatusCode(),
 		)
 	}
 
@@ -195,15 +198,7 @@ func (c *Client) CreateSourceSchema(ctx context.Context, sourceID string, schema
 		SetPathParam("sourceId", sourceID).
 		Post(sourceSchemaEndpointCreate)
 
-	if err != nil {
-		return nil, c.formatSourceSchemaError(
-			sourceSchemaErrorContext{Operation: "create", SourceID: sourceID},
-			err,
-			0,
-		)
-	}
-
-	if resp.IsError() {
+	if resp != nil && resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -212,6 +207,14 @@ func (c *Client) CreateSourceSchema(ctx context.Context, sourceID string, schema
 			sourceSchemaErrorContext{Operation: "create", SourceID: sourceID, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
+		)
+	}
+
+	if err != nil {
+		return nil, c.formatSourceSchemaError(
+			sourceSchemaErrorContext{Operation: "create", SourceID: sourceID},
+			err,
+			0,
 		)
 	}
 
@@ -257,15 +260,7 @@ func (c *Client) UpdateSourceSchema(ctx context.Context, sourceID, schemaID stri
 		SetPathParam("schemaId", schemaID).
 		Put(sourceSchemaEndpointUpdate)
 
-	if err != nil {
-		return nil, c.formatSourceSchemaError(
-			sourceSchemaErrorContext{Operation: "update", SourceID: sourceID, SchemaID: schemaID},
-			err,
-			0,
-		)
-	}
-
-	if resp.IsError() {
+	if resp != nil && resp.IsError() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -274,6 +269,14 @@ func (c *Client) UpdateSourceSchema(ctx context.Context, sourceID, schemaID stri
 			sourceSchemaErrorContext{Operation: "update", SourceID: sourceID, SchemaID: schemaID, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
+		)
+	}
+
+	if err != nil {
+		return nil, c.formatSourceSchemaError(
+			sourceSchemaErrorContext{Operation: "update", SourceID: sourceID, SchemaID: schemaID},
+			err,
+			0,
 		)
 	}
 
@@ -307,15 +310,7 @@ func (c *Client) DeleteSourceSchema(ctx context.Context, sourceID, schemaID stri
 		SetPathParam("schemaId", schemaID).
 		Delete(sourceSchemaEndpointDelete)
 
-	if err != nil {
-		return c.formatSourceSchemaError(
-			sourceSchemaErrorContext{Operation: "delete", SourceID: sourceID, SchemaID: schemaID},
-			err,
-			0,
-		)
-	}
-
-	if resp.IsError() {
+	if resp != nil && resp.IsError() {
 		// 404 is acceptable for delete - resource might already be deleted
 		if resp.StatusCode() == http.StatusNotFound {
 			tflog.Debug(ctx, "Source schema not found, treating as already deleted", map[string]any{
@@ -329,6 +324,14 @@ func (c *Client) DeleteSourceSchema(ctx context.Context, sourceID, schemaID stri
 			sourceSchemaErrorContext{Operation: "delete", SourceID: sourceID, SchemaID: schemaID, ResponseBody: string(resp.Bytes())},
 			nil,
 			resp.StatusCode(),
+		)
+	}
+
+	if err != nil {
+		return c.formatSourceSchemaError(
+			sourceSchemaErrorContext{Operation: "delete", SourceID: sourceID, SchemaID: schemaID},
+			err,
+			0,
 		)
 	}
 

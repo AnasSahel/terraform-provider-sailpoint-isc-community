@@ -60,7 +60,11 @@ func (r *sourceSchemaResource) Schema(_ context.Context, _ resource.SchemaReques
 		Description: "Manages a SailPoint Source Schema.",
 		MarkdownDescription: "Manages a SailPoint Source Schema. " +
 			"Source schemas define the structure of account and entitlement data from a source. " +
-			"Use this resource to create, update, and delete custom schemas for a source.",
+			"Use this resource to create, update, and delete custom schemas for a source.\n\n" +
+			"**Note:** When a source is created, SailPoint automatically creates default schemas (e.g., `account` and `group`). " +
+			"If you declare a `sailpoint_source_schema` with a name that matches an existing schema on the source, " +
+			"the provider will automatically adopt and manage the existing schema instead of creating a new one. " +
+			"Any differences between your configuration and the existing schema will be reconciled on the next `terraform apply`.",
 		Attributes: map[string]schema.Attribute{
 			"source_id": schema.StringAttribute{
 				MarkdownDescription: "The ID of the source this schema belongs to. Changing this forces a new resource.",
@@ -201,51 +205,85 @@ func (r *sourceSchemaResource) Create(ctx context.Context, req resource.CreateRe
 	}
 
 	sourceID := plan.SourceID.ValueString()
+	schemaName := plan.Name.ValueString()
 
 	// Map resource model to API model
 	tflog.Debug(ctx, "Mapping source schema resource model to API create request", map[string]any{
 		"source_id": sourceID,
-		"name":      plan.Name.ValueString(),
+		"name":      schemaName,
 	})
-	apiCreateRequest, diags := plan.ToAPI(ctx)
+	apiRequest, diags := plan.ToAPI(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Create the source schema via the API client
-	tflog.Debug(ctx, "Creating source schema via SailPoint API", map[string]any{
+	// Check if a schema with this name already exists on the source (e.g., auto-created defaults).
+	// If found, adopt it by updating instead of creating.
+	tflog.Debug(ctx, "Checking for existing source schema to adopt", map[string]any{
 		"source_id": sourceID,
-		"name":      plan.Name.ValueString(),
+		"name":      schemaName,
 	})
-	createResponse, err := r.client.CreateSourceSchema(ctx, sourceID, &apiCreateRequest)
+	existingSchemas, err := r.client.ListSourceSchemas(ctx, sourceID, "", schemaName)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error Creating SailPoint Source Schema",
-			fmt.Sprintf("Could not create SailPoint Source Schema %q for source %q: %s",
-				plan.Name.ValueString(), sourceID, err.Error()),
+			"Error Checking Existing SailPoint Source Schema",
+			fmt.Sprintf("Could not list existing schemas for source %q to check for schema %q: %s",
+				sourceID, schemaName, err.Error()),
 		)
-		tflog.Error(ctx, "Failed to create SailPoint Source Schema", map[string]any{
-			"source_id": sourceID,
-			"name":      plan.Name.ValueString(),
-			"error":     err.Error(),
+		return
+	}
+
+	var schemaID string
+
+	if len(existingSchemas) > 0 {
+		// Schema already exists — adopt it by updating with the planned config
+		schemaID = existingSchemas[0].ID
+		tflog.Info(ctx, "Existing schema found, adopting into Terraform management", map[string]any{
+			"source_id":   sourceID,
+			"schema_id":   schemaID,
+			"schema_name": schemaName,
 		})
-		return
-	}
 
-	if createResponse == nil {
-		resp.Diagnostics.AddError(
-			"Error Creating SailPoint Source Schema",
-			"Received nil response from SailPoint API",
-		)
-		return
-	}
+		apiRequest.ID = schemaID
+		_, err := r.client.UpdateSourceSchema(ctx, sourceID, schemaID, &apiRequest)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Adopting Existing SailPoint Source Schema",
+				fmt.Sprintf("Found existing schema %q (%s) for source %q but could not update it: %s",
+					schemaName, schemaID, sourceID, err.Error()),
+			)
+			return
+		}
+	} else {
+		// No existing schema — create a new one
+		tflog.Debug(ctx, "No existing schema found, creating new source schema", map[string]any{
+			"source_id": sourceID,
+			"name":      schemaName,
+		})
+		createResponse, err := r.client.CreateSourceSchema(ctx, sourceID, &apiRequest)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Creating SailPoint Source Schema",
+				fmt.Sprintf("Could not create SailPoint Source Schema %q for source %q: %s",
+					schemaName, sourceID, err.Error()),
+			)
+			return
+		}
 
-	schemaID := createResponse.ID
+		if createResponse == nil {
+			resp.Diagnostics.AddError(
+				"Error Creating SailPoint Source Schema",
+				"Received nil response from SailPoint API",
+			)
+			return
+		}
+
+		schemaID = createResponse.ID
+	}
 
 	// Read back the authoritative state from the API to avoid inconsistencies
-	// (the POST response may not include all fields accurately)
-	tflog.Debug(ctx, "Reading back source schema after create for authoritative state", map[string]any{
+	tflog.Debug(ctx, "Reading back source schema for authoritative state", map[string]any{
 		"source_id": sourceID,
 		"schema_id": schemaID,
 	})
@@ -253,7 +291,7 @@ func (r *sourceSchemaResource) Create(ctx context.Context, req resource.CreateRe
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading SailPoint Source Schema After Create",
-			fmt.Sprintf("Source schema was created successfully but could not be read back. Schema ID %q for source %q: %s",
+			fmt.Sprintf("Source schema was created/adopted successfully but could not be read back. Schema ID %q for source %q: %s",
 				schemaID, sourceID, err.Error()),
 		)
 		return
@@ -262,7 +300,7 @@ func (r *sourceSchemaResource) Create(ctx context.Context, req resource.CreateRe
 	if schemaResponse == nil {
 		resp.Diagnostics.AddError(
 			"Error Reading SailPoint Source Schema After Create",
-			"Received nil response from SailPoint API when reading back created schema",
+			"Received nil response from SailPoint API when reading back schema",
 		)
 		return
 	}
