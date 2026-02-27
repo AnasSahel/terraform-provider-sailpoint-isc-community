@@ -3,12 +3,12 @@
 page_title: "sailpoint_source_provisioning_policy Resource - sailpoint"
 subcategory: ""
 description: |-
-  Manages a SailPoint Source Provisioning Policy. A provisioning policy defines the fields and transformations required for a specific provisioning operation type. Use this resource to create, update, and delete provisioning policies for a source.
+  Manages a SailPoint Source Provisioning Policy. A provisioning policy defines the fields and transformations required for a specific provisioning operation type. SailPoint auto-creates a default CREATE provisioning policy when a source is created. If this resource targets an existing usage type, it will automatically adopt the existing policy and update it to match your configuration.
 ---
 
 # sailpoint_source_provisioning_policy (Resource)
 
-Manages a SailPoint Source Provisioning Policy. A provisioning policy defines the fields and transformations required for a specific provisioning operation type. Use this resource to create, update, and delete provisioning policies for a source.
+Manages a SailPoint Source Provisioning Policy. A provisioning policy defines the fields and transformations required for a specific provisioning operation type. SailPoint auto-creates a default `CREATE` provisioning policy when a source is created. If this resource targets an existing usage type, it will automatically adopt the existing policy and update it to match your configuration.
 
 
 

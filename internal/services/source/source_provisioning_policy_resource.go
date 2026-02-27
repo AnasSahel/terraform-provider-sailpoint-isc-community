@@ -56,7 +56,8 @@ func (r *sourceProvisioningPolicyResource) Schema(_ context.Context, _ resource.
 		Description: "Manages a SailPoint Source Provisioning Policy.",
 		MarkdownDescription: "Manages a SailPoint Source Provisioning Policy. " +
 			"A provisioning policy defines the fields and transformations required for a specific provisioning operation type. " +
-			"Use this resource to create, update, and delete provisioning policies for a source.",
+			"SailPoint auto-creates a default `CREATE` provisioning policy when a source is created. " +
+			"If this resource targets an existing usage type, it will automatically adopt the existing policy and update it to match your configuration.",
 		Attributes: map[string]schema.Attribute{
 			"source_id": schema.StringAttribute{
 				MarkdownDescription: "The ID of the source this provisioning policy belongs to. Changing this forces a new resource.",
@@ -147,32 +148,54 @@ func (r *sourceProvisioningPolicyResource) Create(ctx context.Context, req resou
 		return
 	}
 
-	// Create the provisioning policy via the API client
-	tflog.Debug(ctx, "Creating source provisioning policy via SailPoint API", map[string]any{
+	// Check if the provisioning policy already exists (e.g., SailPoint auto-creates a default CREATE policy).
+	// If it exists, adopt it via PUT; otherwise, create a new one via POST.
+	tflog.Debug(ctx, "Checking if provisioning policy already exists for adoption", map[string]any{
 		"source_id":  sourceID,
 		"usage_type": usageType,
-		"name":       plan.Name.ValueString(),
 	})
-	createResponse, err := r.client.CreateProvisioningPolicy(ctx, sourceID, &apiCreateRequest)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating SailPoint Source Provisioning Policy",
-			fmt.Sprintf("Could not create SailPoint Source Provisioning Policy with usage type %q for source %q: %s",
-				usageType, sourceID, err.Error()),
-		)
-		tflog.Error(ctx, "Failed to create SailPoint Source Provisioning Policy", map[string]any{
+	_, getErr := r.client.GetProvisioningPolicy(ctx, sourceID, usageType)
+
+	switch {
+	case getErr == nil:
+		// Policy already exists — adopt it via PUT update
+		tflog.Info(ctx, "Provisioning policy already exists, adopting via update", map[string]any{
+			"source_id":  sourceID,
+			"usage_type": usageType,
+		})
+		_, err := r.client.UpdateProvisioningPolicy(ctx, sourceID, usageType, &apiCreateRequest)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Adopting SailPoint Source Provisioning Policy",
+				fmt.Sprintf("Could not adopt existing SailPoint Source Provisioning Policy with usage type %q for source %q: %s",
+					usageType, sourceID, err.Error()),
+			)
+			return
+		}
+
+	case errors.Is(getErr, client.ErrNotFound):
+		// Policy does not exist — create it via POST
+		tflog.Debug(ctx, "Creating source provisioning policy via SailPoint API", map[string]any{
 			"source_id":  sourceID,
 			"usage_type": usageType,
 			"name":       plan.Name.ValueString(),
-			"error":      err.Error(),
 		})
-		return
-	}
+		_, err := r.client.CreateProvisioningPolicy(ctx, sourceID, &apiCreateRequest)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Creating SailPoint Source Provisioning Policy",
+				fmt.Sprintf("Could not create SailPoint Source Provisioning Policy with usage type %q for source %q: %s",
+					usageType, sourceID, err.Error()),
+			)
+			return
+		}
 
-	if createResponse == nil {
+	default:
+		// Unexpected error checking for existing policy
 		resp.Diagnostics.AddError(
-			"Error Creating SailPoint Source Provisioning Policy",
-			"Received nil response from SailPoint API",
+			"Error Checking SailPoint Source Provisioning Policy",
+			fmt.Sprintf("Could not check if SailPoint Source Provisioning Policy with usage type %q already exists for source %q: %s",
+				usageType, sourceID, getErr.Error()),
 		)
 		return
 	}
