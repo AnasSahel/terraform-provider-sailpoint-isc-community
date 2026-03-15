@@ -32,7 +32,7 @@ Resource for SailPoint Source. Sources represent managed systems (e.g., Active D
 - `credential_provider_enabled` (Boolean) Whether credential provider is enabled for the source.
 - `delete_threshold` (Number) The percentage threshold for skipping the delete phase (0-100).
 - `description` (String) The description of the source.
-- `features` (List of String) The list of features enabled for the source (e.g., `PROVISIONING`, `SYNC_PROVISIONING`, `AUTHENTICATE`).
+- `features` (Set of String) The list of features enabled for the source (e.g., `PROVISIONING`, `SYNC_PROVISIONING`, `AUTHENTICATE`).
 - `provision_as_csv` (Boolean) If `true`, configures the source as a Delimited File (CSV) source during creation. This is a create-only parameter and cannot be changed after creation.
 - `type` (String) The type of system being managed. Cannot be changed after creation.
 

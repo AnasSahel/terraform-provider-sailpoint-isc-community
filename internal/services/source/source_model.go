@@ -31,7 +31,7 @@ type sourceModel struct {
 	Authoritative             types.Bool             `tfsdk:"authoritative"`
 	Healthy                   types.Bool             `tfsdk:"healthy"`
 	Status                    types.String           `tfsdk:"status"`
-	Features                  types.List             `tfsdk:"features"`
+	Features                  types.Set              `tfsdk:"features"`
 	CredentialProviderEnabled types.Bool             `tfsdk:"credential_provider_enabled"`
 	Category                  types.String           `tfsdk:"category"`
 	ProvisionAsCsv            types.Bool             `tfsdk:"provision_as_csv"`
@@ -107,10 +107,10 @@ func (m *sourceModel) FromAPI(ctx context.Context, api client.SourceAPI) diag.Di
 
 	// Map features
 	if len(api.Features) > 0 {
-		m.Features, diags = types.ListValueFrom(ctx, types.StringType, api.Features)
+		m.Features, diags = types.SetValueFrom(ctx, types.StringType, api.Features)
 		diagnostics.Append(diags...)
 	} else {
-		m.Features = types.ListNull(types.StringType)
+		m.Features = types.SetNull(types.StringType)
 	}
 
 	return diagnostics

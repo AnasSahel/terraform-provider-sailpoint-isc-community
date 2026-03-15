@@ -180,7 +180,7 @@ func (r *sourceResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				MarkdownDescription: "The status of the source (e.g., `SOURCE_STATE_HEALTHY`, `SOURCE_STATE_ERROR_ACCOUNT_FILE_IMPORT`).",
 				Computed:            true,
 			},
-			"features": schema.ListAttribute{
+			"features": schema.SetAttribute{
 				MarkdownDescription: "The list of features enabled for the source (e.g., `PROVISIONING`, `SYNC_PROVISIONING`, `AUTHENTICATE`).",
 				Optional:            true,
 				Computed:            true,

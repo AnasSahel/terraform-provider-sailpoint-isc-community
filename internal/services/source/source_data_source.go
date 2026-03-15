@@ -137,7 +137,7 @@ func (d *sourceDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 				MarkdownDescription: "The status of the source.",
 				Computed:            true,
 			},
-			"features": schema.ListAttribute{
+			"features": schema.SetAttribute{
 				MarkdownDescription: "The list of features enabled for the source.",
 				Computed:            true,
 				ElementType:         types.StringType,
