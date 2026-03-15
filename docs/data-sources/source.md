@@ -33,7 +33,7 @@ Data source for SailPoint Source. Sources represent managed systems (e.g., Activ
 - `credential_provider_enabled` (Boolean) Whether credential provider is enabled for the source.
 - `delete_threshold` (Number) The percentage threshold for skipping the delete phase (0-100).
 - `description` (String) The description of the source.
-- `features` (List of String) The list of features enabled for the source.
+- `features` (Set of String) The list of features enabled for the source.
 - `healthy` (Boolean) Whether the source is healthy.
 - `modified` (String) The date and time when the source was last modified.
 - `name` (String) The human-readable name of the source.
