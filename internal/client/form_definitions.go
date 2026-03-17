@@ -48,13 +48,14 @@ type FormElementAPI struct {
 	ID          string                  `json:"id,omitempty"`
 	ElementType string                  `json:"elementType,omitempty"` // TEXT, TOGGLE, TEXTAREA, HIDDEN, PHONE, EMAIL, SELECT, DATE, SECTION, COLUMN_SET, IMAGE, DESCRIPTION
 	Config      map[string]interface{}  `json:"config,omitempty"`      // Arbitrary config based on element type
-	Key         string                  `json:"key,omitempty"`
-	Validations []FormElementValidation `json:"validations,omitempty"`
+	Key         string                  `json:"key"`
+	Validations []FormElementValidation `json:"validations"`
 }
 
 // FormElementValidation represents validation rules for a form element.
 type FormElementValidation struct {
-	ValidationType string `json:"validationType,omitempty"` // REQUIRED, MIN_LENGTH, MAX_LENGTH, REGEX, DATE, MAX_DATE, MIN_DATE, LESS_THAN_DATE, PHONE, EMAIL, DATA_SOURCE, TEXTAREA
+	ValidationType string                 `json:"validationType,omitempty"` // REQUIRED, MIN_LENGTH, MAX_LENGTH, REGEX, DATE, MAX_DATE, MIN_DATE, LESS_THAN_DATE, PHONE, EMAIL, DATA_SOURCE, TEXTAREA
+	Config         map[string]interface{} `json:"config,omitempty"`
 }
 
 // FormConditionAPI represents conditional logic that can dynamically modify the form.
