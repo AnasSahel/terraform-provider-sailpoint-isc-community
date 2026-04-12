@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/access_profile"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/entitlement"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/form_definition"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/identity_attribute"
@@ -164,6 +165,7 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 // DataSources defines the data sources implemented in the provider.
 func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
+		access_profile.NewAccessProfileDataSource,
 		entitlement.NewEntitlementDataSource,
 		form_definition.NewFormDefinitionDataSource,
 		identity_attribute.NewIdentityAttributeDataSource,
@@ -182,6 +184,7 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 // Resources defines the resources implemented in the provider.
 func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
+		access_profile.NewAccessProfileResource,
 		entitlement.NewEntitlementResource,
 		form_definition.NewFormDefinitionResource,
 		identity_attribute.NewIdentityAttributeResource,
