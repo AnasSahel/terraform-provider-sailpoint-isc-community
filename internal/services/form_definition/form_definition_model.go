@@ -240,8 +240,8 @@ func NewFormConditionEffectConfigFromAPI(ctx context.Context, api client.FormCon
 }
 
 func (m *formConditionEffectConfigModel) FromAPI(ctx context.Context, api client.FormConditionEffectConfigAPI) diag.Diagnostics {
-	m.DefaultValueLabel = types.StringValue(api.DefaultValueLabel)
-	m.Element = types.StringValue(api.Element)
+	m.DefaultValueLabel = common.StringOrNullIfEmpty(api.DefaultValueLabel)
+	m.Element = common.StringOrNullIfEmpty(api.Element)
 
 	return nil
 }
@@ -376,6 +376,9 @@ func (m *formDefinitionModel) ToPatchOperations(ctx context.Context, state *form
 	if !m.UsedBy.Equal(state.UsedBy) {
 		usedBy, diags := common.MapListToAPI(ctx, m.UsedBy, common.NewObjectRefToAPI)
 		diagnostics.Append(diags...)
+		if usedBy == nil {
+			usedBy = []client.ObjectRefAPI{}
+		}
 		patchOps = append(patchOps, client.NewReplacePatch("/usedBy", usedBy))
 	}
 
@@ -383,6 +386,9 @@ func (m *formDefinitionModel) ToPatchOperations(ctx context.Context, state *form
 	if !m.FormInput.Equal(state.FormInput) {
 		formInput, diags := common.MapListToAPI(ctx, m.FormInput, NewFormInputToAPI)
 		diagnostics.Append(diags...)
+		if formInput == nil {
+			formInput = []client.FormInputAPI{}
+		}
 		patchOps = append(patchOps, client.NewReplacePatch("/formInput", formInput))
 	}
 
@@ -390,6 +396,9 @@ func (m *formDefinitionModel) ToPatchOperations(ctx context.Context, state *form
 	if !m.FormConditions.Equal(state.FormConditions) {
 		formConditions, diags := common.MapListToAPI(ctx, m.FormConditions, FormConditionToAPI)
 		diagnostics.Append(diags...)
+		if formConditions == nil {
+			formConditions = []client.FormConditionAPI{}
+		}
 		patchOps = append(patchOps, client.NewReplacePatch("/formConditions", formConditions))
 	}
 
