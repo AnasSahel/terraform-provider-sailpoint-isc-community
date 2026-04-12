@@ -5,6 +5,7 @@ package workflow
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -353,6 +354,14 @@ func (r *workflowResource) Update(ctx context.Context, req resource.UpdateReques
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	// Preserve the trigger from current state (managed by workflow_trigger resource)
+	if !state.Trigger.IsNull() && !state.Trigger.IsUnknown() {
+		var trigger client.WorkflowTriggerAPI
+		if err := json.Unmarshal([]byte(state.Trigger.ValueString()), &trigger); err == nil {
+			apiUpdateRequest.Trigger = &trigger
+		}
 	}
 
 	// Update the workflow via the API client using PUT (full update)
