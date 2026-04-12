@@ -185,12 +185,8 @@ func (r *workflowResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 							"~> **Note:** When configuring steps that use secrets (e.g., OAuth client secrets for `sp:http` actions), " +
 							"set the secret value through the SailPoint UI first, then copy the resulting vault reference " +
 							"(e.g., `$.secrets.<uid>`) into your Terraform configuration to prevent drift.",
-						Optional:   true,
-						Computed:   true,
+						Required:   true,
 						CustomType: jsontypes.NormalizedType{},
-						PlanModifiers: []planmodifier.String{
-							stringplanmodifier.UseStateForUnknown(),
-						},
 					},
 				},
 			},
