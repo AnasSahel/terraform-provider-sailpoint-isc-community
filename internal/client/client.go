@@ -55,7 +55,12 @@ func NewClient(baseURL, clientID, clientSecret string) (*Client, error) {
 			}
 			req.
 				SetHeader("Authorization", fmt.Sprintf("Bearer %s", token)).
-				SetHeader("Accept", "application/json")
+				SetHeader("Accept", "application/json").
+				// Force identity encoding so responses are never compressed with a
+				// codec Resty v3 can't decompress (e.g. brotli, zstd). Without this,
+				// 4xx responses from SailPoint surface as the misleading
+				// "resty: content decoder not found" instead of the real API error.
+				SetHeader("Accept-Encoding", "identity")
 			if req.Header.Get("Content-Type") == "" {
 				req.SetHeader("Content-Type", "application/json")
 			}
