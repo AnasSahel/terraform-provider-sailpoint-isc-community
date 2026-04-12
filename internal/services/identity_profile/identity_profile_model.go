@@ -146,7 +146,7 @@ type identityProfileModel struct {
 	Description             types.String                  `tfsdk:"description"`
 	Owner                   *common.ObjectRefModel        `tfsdk:"owner"`
 	Priority                types.Int64                   `tfsdk:"priority"`
-	AuthoritativeSource     common.ObjectRefModel         `tfsdk:"authoritative_source"`
+	AuthoritativeSource     *common.ObjectRefModel        `tfsdk:"authoritative_source"`
 	IdentityAttributeConfig *identityAttributeConfigModel `tfsdk:"identity_attribute_config"`
 	Created                 types.String                  `tfsdk:"created"`
 	Modified                types.String                  `tfsdk:"modified"`
@@ -172,8 +172,12 @@ func (m *identityProfileModel) FromAPI(ctx context.Context, api client.IdentityP
 		diagnostics.Append(diags...)
 	}
 
-	// Map AuthoritativeSource
-	diagnostics.Append(m.AuthoritativeSource.FromAPI(ctx, api.AuthoritativeSource)...)
+	// Map AuthoritativeSource (required, but may be null during import)
+	if api.AuthoritativeSource.ID != "" {
+		var diags diag.Diagnostics
+		m.AuthoritativeSource, diags = common.NewObjectRefFromAPIPtr(ctx, api.AuthoritativeSource)
+		diagnostics.Append(diags...)
+	}
 
 	// Map IdentityAttributeConfig
 	m.IdentityAttributeConfig = &identityAttributeConfigModel{}
@@ -208,9 +212,11 @@ func (m *identityProfileModel) ToAPI(ctx context.Context) (client.IdentityProfil
 		apiRequest.Priority = m.Priority.ValueInt64()
 	}
 
-	// Map AuthoritativeSource
-	apiRequest.AuthoritativeSource, diags = m.AuthoritativeSource.ToAPI(ctx)
-	diagnostics.Append(diags...)
+	// Map AuthoritativeSource (required)
+	if m.AuthoritativeSource != nil {
+		apiRequest.AuthoritativeSource, diags = m.AuthoritativeSource.ToAPI(ctx)
+		diagnostics.Append(diags...)
+	}
 
 	// Map IdentityAttributeConfig (required)
 	if m.IdentityAttributeConfig != nil {
