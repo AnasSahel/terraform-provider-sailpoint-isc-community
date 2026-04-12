@@ -14,6 +14,7 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/identity_profile"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/launcher"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/lifecycle_state"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/segment"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/source"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/transform"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/workflow"
@@ -167,6 +168,7 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 		identity_profile.NewIdentityProfileDataSource,
 		launcher.NewLauncherDataSource,
 		lifecycle_state.NewLifecycleStateDataSource,
+		segment.NewSegmentDataSource,
 		source.NewSourceDataSource,
 		source.NewSourceSchemaDataSource,
 		source.NewSourceProvisioningPolicyDataSource,
@@ -183,6 +185,7 @@ func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resou
 		identity_profile.NewIdentityProfileResource,
 		launcher.NewLauncherResource,
 		lifecycle_state.NewLifecycleStateResource,
+		segment.NewSegmentResource,
 		source.NewSourceResource,
 		source.NewSourceSchemaResource,
 		source.NewSourceProvisioningPolicyResource,
