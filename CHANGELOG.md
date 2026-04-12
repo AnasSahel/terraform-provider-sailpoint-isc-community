@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.3] - 2026-04-12
+
+### Fixed
+
+- **Form Definition**: Normalize empty strings from API to null for `default_value_label` and `element` fields in `form_conditions` effect config, preventing "inconsistent result after apply" errors
+- **Form Definition**: Send empty arrays instead of null in PATCH operations for `form_input`, `form_conditions`, and `used_by` list fields, preventing 400 errors when removing these attributes
+- **Workflow**: Preserve trigger configuration during PUT updates — previously, updating any workflow field would reset the trigger to an empty object
+
+### Changed
+
+- Bump `github.com/hashicorp/terraform-plugin-framework` from 1.16.1 to 1.19.0
+- Bump `github.com/hashicorp/copywrite` from 0.24.1 to 0.25.2
+- Bump GitHub Actions: `actions/setup-go` v6.3.0, `crazy-max/ghaction-import-gpg` v7.0.0, `goreleaser/goreleaser-action` v7.0.0, `hashicorp/setup-terraform` v4.0.0
+- Update copyright headers from HashiCorp to IBM Corp. via copywrite 0.25.2
+
 ## [2.3.2] - 2026-03-17
 
 ### Fixed
@@ -394,6 +409,9 @@ This release ensures all documentation and examples match the actual provider ca
 
 ---
 
+[2.3.3]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v2.3.2...v2.3.3
+[2.3.2]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v2.3.1...v2.3.2
+[2.3.1]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v2.1.1...v2.3.1
 [2.1.1]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v1.1.0...v2.0.0
