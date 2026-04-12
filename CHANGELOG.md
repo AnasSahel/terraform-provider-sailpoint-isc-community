@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-04-12
+
+### Added
+
+- **Access Profile**: New `sailpoint_access_profile` resource and data source
+  - Core IAM building block bundling entitlements from a single source
+  - Nested `access_request_config` with approval schemes and max permitted access duration
+  - Nested `revoke_request_config` with approval schemes
+  - 3-level `provisioning_criteria` tree
+  - `additional_owners` (IDENTITY or GOVERNANCE_GROUP)
+  - `entitlements` and `segments` sets
+  - JSON Patch update strategy with coupled source + entitlements changes
+- **Role**: New `sailpoint_role` resource and data source
+  - Top of the access hierarchy: bundles access profiles and entitlements
+  - Union-typed `membership`: `STANDARD` criteria tree or `IDENTITY_LIST`
+  - 3-level criteria tree with typed `key` (IDENTITY, ACCOUNT, ENTITLEMENT)
+  - Role-specific `revoke_request_config` with comment-required fields
+  - `dimensional` flag + `dimension_refs` for dimensional roles
+- **Entitlement**: New `sailpoint_entitlement` resource and data source (adopt-only lifecycle)
+  - Adopts existing entitlements by ID (no create/delete via API — aggregation-managed)
+  - Patchable metadata: `name`, `description`, `requestable`, `privileged`, `owner`, `segments`
+  - Delete is a no-op with warning diagnostic (entitlement persists in ISC)
+- **Segment**: New `sailpoint_segment` resource and data source
+  - Controls visibility of access items by identity criteria
+  - `visibility_criteria` expression tree (root `EQUALS` or `AND` branch with `EQUALS` children)
+  - Active/inactive toggle
+
+### Fixed
+
+- **Client**: Surface real API errors instead of `resty: content decoder not found` — force `Accept-Encoding: identity` so responses aren't compressed with a codec Resty v3 can't decompress
+
 ## [2.3.4] - 2026-04-12
 
 ### Fixed
