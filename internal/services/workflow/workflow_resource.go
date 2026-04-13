@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int32planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -141,18 +140,12 @@ func (r *workflowResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				},
 			},
 			"execution_count": schema.Int32Attribute{
-				MarkdownDescription: "The number of times the workflow has been executed.",
+				MarkdownDescription: "The number of times the workflow has been executed. Server-side live metric — refreshed on every read; do not assume stable across applies.",
 				Computed:            true,
-				PlanModifiers: []planmodifier.Int32{
-					int32planmodifier.UseStateForUnknown(),
-				},
 			},
 			"failure_count": schema.Int32Attribute{
-				MarkdownDescription: "The number of times the workflow has failed.",
+				MarkdownDescription: "The number of times the workflow has failed. Server-side live metric — refreshed on every read; do not assume stable across applies.",
 				Computed:            true,
-				PlanModifiers: []planmodifier.Int32{
-					int32planmodifier.UseStateForUnknown(),
-				},
 			},
 			"owner": schema.SingleNestedAttribute{
 				MarkdownDescription: "The owner of the workflow.",
