@@ -30,8 +30,8 @@ Manages a SailPoint Workflow. Workflows are custom automation scripts that respo
 
 - `created` (String) The date and time the workflow was created.
 - `creator` (Attributes) The identity who created the workflow. (see [below for nested schema](#nestedatt--creator))
-- `execution_count` (Number) The number of times the workflow has been executed.
-- `failure_count` (Number) The number of times the workflow has failed.
+- `execution_count` (Number) The number of times the workflow has been executed. Server-side live metric — refreshed on every read; do not assume stable across applies.
+- `failure_count` (Number) The number of times the workflow has failed. Server-side live metric — refreshed on every read; do not assume stable across applies.
 - `id` (String) The unique identifier of the workflow.
 - `modified` (String) The date and time the workflow was last modified.
 - `modified_by` (Attributes) The identity who last modified the workflow. (see [below for nested schema](#nestedatt--modified_by))
