@@ -22,4 +22,13 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: 'Remove waiting-response on comment'
-        run: gh ${{ env.COMMAND }} edit ${{ github.event.issue.html_url }} --remove-label waiting-response
+        # The label may not be present on every issue/PR — tolerate "not found"
+        # so the workflow doesn't fail for every unrelated comment.
+        run: |
+          gh ${{ env.COMMAND }} edit ${{ github.event.issue.html_url }} --remove-label waiting-response 2>&1 | tee /tmp/triage.log || {
+            if grep -q "'waiting-response' not found" /tmp/triage.log; then
+              echo "Label 'waiting-response' was not present — nothing to remove."
+              exit 0
+            fi
+            exit 1
+          }
