@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -76,6 +77,19 @@ func NewClient(baseURL, clientID, clientSecret string) (*Client, error) {
 			}
 			return nil
 		})
+
+	// Workaround for SailPoint (or its Cloudflare edge) returning a non-standard
+	// Content-Encoding: UTF-8 header on some 4xx responses. UTF-8 is a charset,
+	// not a content encoding — the body is actually plain JSON. Resty v3 only
+	// registers gzip/deflate decompressers by default and bails with
+	// "resty: content decoder not found" for any other value, masking the real
+	// API error message. Registering a no-op decompresser for UTF-8 lets the
+	// JSON body flow through to the per-resource error formatters.
+	// See https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/issues/81
+	noopDecompresser := func(r io.ReadCloser) (io.ReadCloser, error) { return r, nil }
+	client.HTTPClient.
+		AddContentDecompresser("UTF-8", noopDecompresser).
+		AddContentDecompresser("utf-8", noopDecompresser)
 
 	// Initial authentication
 	if err := client.refreshToken(context.Background()); err != nil {
