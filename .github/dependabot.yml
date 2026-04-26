@@ -17,6 +17,14 @@ updates:
     directory: "/tools"
     schedule:
       interval: "daily"
+    ignore:
+      # terraform-plugin-docs 0.25.0 raised its minimum Go to 1.25.8, which
+      # exceeds our `go.mod` baseline (and the HashiCorp scaffolding template's
+      # baseline). `tools/go.mod` must stay <= the main `go.mod`, so we skip
+      # minor/major bumps of this package until we are ready to bump Go
+      # globally. Patch bumps within the current minor remain allowed.
+      - dependency-name: "github.com/hashicorp/terraform-plugin-docs"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
   - package-ecosystem: "github-actions"
     directory: "/"
     groups:
