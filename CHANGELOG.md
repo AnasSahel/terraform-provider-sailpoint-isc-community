@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.2] - 2026-04-26
+
+### Fixed
+
+- **Error handling**: 4xx responses from SailPoint no longer surface as the opaque `resty: content decoder not found` error. The SailPoint edge (Cloudflare) returns a non-standard `Content-Encoding: UTF-8` header on some 4xx responses — Resty v3 only knows `gzip`/`deflate` by default and bailed before the JSON body could be read, masking the real API error message. The provider now registers a no-op decompresser for `UTF-8` so the response body flows through to the per-resource error formatters. Affects every resource that hits a 4xx with this header (transform create, identity profile update, etc.). Closes #81.
+
 ## [2.4.1] - 2026-04-13
 
 ### Fixed
