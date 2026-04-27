@@ -153,7 +153,7 @@ func (d *workflowDataSource) Schema(_ context.Context, _ datasource.SchemaReques
 					"steps": schema.StringAttribute{
 						MarkdownDescription: "JSON object containing the workflow steps.",
 						Computed:            true,
-						CustomType:          jsontypes.NormalizedType{},
+						CustomType:          workflowStepsType{},
 					},
 				},
 			},

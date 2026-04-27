@@ -177,9 +177,17 @@ func (r *workflowResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 						MarkdownDescription: "JSON object containing the workflow steps. Each key is a step name and the value defines the step configuration including action type, attributes, and flow control.\n\n" +
 							"~> **Note:** When configuring steps that use secrets (e.g., OAuth client secrets for `sp:http` actions), " +
 							"set the secret value through the SailPoint UI first, then copy the resulting vault reference " +
-							"(e.g., `$.secrets.<uid>`) into your Terraform configuration to prevent drift.",
+							"(e.g., `$.secrets.<uid>`) into your Terraform configuration to prevent drift.\n\n" +
+							"~> **Server-minted fields:** SailPoint mints fresh values for some fields at workflow creation " +
+							"regardless of what the client sends — currently `param_oauth.refID`, `param_header.refID`, and " +
+							"`param_oauth_scopes.refID` inside `sp:http` step `attributes`. The provider treats those paths " +
+							"as semantically equal across plan and state so `tofu apply` succeeds and no drift is reported. " +
+							"You can write any UUID for those fields (or omit them and SailPoint will mint one on create), but " +
+							"a `refID` that does not point to a real Storage Parameter Service entry will fail at workflow " +
+							"runtime — typically you obtain a valid `refID` by configuring auth via the Workflow Builder UI " +
+							"once and copying back the persisted value.",
 						Required:   true,
-						CustomType: jsontypes.NormalizedType{},
+						CustomType: workflowStepsType{},
 					},
 				},
 			},
