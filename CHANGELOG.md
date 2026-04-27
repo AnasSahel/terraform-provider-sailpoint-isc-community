@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.3] - 2026-04-27
+
+### Fixed
+
+- **Lifecycle State**: `access_profile_ids = []` no longer fails the first apply with "inconsistent result after apply". The SailPoint API normalizes an empty list to `null` in its response; the provider now re-projects that to an empty list and adds a `[]` schema default so writing `[]`, omitting the attribute, and reading back from the API are all equivalent. Closes #107.
+- **Launcher**: `owner.type = "IDENTITY"` is now normalized to `"USER"` at plan time. The SailPoint Launchers API silently rewrites `IDENTITY` to `USER` server-side; the previous behavior left the plan with `"IDENTITY"` and triggered "inconsistent result after apply" when the API echoed back `"USER"`. The launcher is the only resource with this server-side normalization — `sailpoint_workflow` accepts `IDENTITY` unchanged. Closes #106.
+- **Source**: `owner.name` and `cluster.name` are now re-resolved by the API when the user changes `owner.id` or `cluster.id`. The previous `UseStateForUnknown` plan modifier pinned the stale prior name into the plan and the framework rejected the apply with "inconsistent result after apply"; a new conditional plan modifier preserves the no-op-plan behavior while letting the API resolve fresh names when the underlying id changes. Closes #101.
+
+### Added
+
+- **Internal**: `internal/common/planmodifiers` package with two reusable plan modifiers (`NormalizeString` for server-side enum normalization, `UseStateForUnknownUnlessSiblingChanges` for server-resolved attributes derived from a sibling). Used by the fixes above; available for future resources.
+
 ## [2.4.2] - 2026-04-26
 
 ### Fixed
