@@ -10,6 +10,7 @@ import (
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common/planmodifiers"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -98,8 +99,14 @@ func (r *launcherResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				Required:            true,
 				Attributes: map[string]schema.Attribute{
 					"type": schema.StringAttribute{
-						MarkdownDescription: "The type of the owner (e.g., `IDENTITY`).",
-						Required:            true,
+						MarkdownDescription: "The type of the owner. The SailPoint Launchers API stores this as " +
+							"`USER` regardless of what is submitted; `IDENTITY` is silently normalized to `USER` " +
+							"server-side. The provider applies the same normalization at plan time so " +
+							"`tofu apply` does not fail with `inconsistent result after apply`.",
+						Required: true,
+						PlanModifiers: []planmodifier.String{
+							planmodifiers.NormalizeString(map[string]string{"IDENTITY": "USER"}),
+						},
 					},
 					"id": schema.StringAttribute{
 						MarkdownDescription: "The ID of the owner.",
