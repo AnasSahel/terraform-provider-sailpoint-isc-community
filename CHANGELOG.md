@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.4] - 2026-04-27
+
+### Fixed
+
+- **Workflow**: creating a `sailpoint_workflow` whose `definition.steps` contains an `sp:http` step with Storage Parameter auth (`param_oauth`, `param_header`, `param_oauth_scopes`) no longer fails the first apply with "inconsistent result after apply". SailPoint mints a fresh `refID` for each Storage Parameter reference at workflow POST time regardless of what the client sends; the provider now considers those `refID` paths semantically equal across plan and state via a custom JSON type (`workflowStepsType`). A `TF_LOG=debug` line is emitted whenever a divergence is masked, so users can audit what the provider is hiding. Closes #90.
+
+### Added
+
+- **Internal**: `workflowStepsType`, a custom string type extending `jsontypes.NormalizedType` with a `SemanticEquals` implementation that ignores server-minted JSON paths grouped by step `actionId`. New minted fields can be added to `ignoredFieldsByActionID` as they are discovered upstream.
+
 ## [2.4.3] - 2026-04-27
 
 ### Fixed

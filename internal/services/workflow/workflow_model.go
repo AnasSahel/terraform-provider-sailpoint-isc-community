@@ -17,7 +17,7 @@ import (
 // Attribute type definitions for nested objects.
 var definitionAttrTypes = map[string]attr.Type{
 	"start": types.StringType,
-	"steps": jsontypes.NormalizedType{},
+	"steps": workflowStepsType{},
 }
 
 // workflowModel represents the Terraform model for a SailPoint Workflow.
