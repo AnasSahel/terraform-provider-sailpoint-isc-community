@@ -10,6 +10,7 @@ import (
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common/planmodifiers"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -87,7 +88,7 @@ func (r *sourceResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 						MarkdownDescription: "The name of the owner. Resolved by the server from the owner ID.",
 						Computed:            true,
 						PlanModifiers: []planmodifier.String{
-							stringplanmodifier.UseStateForUnknown(),
+							planmodifiers.UseStateForUnknownUnlessSiblingChanges("id"),
 						},
 					},
 				},
@@ -108,7 +109,7 @@ func (r *sourceResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 						MarkdownDescription: "The name of the cluster. Resolved by the server from the cluster ID.",
 						Computed:            true,
 						PlanModifiers: []planmodifier.String{
-							stringplanmodifier.UseStateForUnknown(),
+							planmodifiers.UseStateForUnknownUnlessSiblingChanges("id"),
 						},
 					},
 				},

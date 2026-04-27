@@ -199,9 +199,14 @@ func (r *lifecycleStateResource) Schema(_ context.Context, _ resource.SchemaRequ
 				},
 			},
 			"access_profile_ids": schema.ListAttribute{
-				MarkdownDescription: "List of access profile IDs associated with this lifecycle state.",
-				Optional:            true,
-				ElementType:         types.StringType,
+				MarkdownDescription: "List of access profile IDs associated with this lifecycle state. " +
+					"Defaults to an empty list. The SailPoint API normalizes an empty list to `null` server-side; " +
+					"the provider re-projects that to an empty list so `[]` and the omitted attribute behave identically " +
+					"and `tofu apply` does not fail with `inconsistent result after apply`.",
+				Optional:    true,
+				Computed:    true,
+				ElementType: types.StringType,
+				Default:     listdefault.StaticValue(types.ListValueMust(types.StringType, []attr.Value{})),
 			},
 			"access_action_configuration": schema.SingleNestedAttribute{
 				MarkdownDescription: "Access action configuration for the lifecycle state. " +

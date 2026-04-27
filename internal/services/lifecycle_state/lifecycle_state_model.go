@@ -134,13 +134,17 @@ func (m *lifecycleStateModel) FromAPI(ctx context.Context, api client.LifecycleS
 		m.AccountActions = types.ListNull(types.ObjectType{AttrTypes: accountActionAttrTypes})
 	}
 
-	// Map AccessProfileIds
+	// Map AccessProfileIds. The SailPoint API normalizes an empty list to `null`
+	// in the response. We always re-project to an empty (non-null) list so the
+	// schema default `[]` is consistent with what `Read`/`Create`/`Update` write
+	// back to state — otherwise the framework rejects with `inconsistent result
+	// after apply` whenever the user wrote `access_profile_ids = []`. See #107.
 	if len(api.AccessProfileIds) > 0 {
 		accessProfileIdsList, d := types.ListValueFrom(ctx, types.StringType, api.AccessProfileIds)
 		diags.Append(d...)
 		m.AccessProfileIds = accessProfileIdsList
 	} else {
-		m.AccessProfileIds = types.ListNull(types.StringType)
+		m.AccessProfileIds = types.ListValueMust(types.StringType, []attr.Value{})
 	}
 
 	// Map AccessActionConfiguration

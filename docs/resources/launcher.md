@@ -40,7 +40,7 @@ Resource for SailPoint Launcher. Launchers are used to trigger workflows through
 Required:
 
 - `id` (String) The ID of the owner.
-- `type` (String) The type of the owner (e.g., `IDENTITY`).
+- `type` (String) The type of the owner. The SailPoint Launchers API stores this as `USER` regardless of what is submitted; `IDENTITY` is silently normalized to `USER` server-side. The provider applies the same normalization at plan time so `tofu apply` does not fail with `inconsistent result after apply`.
 
 Read-Only:
 
