@@ -223,20 +223,71 @@ func (r *workflowTriggerResource) Update(ctx context.Context, req resource.Updat
 		return
 	}
 
+	// The SailPoint API blocks PATCH operations on enabled workflows. Fetch the
+	// current workflow state so we can disable it before patching if needed.
+	tflog.Debug(ctx, "Fetching workflow state before trigger update", map[string]any{
+		"workflow_id": workflowID,
+	})
+	currentWorkflow, err := r.client.GetWorkflow(ctx, workflowID)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Updating Workflow Trigger",
+			fmt.Sprintf("Could not read workflow %q before updating trigger: %s", workflowID, err.Error()),
+		)
+		return
+	}
+
+	wasEnabled := currentWorkflow.Enabled
+	if wasEnabled {
+		// PATCH is blocked on enabled workflows, so we must use PUT to disable first.
+		tflog.Info(ctx, "Workflow is enabled, disabling before trigger update", map[string]any{
+			"workflow_id": workflowID,
+		})
+		disabledWorkflow := *currentWorkflow
+		disabledWorkflow.Enabled = false
+		if _, disableErr := r.client.UpdateWorkflow(ctx, workflowID, &disabledWorkflow); disableErr != nil {
+			resp.Diagnostics.AddError(
+				"Error Updating Workflow Trigger",
+				fmt.Sprintf("Could not disable workflow %q before updating trigger: %s", workflowID, disableErr.Error()),
+			)
+			return
+		}
+		tflog.Info(ctx, "Workflow disabled, proceeding with trigger update", map[string]any{
+			"workflow_id": workflowID,
+		})
+	}
+
 	// Update the trigger on the workflow
 	tflog.Debug(ctx, "Updating workflow trigger via SailPoint API", map[string]any{
 		"workflow_id":  workflowID,
 		"trigger_type": plan.Type.ValueString(),
 	})
-	workflow, err := r.client.SetWorkflowTrigger(ctx, workflowID, apiTrigger)
-	if err != nil {
+	workflow, patchErr := r.client.SetWorkflowTrigger(ctx, workflowID, apiTrigger)
+
+	// Re-enable the workflow if it was enabled before, regardless of whether the
+	// trigger patch succeeded. This avoids leaving the workflow in an unexpected
+	// disabled state when the patch fails.
+	if wasEnabled {
+		tflog.Info(ctx, "Re-enabling workflow after trigger update", map[string]any{
+			"workflow_id": workflowID,
+		})
+		reEnableOps := []client.JSONPatchOperation{client.NewReplacePatch("/enabled", true)}
+		if _, reEnableErr := r.client.PatchWorkflow(ctx, workflowID, reEnableOps); reEnableErr != nil {
+			resp.Diagnostics.AddError(
+				"Error Re-enabling Workflow After Trigger Update",
+				fmt.Sprintf("Could not re-enable workflow %q after updating trigger: %s", workflowID, reEnableErr.Error()),
+			)
+		}
+	}
+
+	if patchErr != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating Workflow Trigger",
-			fmt.Sprintf("Could not update trigger on workflow %q: %s", workflowID, err.Error()),
+			fmt.Sprintf("Could not update trigger on workflow %q: %s", workflowID, patchErr.Error()),
 		)
 		tflog.Error(ctx, "Failed to update workflow trigger", map[string]any{
 			"workflow_id": workflowID,
-			"error":       err.Error(),
+			"error":       patchErr.Error(),
 		})
 		return
 	}
