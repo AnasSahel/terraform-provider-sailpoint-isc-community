@@ -33,6 +33,7 @@ Resource for SailPoint Source. Sources represent managed systems (e.g., Active D
 - `delete_threshold` (Number) The percentage threshold for skipping the delete phase (0-100).
 - `description` (String) The description of the source.
 - `features` (Set of String) The list of features enabled for the source (e.g., `PROVISIONING`, `SYNC_PROVISIONING`, `AUTHENTICATE`).
+- `ignore_attributes_paths` (List of String) A list of JSONPath expressions identifying fields inside `connector_attributes` that should be preserved from the server state rather than overwritten on each apply. Use this to protect server-managed sensitive fields (e.g. passwords) nested inside arrays that you declare in `connector_attributes`. Supported syntax: `$.key`, `$.key.nested`, `$.key[N].field` (specific index), `$.key[*].field` (all elements). Example: `["$.domainSettings[*].password", "$.forestSettings[*].servicePassword"]`.
 - `provision_as_csv` (Boolean) If `true`, configures the source as a Delimited File (CSV) source during creation. This is a create-only parameter and cannot be changed after creation.
 - `type` (String) The type of system being managed. Cannot be changed after creation.
 
