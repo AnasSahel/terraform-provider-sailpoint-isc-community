@@ -12,6 +12,7 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/access_profile"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/entitlement"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/form_definition"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/identity"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/identity_attribute"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/identity_profile"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/launcher"
@@ -169,6 +170,7 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 		access_profile.NewAccessProfileDataSource,
 		entitlement.NewEntitlementDataSource,
 		form_definition.NewFormDefinitionDataSource,
+		identity.NewIdentityDataSource,
 		identity_attribute.NewIdentityAttributeDataSource,
 		identity_profile.NewIdentityProfileDataSource,
 		launcher.NewLauncherDataSource,
