@@ -10,6 +10,7 @@ import (
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common/planmodifiers"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -57,7 +58,7 @@ func objectRefSingle(desc string, required bool) schema.SingleNestedAttribute {
 			"name": schema.StringAttribute{
 				Computed: true,
 				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
+					planmodifiers.UseStateForUnknownUnlessSiblingChanges("id"),
 				},
 			},
 		},
@@ -75,7 +76,7 @@ func objectRefSet(desc string) schema.SetNestedAttribute {
 				"name": schema.StringAttribute{
 					Computed: true,
 					PlanModifiers: []planmodifier.String{
-						stringplanmodifier.UseStateForUnknown(),
+						planmodifiers.UseStateForUnknownUnlessSiblingChanges("id"),
 					},
 				},
 			},
@@ -160,7 +161,7 @@ func (r *roleResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 						"name": schema.StringAttribute{
 							Computed: true,
 							PlanModifiers: []planmodifier.String{
-								stringplanmodifier.UseStateForUnknown(),
+								planmodifiers.UseStateForUnknownUnlessSiblingChanges("id"),
 							},
 						},
 					},
@@ -223,13 +224,13 @@ func (r *roleResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 								"name": schema.StringAttribute{
 									Computed: true,
 									PlanModifiers: []planmodifier.String{
-										stringplanmodifier.UseStateForUnknown(),
+										planmodifiers.UseStateForUnknownUnlessSiblingChanges("id"),
 									},
 								},
 								"alias_name": schema.StringAttribute{
 									Computed: true,
 									PlanModifiers: []planmodifier.String{
-										stringplanmodifier.UseStateForUnknown(),
+										planmodifiers.UseStateForUnknownUnlessSiblingChanges("id"),
 									},
 								},
 							},

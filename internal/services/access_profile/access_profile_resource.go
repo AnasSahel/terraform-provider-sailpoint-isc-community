@@ -10,6 +10,7 @@ import (
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common/planmodifiers"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -52,7 +53,7 @@ func objectRefNestedAttr(desc string, required bool) schema.SingleNestedAttribut
 		"name": schema.StringAttribute{
 			Computed: true,
 			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.UseStateForUnknown(),
+				planmodifiers.UseStateForUnknownUnlessSiblingChanges("id"),
 			},
 		},
 	}
@@ -134,7 +135,7 @@ func (r *accessProfileResource) Schema(_ context.Context, _ resource.SchemaReque
 						"name": schema.StringAttribute{
 							Computed: true,
 							PlanModifiers: []planmodifier.String{
-								stringplanmodifier.UseStateForUnknown(),
+								planmodifiers.UseStateForUnknownUnlessSiblingChanges("id"),
 							},
 						},
 					},
@@ -155,7 +156,7 @@ func (r *accessProfileResource) Schema(_ context.Context, _ resource.SchemaReque
 						"name": schema.StringAttribute{
 							Computed: true,
 							PlanModifiers: []planmodifier.String{
-								stringplanmodifier.UseStateForUnknown(),
+								planmodifiers.UseStateForUnknownUnlessSiblingChanges("id"),
 							},
 						},
 					},
