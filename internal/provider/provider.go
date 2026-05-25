@@ -20,6 +20,7 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/role"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/segment"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/source"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/source_correlation_config"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/transform"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/workflow"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/workflow_trigger"
@@ -201,6 +202,7 @@ func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resou
 		source.NewSourceResource,
 		source.NewSourceSchemaResource,
 		source.NewSourceProvisioningPolicyResource,
+		source_correlation_config.NewSourceCorrelationConfigResource,
 		transform.NewTransformResource,
 		workflow.NewWorkflowResource,
 		workflow_trigger.NewWorkflowTriggerResource,
