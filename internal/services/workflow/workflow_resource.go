@@ -23,9 +23,10 @@ import (
 )
 
 var (
-	_ resource.Resource                = &workflowResource{}
-	_ resource.ResourceWithConfigure   = &workflowResource{}
-	_ resource.ResourceWithImportState = &workflowResource{}
+	_ resource.Resource                 = &workflowResource{}
+	_ resource.ResourceWithConfigure    = &workflowResource{}
+	_ resource.ResourceWithImportState  = &workflowResource{}
+	_ resource.ResourceWithUpgradeState = &workflowResource{}
 )
 
 type workflowResource struct {
@@ -54,6 +55,11 @@ func (r *workflowResource) Configure(ctx context.Context, req resource.Configure
 // Schema implements resource.Resource.
 func (r *workflowResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		// Version 1 introduced the workflowStepsType custom string type on
+		// definition.steps (provider 2.4.4, closes #90). State written by
+		// provider 2.4.3 or earlier is upgraded by the v0 → v1 state upgrader
+		// in workflow_state_upgrader.go (closes #114).
+		Version:             1,
 		Description:         "Manages a SailPoint Workflow.",
 		MarkdownDescription: "Manages a SailPoint Workflow. Workflows are custom automation scripts that respond to event triggers and perform a series of actions. The trigger is managed separately using the `sailpoint_workflow_trigger` resource.",
 		Attributes: map[string]schema.Attribute{
@@ -485,4 +491,14 @@ func (r *workflowResource) ImportState(ctx context.Context, req resource.ImportS
 	tflog.Info(ctx, "Successfully imported SailPoint Workflow resource", map[string]any{
 		"id": req.ID,
 	})
+}
+
+// UpgradeState implements resource.ResourceWithUpgradeState.
+func (r *workflowResource) UpgradeState(_ context.Context) map[int64]resource.StateUpgrader {
+	return map[int64]resource.StateUpgrader{
+		0: {
+			PriorSchema:   priorWorkflowSchemaV0(),
+			StateUpgrader: upgradeWorkflowStateV0ToV1,
+		},
+	}
 }
