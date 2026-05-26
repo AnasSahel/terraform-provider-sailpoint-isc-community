@@ -12,6 +12,8 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/access_profile"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/entitlement"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/form_definition"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/governance_group"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/identity"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/identity_attribute"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/identity_profile"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/launcher"
@@ -20,6 +22,7 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/segment"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/source"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/source_aggregation_schedule"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/source_correlation_config"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/transform"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/workflow"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/workflow_trigger"
@@ -170,6 +173,8 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 		access_profile.NewAccessProfileDataSource,
 		entitlement.NewEntitlementDataSource,
 		form_definition.NewFormDefinitionDataSource,
+		governance_group.NewGovernanceGroupDataSource,
+		identity.NewIdentityDataSource,
 		identity_attribute.NewIdentityAttributeDataSource,
 		identity_profile.NewIdentityProfileDataSource,
 		launcher.NewLauncherDataSource,
@@ -190,6 +195,7 @@ func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resou
 		access_profile.NewAccessProfileResource,
 		entitlement.NewEntitlementResource,
 		form_definition.NewFormDefinitionResource,
+		governance_group.NewGovernanceGroupResource,
 		identity_attribute.NewIdentityAttributeResource,
 		identity_profile.NewIdentityProfileResource,
 		launcher.NewLauncherResource,
@@ -200,6 +206,7 @@ func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resou
 		source.NewSourceSchemaResource,
 		source.NewSourceProvisioningPolicyResource,
 		source_aggregation_schedule.NewSourceAggregationScheduleResource,
+		source_correlation_config.NewSourceCorrelationConfigResource,
 		transform.NewTransformResource,
 		workflow.NewWorkflowResource,
 		workflow_trigger.NewWorkflowTriggerResource,
