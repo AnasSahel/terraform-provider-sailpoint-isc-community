@@ -10,6 +10,7 @@ import (
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common/planmodifiers"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -66,7 +67,7 @@ func memberNestedAttr(required bool) schema.SetNestedAttribute {
 					MarkdownDescription: "Name of the member identity. Server-resolved.",
 					Computed:            true,
 					PlanModifiers: []planmodifier.String{
-						stringplanmodifier.UseStateForUnknown(),
+						planmodifiers.UseStateForUnknownUnlessSiblingChanges("id"),
 					},
 				},
 			},
@@ -106,7 +107,7 @@ func (r *governanceGroupResource) Schema(_ context.Context, _ resource.SchemaReq
 					"name": schema.StringAttribute{
 						Computed: true,
 						PlanModifiers: []planmodifier.String{
-							stringplanmodifier.UseStateForUnknown(),
+							planmodifiers.UseStateForUnknownUnlessSiblingChanges("id"),
 						},
 					},
 				},
