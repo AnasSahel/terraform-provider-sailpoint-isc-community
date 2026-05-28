@@ -49,6 +49,10 @@ jobs:
       - run: make generate
       - name: git diff
         run: |
+          # Intent-to-add so newly generated *untracked* files are caught too:
+          # a plain `git diff` only sees tracked-file changes, which let several
+          # resources merge without their generated docs (see this PR).
+          git add -N .
           git diff --compact-summary --exit-code || \
             (echo; echo "Unexpected difference in directories after code generation. Run 'make generate' command and commit."; exit 1)
 
