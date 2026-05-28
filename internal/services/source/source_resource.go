@@ -142,6 +142,14 @@ func (r *sourceResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				Computed:            true,
 				CustomType:          jsontypes.NormalizedType{},
 			},
+			"ignore_attributes_paths": schema.ListAttribute{
+				MarkdownDescription: "A list of JSONPath expressions identifying fields inside `connector_attributes` that should be preserved from the server state rather than overwritten on each apply. " +
+					"Use this to protect server-managed sensitive fields (e.g. passwords) nested inside arrays that you declare in `connector_attributes`. " +
+					"Supported syntax: `$.key`, `$.key.nested`, `$.key[N].field` (specific index), `$.key[*].field` (all elements). " +
+					"Example: `[\"$.domainSettings[*].password\", \"$.forestSettings[*].servicePassword\"]`.",
+				Optional:    true,
+				ElementType: types.StringType,
+			},
 			"connection_type": schema.StringAttribute{
 				MarkdownDescription: "The connection type (e.g., `direct`, `file`).",
 				Optional:            true,
@@ -269,6 +277,9 @@ func (r *sourceResource) Create(ctx context.Context, req resource.CreateRequest,
 		state.ConnectorAttributes = plan.ConnectorAttributes
 	}
 
+	// Preserve Terraform-only fields not populated by FromAPI.
+	state.IgnoreAttributesPaths = plan.IgnoreAttributesPaths
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -327,6 +338,9 @@ func (r *sourceResource) Read(ctx context.Context, req resource.ReadRequest, res
 	if !priorState.ConnectorAttributes.IsNull() && !priorState.ConnectorAttributes.IsUnknown() {
 		state.ConnectorAttributes = priorState.ConnectorAttributes
 	}
+
+	// Preserve Terraform-only fields not populated by FromAPI.
+	state.IgnoreAttributesPaths = priorState.IgnoreAttributesPaths
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
@@ -401,6 +415,9 @@ func (r *sourceResource) Update(ctx context.Context, req resource.UpdateRequest,
 
 	// Preserve user-managed connector_attributes from the plan
 	newState.ConnectorAttributes = plan.ConnectorAttributes
+
+	// Preserve Terraform-only fields not populated by FromAPI.
+	newState.IgnoreAttributesPaths = plan.IgnoreAttributesPaths
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 	if resp.Diagnostics.HasError() {

@@ -5,10 +5,12 @@ package source
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common/jsonpath"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -25,6 +27,7 @@ type sourceModel struct {
 	ConnectorClass            types.String           `tfsdk:"connector_class"`
 	ConnectorAttributes       jsontypes.Normalized   `tfsdk:"connector_attributes"`
 	ConnectorAttributesAll    jsontypes.Normalized   `tfsdk:"connector_attributes_all"`
+	IgnoreAttributesPaths     types.List             `tfsdk:"ignore_attributes_paths"`
 	ConnectionType            types.String           `tfsdk:"connection_type"`
 	Type                      types.String           `tfsdk:"type"`
 	DeleteThreshold           types.Int64            `tfsdk:"delete_threshold"`
@@ -236,9 +239,11 @@ func (m *sourceModel) ToPatchOperations(ctx context.Context, state *sourceModel)
 			if userAttrs != nil {
 				// Start from the full current attributes, then overlay user keys
 				merged := make(map[string]interface{})
+				var serverAttrs map[string]interface{}
 				if fullAttrs, d := common.UnmarshalJSONField[map[string]interface{}](state.ConnectorAttributesAll); fullAttrs != nil {
 					diagnostics.Append(d...)
-					for k, v := range *fullAttrs {
+					serverAttrs = *fullAttrs
+					for k, v := range serverAttrs {
 						merged[k] = v
 					}
 				} else {
@@ -247,6 +252,24 @@ func (m *sourceModel) ToPatchOperations(ctx context.Context, state *sourceModel)
 				for k, v := range *userAttrs {
 					merged[k] = v
 				}
+
+				// Re-inject server values at paths the user wants to ignore, so that
+				// nested server-managed fields (e.g. passwords inside domainSettings)
+				// are not wiped by the top-level array replacement.
+				if !m.IgnoreAttributesPaths.IsNull() && !m.IgnoreAttributesPaths.IsUnknown() && serverAttrs != nil {
+					var paths []string
+					diags = m.IgnoreAttributesPaths.ElementsAs(ctx, &paths, false)
+					diagnostics.Append(diags...)
+					if !diagnostics.HasError() {
+						if err := jsonpath.PreservePaths(merged, serverAttrs, paths); err != nil {
+							diagnostics.AddError(
+								"Invalid ignore_attributes_paths",
+								fmt.Sprintf("Failed to apply ignore_attributes_paths: %s", err),
+							)
+						}
+					}
+				}
+
 				patchOps = append(patchOps, client.NewReplacePatch("/connectorAttributes", merged))
 			}
 		}

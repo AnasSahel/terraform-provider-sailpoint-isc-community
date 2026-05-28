@@ -63,6 +63,19 @@ This is a Terraform provider for SailPoint Identity Security Cloud (ISC) built u
 ### Default Target
 - `make` - Runs fmt, lint, install, and generate
 
+## Pre-commit validation (mandatory)
+
+Before staging any commit on a branch that will be pushed to a PR, run:
+
+```bash
+make lint      # golangci-lint — strict config: forcetypeassert, gofmt, errcheck, ...
+make generate  # tfplugindocs — regenerates docs/ from schema descriptions
+```
+
+- Both must exit clean. If `make generate` produces a diff under `docs/`, stage it in the same commit — otherwise the `generate` CI job fails on *"Unexpected difference in directories after code generation"*.
+- New `_test.go` files: type assertions MUST use the `, ok :=` form (the `forcetypeassert` linter is enabled). For repeated assertions in tests, define small `must*` helpers with `t.Helper()` rather than scattering bare `x.(T)`.
+- CI runs these exact commands; a local fail here is a guaranteed PR fail.
+
 ## Architecture
 
 ### Directory Structure

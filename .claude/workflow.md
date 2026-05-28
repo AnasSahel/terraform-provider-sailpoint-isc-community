@@ -29,6 +29,16 @@ Work on the feature branch:
 - Test changes if possible
 - Ensure code compiles
 
+### 2.5 Pre-commit validation (mandatory)
+Before staging the commit, run locally what CI will run:
+```bash
+make lint      # golangci-lint — strict config: forcetypeassert, gofmt, errcheck, ...
+make generate  # tfplugindocs — regenerates docs/ from schema descriptions
+```
+- Both must exit clean. If `make generate` produces a diff under `docs/`, stage it in the same commit (otherwise the `generate` CI job fails on "Unexpected difference").
+- New test files: type assertions must use the `, ok :=` form (`forcetypeassert` is enabled) — provide `must*` helpers if needed, don't write bare `x.(T)`.
+- This step is non-negotiable for any branch that will be pushed to a PR — CI runs the same commands and a fail here blocks the PR.
+
 ### 3. Commit at the End
 Once all changes are complete and verified:
 ```bash
