@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.5] - 2026-05-31
+
+### Fixed
+
+- **Source**: `connector_attributes` now correctly honours its documented partial-management contract on every refresh and after `terraform import`. Previously the Read path copied prior state verbatim, which (a) hid real drift when the server changed the value of a declared key, and (b) left the full API response — including server-managed keys such as `status`, `healthy`, `since`, and credential blobs — in state after an import, causing the next plan to show a spurious diff removing every undeclared key.
+
+  The fix has two parts:
+
+  1. **Read projection** (`projectConnectorAttributes`): on each refresh, the provider re-reads the current server value for every key the user declared in config, and writes only those keys to `connector_attributes`. Server-injected keys are suppressed. Real drift on declared keys (e.g., a server-side normalisation of `cloudDisplayName`) is now correctly surfaced in the plan.
+
+  2. **ModifyPlan projection**: on `terraform import` there is no prior state to project against, so the Read fallback sets `connector_attributes` to the full API response. `ModifyPlan` then projects it down to the config's declared key set before the diff is computed, so the plan reaches zero changes without requiring an intermediate apply.
+
+  `connector_attributes_all` (computed, full set) is unaffected by both changes.
+
+### Added
+
+- **Testing**: `terraform-plugin-testing` added as a test dependency; first acceptance tests for `sailpoint_source` (`TestAccSource_connectorAttributesPartialManagement`, `TestAccSource_importZeroDiff`) covering create → refresh zero-diff → update declared key → import zero-diff.
+
 ## [2.4.4] - 2026-04-27
 
 ### Fixed
