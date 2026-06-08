@@ -97,12 +97,16 @@ func (m *sourceModel) FromAPI(ctx context.Context, api client.SourceAPI) diag.Di
 		m.Cluster = nil
 	}
 
-	// Map connector attributes
+	// Map connector attributes.
+	// ConnectorAttributesAll always receives the full API response.
+	// ConnectorAttributes is left null here; the Read/Create/Update callers
+	// are responsible for projecting it down to the user-declared key set,
+	// because FromAPI has no access to prior state or config.
 	if api.ConnectorAttributes != nil {
 		normalized, d := common.MarshalJSONOrDefault(api.ConnectorAttributes, "{}")
 		diagnostics.Append(d...)
-		m.ConnectorAttributes = normalized
 		m.ConnectorAttributesAll = normalized
+		m.ConnectorAttributes = jsontypes.NewNormalizedNull()
 	} else {
 		m.ConnectorAttributes = jsontypes.NewNormalizedNull()
 		m.ConnectorAttributesAll = jsontypes.NewNormalizedNull()
@@ -309,4 +313,44 @@ func (m *sourceModel) ToPatchOperations(ctx context.Context, state *sourceModel)
 	}
 
 	return patchOps, diagnostics
+}
+
+// projectConnectorAttributes returns a jsontypes.Normalized containing only
+// the top-level keys present in managedKeys, with values taken from fullAttrs.
+//
+// Purpose: on every Read, the API returns the full connector-attribute set
+// (including server-managed keys such as "status", "healthy", "since",
+// credential blobs, etc.). To honour the documented partial-management
+// contract — "only the keys you specify are managed by Terraform" — we must
+// project the API response down to the keys the user declared before writing
+// to state. This suppresses phantom drift from server-added keys while still
+// surfacing real drift on declared keys (e.g., a value the server normalised).
+//
+// If a key that is present in managedKeys is absent from fullAttrs (the server
+// deleted it), the managed value is kept as-is so that the plan shows drift.
+func projectConnectorAttributes(managedKeys, fullAttrs jsontypes.Normalized) (jsontypes.Normalized, diag.Diagnostics) {
+	managed, diags := common.UnmarshalJSONField[map[string]interface{}](managedKeys)
+	if diags.HasError() || managed == nil {
+		return managedKeys, diags
+	}
+	full, d := common.UnmarshalJSONField[map[string]interface{}](fullAttrs)
+	diags.Append(d...)
+	if diags.HasError() || full == nil {
+		// If fullAttrs is unparseable, fall back to managed keys unchanged
+		// so we do not silently swallow the user's config.
+		return managedKeys, diags
+	}
+	projected := make(map[string]interface{}, len(*managed))
+	for k := range *managed {
+		if v, ok := (*full)[k]; ok {
+			// Server has this key: use the current server value so real
+			// drift (server-side normalisation) is visible in the plan.
+			projected[k] = v
+		} else {
+			// Server no longer has this key: keep the managed value so
+			// the plan surfaces the divergence.
+			projected[k] = (*managed)[k]
+		}
+	}
+	return common.MarshalJSONOrDefault(projected, "{}")
 }

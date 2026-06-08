@@ -26,6 +26,7 @@ var (
 	_ resource.Resource                = &sourceResource{}
 	_ resource.ResourceWithConfigure   = &sourceResource{}
 	_ resource.ResourceWithImportState = &sourceResource{}
+	_ resource.ResourceWithModifyPlan  = &sourceResource{}
 )
 
 type sourceResource struct {
@@ -332,11 +333,28 @@ func (r *sourceResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
-	// Preserve user-managed connector_attributes from prior state to avoid drift
-	// from server-added keys. On import (no prior state), ConnectorAttributes
-	// keeps the full API response as a default from FromAPI.
+	// Project connector_attributes down to the user-declared key set.
+	//
+	// Normal refresh path (prior state has declared keys): re-read each
+	// declared key's value from the API response so that real server-side
+	// changes surface as drift, while undeclared server-managed keys
+	// (status, since, credential blobs, etc.) are suppressed.
+	//
+	// Import path (prior state has null ConnectorAttributes because no prior
+	// state existed): fall back to the full API response. ModifyPlan will
+	// project it to the config's declared keys before the diff is computed,
+	// so the plan reaches zero-diff without a spurious intermediate apply.
 	if !priorState.ConnectorAttributes.IsNull() && !priorState.ConnectorAttributes.IsUnknown() {
-		state.ConnectorAttributes = priorState.ConnectorAttributes
+		projected, d := projectConnectorAttributes(priorState.ConnectorAttributes, state.ConnectorAttributesAll)
+		resp.Diagnostics.Append(d...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		state.ConnectorAttributes = projected
+	} else {
+		// Import or first-ever read: expose the full set as a fallback.
+		// ModifyPlan handles the zero-diff projection against config keys.
+		state.ConnectorAttributes = state.ConnectorAttributesAll
 	}
 
 	// Preserve Terraform-only fields not populated by FromAPI.
@@ -465,4 +483,66 @@ func (r *sourceResource) ImportState(ctx context.Context, req resource.ImportSta
 	tflog.Info(ctx, "Successfully imported SailPoint Source resource", map[string]any{
 		"id": req.ID,
 	})
+}
+
+// ModifyPlan projects connector_attributes down to the config-declared key set
+// before the diff is computed. This is necessary for the import case: after
+// terraform import the Read path populates connector_attributes with the full
+// API response (because there is no prior state to project against). Without
+// ModifyPlan the next plan would show a diff removing every undeclared
+// server-managed key, violating the partial-management contract.
+//
+// On normal create/update plans the projection is a no-op because the config
+// value is already narrow (only the user's declared keys), and Read has already
+// projected the refreshed state to the same key set.
+func (r *sourceResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	// Skip on destroy (plan is null).
+	if req.Plan.Raw.IsNull() {
+		return
+	}
+
+	// Read the config's connector_attributes — the keys the user declared.
+	var configAttrs jsontypes.Normalized
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("connector_attributes"), &configAttrs)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	// If the config value is not yet known (e.g. depends on another resource),
+	// leave the plan unchanged; the projection will run on the next plan.
+	if configAttrs.IsNull() || configAttrs.IsUnknown() {
+		return
+	}
+
+	// Read the planned connector_attributes_all (full API set as refreshed by Read).
+	var planAll jsontypes.Normalized
+	resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, path.Root("connector_attributes_all"), &planAll)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if planAll.IsNull() || planAll.IsUnknown() {
+		// Nothing to project against yet (e.g. first create before API call).
+		return
+	}
+
+	// Project the full API set down to the config's declared keys.
+	projected, diags := projectConnectorAttributes(configAttrs, planAll)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Only update the plan if the projected value actually differs from what
+	// the plan already has. This avoids marking the attribute as changed when
+	// it is already correct (normal refresh path).
+	var planAttrs jsontypes.Normalized
+	resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, path.Root("connector_attributes"), &planAttrs)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if planAttrs.Equal(projected) {
+		return
+	}
+
+	tflog.Debug(ctx, "ModifyPlan: projecting connector_attributes to config-declared keys")
+	resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root("connector_attributes"), projected)...)
 }
