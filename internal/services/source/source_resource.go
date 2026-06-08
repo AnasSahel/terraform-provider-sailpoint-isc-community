@@ -23,10 +23,10 @@ import (
 )
 
 var (
-	_ resource.Resource                 = &sourceResource{}
-	_ resource.ResourceWithConfigure    = &sourceResource{}
-	_ resource.ResourceWithImportState  = &sourceResource{}
-	_ resource.ResourceWithModifyPlan   = &sourceResource{}
+	_ resource.Resource                = &sourceResource{}
+	_ resource.ResourceWithConfigure   = &sourceResource{}
+	_ resource.ResourceWithImportState = &sourceResource{}
+	_ resource.ResourceWithModifyPlan  = &sourceResource{}
 )
 
 type sourceResource struct {

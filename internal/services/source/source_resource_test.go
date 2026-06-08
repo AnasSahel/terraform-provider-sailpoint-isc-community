@@ -43,8 +43,8 @@ func TestUnit_projectConnectorAttributes(t *testing.T) {
 		"server normalised a declared value": {
 			// Server may canonicalise a value (e.g., fix casing). The projected
 			// value must reflect the server's version so the plan surfaces drift.
-			managed: `{"cloudDisplayName":"example connector"}`,
-			full:    `{"cloudDisplayName":"Example Connector","status":"healthy"}`,
+			managed:  `{"cloudDisplayName":"example connector"}`,
+			full:     `{"cloudDisplayName":"Example Connector","status":"healthy"}`,
 			wantKeys: []string{"cloudDisplayName"},
 			wantVals: map[string]interface{}{
 				"cloudDisplayName": "Example Connector",
@@ -53,8 +53,8 @@ func TestUnit_projectConnectorAttributes(t *testing.T) {
 		"server deleted a declared key": {
 			// If a key the user declared is no longer in the API response,
 			// keep the managed value so the plan surfaces the divergence.
-			managed: `{"requiredKey":"expected-value","other":"val"}`,
-			full:    `{"other":"val","serverOnly":"ignored"}`,
+			managed:  `{"requiredKey":"expected-value","other":"val"}`,
+			full:     `{"other":"val","serverOnly":"ignored"}`,
 			wantKeys: []string{"requiredKey", "other"},
 			wantVals: map[string]interface{}{
 				"requiredKey": "expected-value",
@@ -62,8 +62,8 @@ func TestUnit_projectConnectorAttributes(t *testing.T) {
 			},
 		},
 		"all declared keys present no server extras": {
-			managed: `{"a":"1","b":"2"}`,
-			full:    `{"a":"1","b":"2"}`,
+			managed:  `{"a":"1","b":"2"}`,
+			full:     `{"a":"1","b":"2"}`,
 			wantKeys: []string{"a", "b"},
 			wantVals: map[string]interface{}{"a": "1", "b": "2"},
 		},
@@ -76,8 +76,8 @@ func TestUnit_projectConnectorAttributes(t *testing.T) {
 			wantVals: map[string]interface{}{},
 		},
 		"boolean and numeric values round-trip": {
-			managed: `{"hasHeader":true,"maxRows":1000}`,
-			full:    `{"hasHeader":true,"maxRows":1000,"serverKey":"serverval"}`,
+			managed:  `{"hasHeader":true,"maxRows":1000}`,
+			full:     `{"hasHeader":true,"maxRows":1000,"serverKey":"serverval"}`,
 			wantKeys: []string{"hasHeader", "maxRows"},
 			wantVals: map[string]interface{}{
 				"hasHeader": true,
