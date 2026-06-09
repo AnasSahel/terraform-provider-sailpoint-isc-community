@@ -94,8 +94,8 @@ func (m *workflowModel) ToAPI(ctx context.Context) (client.WorkflowAPI, diag.Dia
 				}
 
 				// Parse steps JSON using common helper
-				if steps, ok := attrs["steps"].(jsontypes.Normalized); ok {
-					if stepsMap, diags := common.UnmarshalJSONField[map[string]interface{}](steps); stepsMap != nil {
+				if steps, ok := attrs["steps"].(workflowStepsValue); ok {
+					if stepsMap, diags := common.UnmarshalJSONField[map[string]interface{}](steps.Normalized); stepsMap != nil {
 						def.Steps = *stepsMap
 						diagnostics.Append(diags...)
 					}
@@ -138,13 +138,13 @@ func (m *workflowModel) FromAPI(ctx context.Context, api client.WorkflowAPI) dia
 
 	// Convert definition
 	if api.Definition != nil && api.Definition.Start != "" {
-		var stepsValue jsontypes.Normalized
-		stepsValue, diags = common.MarshalJSONOrDefault(api.Definition.Steps, "{}")
+		var normalizedSteps jsontypes.Normalized
+		normalizedSteps, diags = common.MarshalJSONOrDefault(api.Definition.Steps, "{}")
 		diagnostics.Append(diags...)
 
 		defObj, d := types.ObjectValue(definitionAttrTypes, map[string]attr.Value{
 			"start": types.StringValue(api.Definition.Start),
-			"steps": stepsValue,
+			"steps": workflowStepsValue{Normalized: normalizedSteps},
 		})
 		diagnostics.Append(d...)
 		m.Definition = defObj
