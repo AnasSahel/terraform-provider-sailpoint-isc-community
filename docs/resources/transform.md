@@ -23,6 +23,7 @@ Manages a SailPoint Transform. Transforms are used to manipulate attribute value
 ### Optional
 
 - `attributes` (String) A JSON object containing the transform-specific configuration attributes.
+- `ignore_json_changes` (List of String) Paths inside the JSON `attributes` whose drift to ignore — analogous to `lifecycle.ignore_changes`, but reaching inside the JSON string. Each entry has the form `attributes.<json-path>` (e.g. `attributes.requiresPeriodicRefresh`). The provider keeps the configured value at those paths so server-side drift there never surfaces.
 
 ### Read-Only
 
