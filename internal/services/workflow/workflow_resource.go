@@ -20,14 +20,16 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 var (
-	_ resource.Resource                 = &workflowResource{}
-	_ resource.ResourceWithConfigure    = &workflowResource{}
-	_ resource.ResourceWithImportState  = &workflowResource{}
-	_ resource.ResourceWithUpgradeState = &workflowResource{}
+	_ resource.Resource                   = &workflowResource{}
+	_ resource.ResourceWithConfigure      = &workflowResource{}
+	_ resource.ResourceWithImportState    = &workflowResource{}
+	_ resource.ResourceWithUpgradeState   = &workflowResource{}
+	_ resource.ResourceWithValidateConfig = &workflowResource{}
 )
 
 type workflowResource struct {
@@ -51,6 +53,35 @@ func (r *workflowResource) Configure(ctx context.Context, req resource.Configure
 		return
 	}
 	r.client = c
+}
+
+// ValidateConfig implements resource.ResourceWithValidateConfig.
+func (r *workflowResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var config workflowModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if config.IgnoreJSONChanges.IsNull() || config.IgnoreJSONChanges.IsUnknown() {
+		return
+	}
+
+	var paths []string
+	resp.Diagnostics.Append(config.IgnoreJSONChanges.ElementsAs(ctx, &paths, false)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	for _, p := range paths {
+		if _, _, _, err := resolveIgnoreJSONPath(p); err != nil {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("ignore_json_changes"),
+				"Invalid ignore_json_changes path",
+				fmt.Sprintf("Path %q is not valid: %s", p, err.Error()),
+			)
+		}
+	}
 }
 
 // Schema implements resource.Resource.
@@ -252,6 +283,11 @@ func (r *workflowResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 					},
 				},
 			},
+			"ignore_json_changes": schema.ListAttribute{
+				MarkdownDescription: "Paths inside JSON step fields whose server-minted drift the practitioner chooses to ignore (analogous to `ignore_changes`, but reaching inside JSON-string attributes). Each entry has the form `definition.steps['<step name>'].<field>.<json-path>` where `<field>` is one of `attributes`, `config`, or `catch` and `<json-path>` is a dotted path inside that JSON object (e.g. `param_oauth.refID`).",
+				Optional:            true,
+				ElementType:         types.StringType,
+			},
 		},
 	}
 }
@@ -311,6 +347,14 @@ func (r *workflowResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
+	// Copy ignore_json_changes from plan (not an API field) and re-inject plan
+	// values at each ignored path so server-minted values never enter state.
+	state.IgnoreJSONChanges = plan.IgnoreJSONChanges
+	resp.Diagnostics.Append(applyIgnoreJSONChanges(&state, &plan, plan.IgnoreJSONChanges)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	// Set the state
 	tflog.Debug(ctx, "Setting state for workflow resource", map[string]any{
 		"id":   state.ID.ValueString(),
@@ -328,33 +372,33 @@ func (r *workflowResource) Create(ctx context.Context, req resource.CreateReques
 
 // Read implements resource.Resource.
 func (r *workflowResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state workflowModel
+	var priorState workflowModel
 	tflog.Debug(ctx, "Getting state for workflow resource read")
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &priorState)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	// Read the workflow from SailPoint
 	tflog.Debug(ctx, "Fetching workflow from SailPoint", map[string]any{
-		"id": state.ID.ValueString(),
+		"id": priorState.ID.ValueString(),
 	})
-	workflowResponse, err := r.client.GetWorkflow(ctx, state.ID.ValueString())
+	workflowResponse, err := r.client.GetWorkflow(ctx, priorState.ID.ValueString())
 	if err != nil {
 		// If resource was deleted outside of Terraform, remove it from state
 		if errors.Is(err, client.ErrNotFound) {
 			tflog.Info(ctx, "SailPoint Workflow not found, removing from state", map[string]any{
-				"id": state.ID.ValueString(),
+				"id": priorState.ID.ValueString(),
 			})
 			resp.State.RemoveResource(ctx)
 			return
 		}
 		resp.Diagnostics.AddError(
 			"Error Reading SailPoint Workflow",
-			fmt.Sprintf("Could not read SailPoint Workflow %q: %s", state.ID.ValueString(), err.Error()),
+			fmt.Sprintf("Could not read SailPoint Workflow %q: %s", priorState.ID.ValueString(), err.Error()),
 		)
 		tflog.Error(ctx, "Failed to read SailPoint Workflow", map[string]any{
-			"id":    state.ID.ValueString(),
+			"id":    priorState.ID.ValueString(),
 			"error": err.Error(),
 		})
 		return
@@ -370,9 +414,18 @@ func (r *workflowResource) Read(ctx context.Context, req resource.ReadRequest, r
 
 	// Map the response to the resource model
 	tflog.Debug(ctx, "Mapping SailPoint Workflow API response to resource model", map[string]any{
-		"id": state.ID.ValueString(),
+		"id": priorState.ID.ValueString(),
 	})
+	var state workflowModel
 	resp.Diagnostics.Append(state.FromAPI(ctx, *workflowResponse)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Restore ignore_json_changes from prior state (not an API field) and
+	// re-inject prior values at each ignored path to suppress server drift.
+	state.IgnoreJSONChanges = priorState.IgnoreJSONChanges
+	resp.Diagnostics.Append(applyIgnoreJSONChanges(&state, &priorState, priorState.IgnoreJSONChanges)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -457,6 +510,14 @@ func (r *workflowResource) Update(ctx context.Context, req resource.UpdateReques
 		"id": state.ID.ValueString(),
 	})
 	resp.Diagnostics.Append(newState.FromAPI(ctx, *workflowAPIResponse)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Copy ignore_json_changes from plan (not an API field) and re-inject
+	// prior-state values at each ignored path to suppress server drift.
+	newState.IgnoreJSONChanges = plan.IgnoreJSONChanges
+	resp.Diagnostics.Append(applyIgnoreJSONChanges(&newState, &state, plan.IgnoreJSONChanges)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

@@ -202,18 +202,19 @@ func upgradeWorkflowStateV0ToV2(ctx context.Context, req resource.UpgradeStateRe
 	}
 
 	upgraded := workflowModel{
-		ID:             prior.ID,
-		Name:           prior.Name,
-		Owner:          prior.Owner,
-		Description:    prior.Description,
-		Trigger:        prior.Trigger,
-		Enabled:        prior.Enabled,
-		Created:        prior.Created,
-		Modified:       prior.Modified,
-		Creator:        prior.Creator,
-		ModifiedBy:     prior.ModifiedBy,
-		ExecutionCount: prior.ExecutionCount,
-		FailureCount:   prior.FailureCount,
+		ID:                prior.ID,
+		Name:              prior.Name,
+		Owner:             prior.Owner,
+		Description:       prior.Description,
+		Trigger:           prior.Trigger,
+		Enabled:           prior.Enabled,
+		Created:           prior.Created,
+		Modified:          prior.Modified,
+		Creator:           prior.Creator,
+		ModifiedBy:        prior.ModifiedBy,
+		ExecutionCount:    prior.ExecutionCount,
+		FailureCount:      prior.FailureCount,
+		IgnoreJSONChanges: types.ListNull(types.StringType),
 	}
 
 	defObj, diags := upgradeDefinitionToV2(prior.Definition)
@@ -242,18 +243,19 @@ func upgradeWorkflowStateV1ToV2(ctx context.Context, req resource.UpgradeStateRe
 	}
 
 	upgraded := workflowModel{
-		ID:             prior.ID,
-		Name:           prior.Name,
-		Owner:          prior.Owner,
-		Description:    prior.Description,
-		Trigger:        prior.Trigger,
-		Enabled:        prior.Enabled,
-		Created:        prior.Created,
-		Modified:       prior.Modified,
-		Creator:        prior.Creator,
-		ModifiedBy:     prior.ModifiedBy,
-		ExecutionCount: prior.ExecutionCount,
-		FailureCount:   prior.FailureCount,
+		ID:                prior.ID,
+		Name:              prior.Name,
+		Owner:             prior.Owner,
+		Description:       prior.Description,
+		Trigger:           prior.Trigger,
+		Enabled:           prior.Enabled,
+		Created:           prior.Created,
+		Modified:          prior.Modified,
+		Creator:           prior.Creator,
+		ModifiedBy:        prior.ModifiedBy,
+		ExecutionCount:    prior.ExecutionCount,
+		FailureCount:      prior.FailureCount,
+		IgnoreJSONChanges: types.ListNull(types.StringType),
 	}
 
 	defObj, diags := upgradeDefinitionToV2(prior.Definition)

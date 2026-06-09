@@ -59,4 +59,12 @@ resource "sailpoint_workflow" "external_integration" {
   }
 
   enabled = false
+
+  # SailPoint mints internal reference IDs (e.g. param_oauth.refID) inside sp:http
+  # step attributes after creation. List those paths here so Terraform ignores the
+  # server-generated values and keeps the practitioner's placeholder in state.
+  ignore_json_changes = [
+    "definition.steps['Create Ticket'].attributes.param_oauth.refID",
+    "definition.steps['Create Ticket'].attributes.param_header.refID",
+  ]
 }

@@ -22,6 +22,44 @@ var (
 	_ datasource.DataSourceWithConfigure = &workflowDataSource{}
 )
 
+// workflowDSModel is the data-source counterpart of workflowModel.
+// It is identical but omits ignore_json_changes (resource-only attribute).
+type workflowDSModel struct {
+	ID             types.String         `tfsdk:"id"`
+	Name           types.String         `tfsdk:"name"`
+	Owner          types.Object         `tfsdk:"owner"`
+	Description    types.String         `tfsdk:"description"`
+	Definition     types.Object         `tfsdk:"definition"`
+	Trigger        jsontypes.Normalized `tfsdk:"trigger"`
+	Enabled        types.Bool           `tfsdk:"enabled"`
+	Created        types.String         `tfsdk:"created"`
+	Modified       types.String         `tfsdk:"modified"`
+	Creator        types.Object         `tfsdk:"creator"`
+	ModifiedBy     types.Object         `tfsdk:"modified_by"`
+	ExecutionCount types.Int32          `tfsdk:"execution_count"`
+	FailureCount   types.Int32          `tfsdk:"failure_count"`
+}
+
+// workflowModelToDS converts a workflowModel to workflowDSModel, dropping fields
+// that are resource-only (ignore_json_changes).
+func workflowModelToDS(m workflowModel) workflowDSModel {
+	return workflowDSModel{
+		ID:             m.ID,
+		Name:           m.Name,
+		Owner:          m.Owner,
+		Description:    m.Description,
+		Definition:     m.Definition,
+		Trigger:        m.Trigger,
+		Enabled:        m.Enabled,
+		Created:        m.Created,
+		Modified:       m.Modified,
+		Creator:        m.Creator,
+		ModifiedBy:     m.ModifiedBy,
+		ExecutionCount: m.ExecutionCount,
+		FailureCount:   m.FailureCount,
+	}
+}
+
 type workflowDataSource struct {
 	client *client.Client
 }
@@ -238,14 +276,16 @@ func (d *workflowDataSource) Read(ctx context.Context, req datasource.ReadReques
 	}
 
 	// Map the response to the data source model
-	var state workflowModel
+	var m workflowModel
 	tflog.Debug(ctx, "Mapping SailPoint Workflow API response to data source model", map[string]any{
 		"id": id,
 	})
-	resp.Diagnostics.Append(state.FromAPI(ctx, *workflowResponse)...)
+	resp.Diagnostics.Append(m.FromAPI(ctx, *workflowResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	state := workflowModelToDS(m)
 
 	// Set the state
 	tflog.Debug(ctx, "Setting state for workflow data source", map[string]any{
