@@ -13,6 +13,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
+func mustBoolPtr(b bool) *bool { return &b }
+
 // mustStepObject builds a typed step types.Object for tests.
 func mustStepObject(t *testing.T, attrs map[string]attr.Value) types.Object {
 	t.Helper()
@@ -220,5 +222,111 @@ func TestWorkflowModel_ToAPI_FromAPI_RoundTrip_ChoiceStep(t *testing.T) {
 	}
 	if v, ok := rtAttrs["action_id"].(types.String); ok && !v.IsNull() {
 		t.Errorf("FromAPI: action_id should be null for choice step, got %v", v.ValueString())
+	}
+}
+
+// TestWorkflowModel_Enabled_FalseRoundTrip verifies that an explicit enabled=false
+// survives ToAPI (as a non-nil *bool) and FromAPI without becoming null or true.
+func TestWorkflowModel_Enabled_FalseRoundTrip(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	m := workflowModel{
+		Name:           types.StringValue("wf"),
+		Enabled:        types.BoolValue(false),
+		Owner:          types.ObjectNull(objectRefAttrTypes()),
+		Trigger:        jsontypes.NewNormalizedNull(),
+		Created:        types.StringNull(),
+		Modified:       types.StringNull(),
+		Creator:        types.ObjectNull(objectRefAttrTypes()),
+		ModifiedBy:     types.ObjectNull(objectRefAttrTypes()),
+		ExecutionCount: types.Int32Value(0),
+		FailureCount:   types.Int32Value(0),
+	}
+
+	api, diags := m.ToAPI(ctx)
+	if diags.HasError() {
+		t.Fatalf("ToAPI: %v", diags)
+	}
+	if api.Enabled == nil {
+		t.Fatal("ToAPI: Enabled is nil; want non-nil *bool so false is transmitted on the wire")
+	}
+	if *api.Enabled {
+		t.Error("ToAPI: Enabled is true; want false")
+	}
+
+	var roundTripped workflowModel
+	if diags := roundTripped.FromAPI(ctx, api); diags.HasError() {
+		t.Fatalf("FromAPI: %v", diags)
+	}
+	if roundTripped.Enabled.IsNull() {
+		t.Error("FromAPI: Enabled is null; want false")
+	}
+	if roundTripped.Enabled.ValueBool() {
+		t.Error("FromAPI: Enabled is true after round-trip; want false")
+	}
+}
+
+// TestWorkflowModel_Enabled_NilAPIIsFalse verifies that a nil Enabled pointer in the
+// API response (field absent or null) maps to false in the Terraform model.
+func TestWorkflowModel_Enabled_NilAPIIsFalse(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	apiResponse := client.WorkflowAPI{
+		ID:      "wf-id",
+		Name:    "wf",
+		Enabled: nil, // absent in API response
+	}
+	var m workflowModel
+	if diags := m.FromAPI(ctx, apiResponse); diags.HasError() {
+		t.Fatalf("FromAPI: %v", diags)
+	}
+	if m.Enabled.IsNull() {
+		t.Error("FromAPI: Enabled is null; nil API value should yield false, not null")
+	}
+	if m.Enabled.ValueBool() {
+		t.Error("FromAPI: Enabled is true; nil API value should yield false")
+	}
+}
+
+// TestWorkflowModel_Enabled_TrueRoundTrip verifies that enabled=true transmits
+// correctly through ToAPI and back via FromAPI.
+func TestWorkflowModel_Enabled_TrueRoundTrip(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	m := workflowModel{
+		Name:           types.StringValue("wf"),
+		Enabled:        types.BoolValue(true),
+		Owner:          types.ObjectNull(objectRefAttrTypes()),
+		Trigger:        jsontypes.NewNormalizedNull(),
+		Created:        types.StringNull(),
+		Modified:       types.StringNull(),
+		Creator:        types.ObjectNull(objectRefAttrTypes()),
+		ModifiedBy:     types.ObjectNull(objectRefAttrTypes()),
+		ExecutionCount: types.Int32Value(0),
+		FailureCount:   types.Int32Value(0),
+	}
+
+	api, diags := m.ToAPI(ctx)
+	if diags.HasError() {
+		t.Fatalf("ToAPI: %v", diags)
+	}
+	if api.Enabled == nil {
+		t.Fatal("ToAPI: Enabled is nil; want non-nil *bool")
+	}
+	if !*api.Enabled {
+		t.Error("ToAPI: Enabled is false; want true")
+	}
+
+	// Simulate API echoing true back.
+	apiResponse := client.WorkflowAPI{ID: "wf-id", Name: "wf", Enabled: mustBoolPtr(true)}
+	var roundTripped workflowModel
+	if diags := roundTripped.FromAPI(ctx, apiResponse); diags.HasError() {
+		t.Fatalf("FromAPI: %v", diags)
+	}
+	if !roundTripped.Enabled.ValueBool() {
+		t.Error("FromAPI: Enabled is false after round-trip; want true")
 	}
 }

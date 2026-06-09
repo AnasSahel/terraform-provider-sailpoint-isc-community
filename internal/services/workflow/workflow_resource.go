@@ -11,6 +11,7 @@ import (
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common/planmodifiers"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -110,10 +111,16 @@ func (r *workflowResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				Optional:            true,
 			},
 			"enabled": schema.BoolAttribute{
-				MarkdownDescription: "Whether the workflow is enabled. Workflows cannot be created in an enabled state. Defaults to `false`.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
+				MarkdownDescription: "Whether the workflow is enabled. Defaults to `false`. " +
+					"Because the SailPoint API cannot create an enabled workflow, declaring `enabled = true` at " +
+					"create time will produce `enabled = false` in state; the next `terraform apply` (an update) " +
+					"will enable the workflow (converge-over-two-applies).",
+				Optional: true,
+				Computed: true,
+				Default:  booldefault.StaticBool(false),
+				PlanModifiers: []planmodifier.Bool{
+					planmodifiers.ForceDisabledOnCreate(),
+				},
 			},
 			"trigger": schema.StringAttribute{
 				MarkdownDescription: "The trigger configuration as JSON. This is a computed field - use `sailpoint_workflow_trigger` resource to manage triggers.",
@@ -559,7 +566,8 @@ func (r *workflowResource) Delete(ctx context.Context, req resource.DeleteReques
 			return
 		}
 
-		apiWorkflow.Enabled = false
+		falseVal := false
+		apiWorkflow.Enabled = &falseVal
 
 		// Update to disable the workflow
 		_, err := r.client.UpdateWorkflow(ctx, state.ID.ValueString(), &apiWorkflow)

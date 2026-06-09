@@ -295,7 +295,8 @@ func (m *workflowModel) ToAPI(ctx context.Context) (client.WorkflowAPI, diag.Dia
 	}
 
 	if !m.Enabled.IsNull() && !m.Enabled.IsUnknown() {
-		api.Enabled = m.Enabled.ValueBool()
+		v := m.Enabled.ValueBool()
+		api.Enabled = &v
 	}
 
 	return api, diagnostics
@@ -343,7 +344,7 @@ func (m *workflowModel) FromAPI(ctx context.Context, api client.WorkflowAPI) dia
 		m.Trigger = jsontypes.NewNormalizedNull()
 	}
 
-	m.Enabled = types.BoolValue(api.Enabled)
+	m.Enabled = types.BoolValue(api.Enabled != nil && *api.Enabled)
 	m.Created = common.StringOrNullIfEmpty(api.Created)
 	m.Modified = common.StringOrNullIfEmpty(api.Modified)
 

@@ -237,14 +237,15 @@ func (r *workflowTriggerResource) Update(ctx context.Context, req resource.Updat
 		return
 	}
 
-	wasEnabled := currentWorkflow.Enabled
+	wasEnabled := currentWorkflow.Enabled != nil && *currentWorkflow.Enabled
 	if wasEnabled {
 		// PATCH is blocked on enabled workflows, so we must use PUT to disable first.
 		tflog.Info(ctx, "Workflow is enabled, disabling before trigger update", map[string]any{
 			"workflow_id": workflowID,
 		})
 		disabledWorkflow := *currentWorkflow
-		disabledWorkflow.Enabled = false
+		falseVal := false
+		disabledWorkflow.Enabled = &falseVal
 		if _, disableErr := r.client.UpdateWorkflow(ctx, workflowID, &disabledWorkflow); disableErr != nil {
 			resp.Diagnostics.AddError(
 				"Error Updating Workflow Trigger",
