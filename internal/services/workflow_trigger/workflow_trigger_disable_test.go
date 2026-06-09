@@ -27,8 +27,8 @@ func (m *mockWorkflowStateManager) GetWorkflow(_ context.Context, _ string) (*cl
 	if m.getErr != nil {
 		return nil, m.getErr
 	}
-	copy := m.current
-	return &copy, nil
+	wfCopy := m.current
+	return &wfCopy, nil
 }
 
 func (m *mockWorkflowStateManager) UpdateWorkflow(_ context.Context, _ string, workflow *client.WorkflowAPI) (*client.WorkflowAPI, error) {
@@ -42,8 +42,8 @@ func (m *mockWorkflowStateManager) UpdateWorkflow(_ context.Context, _ string, w
 		enabled := *workflow.Enabled
 		m.current.Enabled = &enabled
 	}
-	copy := m.current
-	return &copy, nil
+	wfCopy := m.current
+	return &wfCopy, nil
 }
 
 func boolPtr(b bool) *bool { return &b }
