@@ -144,6 +144,13 @@ func (r *workflowTriggerResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
+	// attributes is user-owned; the API may inject null-valued keys (e.g.
+	// integrationId). Preserve the configured value so server-added nulls don't
+	// surface as "inconsistent result after apply". (#136)
+	if !plan.Attributes.IsNull() && !plan.Attributes.IsUnknown() {
+		state.Attributes = plan.Attributes
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -196,6 +203,10 @@ func (r *workflowTriggerResource) Read(ctx context.Context, req resource.ReadReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	// Drop server-injected top-level null keys (e.g. integrationId) so a refresh
+	// of an unchanged trigger doesn't report drift. (#136)
+	state.Attributes = stripTopLevelNullKeys(state.Attributes)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
@@ -272,6 +283,11 @@ func (r *workflowTriggerResource) Update(ctx context.Context, req resource.Updat
 	resp.Diagnostics.Append(state.FromAPI(ctx, workflowID, workflow.Trigger)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	// Preserve the configured attributes (see #136 note in Create).
+	if !plan.Attributes.IsNull() && !plan.Attributes.IsUnknown() {
+		state.Attributes = plan.Attributes
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)

@@ -362,6 +362,10 @@ func (r *workflowResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
+	// description is user-owned (Optional) and the API normalizes "" → null, so
+	// preserve the configured value to avoid "inconsistent result after apply". (#136)
+	state.Description = plan.Description
+
 	// Set the state
 	tflog.Debug(ctx, "Setting state for workflow resource", map[string]any{
 		"id":   state.ID.ValueString(),
@@ -435,6 +439,12 @@ func (r *workflowResource) Read(ctx context.Context, req resource.ReadRequest, r
 	resp.Diagnostics.Append(applyIgnoreJSONChanges(&state, &priorState, priorState.IgnoreJSONChanges)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	// description: the API normalizes "" → null; if the API value and the prior
+	// value are both empty (null or ""), keep prior to avoid spurious drift. (#136)
+	if stringsEmptyEquivalent(state.Description, priorState.Description) {
+		state.Description = priorState.Description
 	}
 
 	// Set the state
@@ -528,6 +538,9 @@ func (r *workflowResource) Update(ctx context.Context, req resource.UpdateReques
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	// Preserve the configured description (see #136 note in Create).
+	newState.Description = plan.Description
 
 	// Set the state
 	tflog.Debug(ctx, "Setting state for workflow resource", map[string]any{
@@ -629,4 +642,13 @@ func (r *workflowResource) UpgradeState(_ context.Context) map[int64]resource.St
 			StateUpgrader: upgradeWorkflowStateV1ToV2,
 		},
 	}
+}
+
+// stringsEmptyEquivalent reports whether both values are "empty" — i.e. each is
+// either null or the empty string. Used to treat the SailPoint API's "" → null
+// normalization of optional string fields as a non-change (#136).
+func stringsEmptyEquivalent(a, b types.String) bool {
+	emptyA := a.IsNull() || a.ValueString() == ""
+	emptyB := b.IsNull() || b.ValueString() == ""
+	return emptyA && emptyB
 }
