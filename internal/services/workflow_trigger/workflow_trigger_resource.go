@@ -86,7 +86,6 @@ func (r *workflowTriggerResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
-	// Convert Terraform model to API model
 	workflowID := plan.WorkflowID.ValueString()
 	tflog.Debug(ctx, "Mapping workflow trigger resource model to API request", map[string]any{
 		"workflow_id":  workflowID,
@@ -98,20 +97,32 @@ func (r *workflowTriggerResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
-	// Set the trigger on the workflow
-	tflog.Debug(ctx, "Setting workflow trigger via SailPoint API", map[string]any{
-		"workflow_id":  workflowID,
-		"trigger_type": plan.Type.ValueString(),
+	// The ISC API rejects PATCH on enabled workflows; disable → patch → re-enable.
+	var workflow *client.WorkflowAPI
+	fnErr, reEnableErr := withWorkflowDisabled(ctx, r.client, workflowID, func() error {
+		var err error
+		tflog.Debug(ctx, "Setting workflow trigger via SailPoint API", map[string]any{
+			"workflow_id":  workflowID,
+			"trigger_type": plan.Type.ValueString(),
+		})
+		workflow, err = r.client.SetWorkflowTrigger(ctx, workflowID, apiTrigger)
+		return err
 	})
-	workflow, err := r.client.SetWorkflowTrigger(ctx, workflowID, apiTrigger)
-	if err != nil {
+
+	if reEnableErr != nil {
+		resp.Diagnostics.AddError(
+			"Error Re-enabling Workflow After Trigger Create",
+			fmt.Sprintf("Could not re-enable workflow %q after setting trigger: %s", workflowID, reEnableErr.Error()),
+		)
+	}
+	if fnErr != nil {
 		resp.Diagnostics.AddError(
 			"Error Creating Workflow Trigger",
-			fmt.Sprintf("Could not set trigger on workflow %q: %s", workflowID, err.Error()),
+			fmt.Sprintf("Could not set trigger on workflow %q: %s", workflowID, fnErr.Error()),
 		)
 		tflog.Error(ctx, "Failed to create workflow trigger", map[string]any{
 			"workflow_id": workflowID,
-			"error":       err.Error(),
+			"error":       fnErr.Error(),
 		})
 		return
 	}
@@ -124,7 +135,6 @@ func (r *workflowTriggerResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
-	// Convert API response back to Terraform model
 	var state workflowTriggerModel
 	tflog.Debug(ctx, "Mapping SailPoint API response to resource model", map[string]any{
 		"workflow_id": workflowID,
@@ -134,7 +144,6 @@ func (r *workflowTriggerResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
-	// Set the state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -156,7 +165,6 @@ func (r *workflowTriggerResource) Read(ctx context.Context, req resource.ReadReq
 
 	workflowID := state.WorkflowID.ValueString()
 
-	// Get the workflow to retrieve the trigger
 	tflog.Debug(ctx, "Fetching workflow from SailPoint", map[string]any{
 		"workflow_id": workflowID,
 	})
@@ -173,7 +181,6 @@ func (r *workflowTriggerResource) Read(ctx context.Context, req resource.ReadReq
 		return
 	}
 
-	// Check if trigger exists
 	if workflow.Trigger == nil || workflow.Trigger.Type == "" {
 		tflog.Warn(ctx, "Trigger not found on workflow, removing from state", map[string]any{
 			"workflow_id": workflowID,
@@ -182,7 +189,6 @@ func (r *workflowTriggerResource) Read(ctx context.Context, req resource.ReadReq
 		return
 	}
 
-	// Convert API response to Terraform model
 	tflog.Debug(ctx, "Mapping SailPoint API response to resource model", map[string]any{
 		"workflow_id": workflowID,
 	})
@@ -191,7 +197,6 @@ func (r *workflowTriggerResource) Read(ctx context.Context, req resource.ReadReq
 		return
 	}
 
-	// Set the state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -211,7 +216,6 @@ func (r *workflowTriggerResource) Update(ctx context.Context, req resource.Updat
 		return
 	}
 
-	// Convert Terraform model to API model
 	workflowID := plan.WorkflowID.ValueString()
 	tflog.Debug(ctx, "Mapping workflow trigger resource model to API request", map[string]any{
 		"workflow_id":  workflowID,
@@ -223,72 +227,32 @@ func (r *workflowTriggerResource) Update(ctx context.Context, req resource.Updat
 		return
 	}
 
-	// The SailPoint API blocks PATCH operations on enabled workflows. Fetch the
-	// current workflow state so we can disable it before patching if needed.
-	tflog.Debug(ctx, "Fetching workflow state before trigger update", map[string]any{
-		"workflow_id": workflowID,
+	// The ISC API rejects PATCH on enabled workflows; disable → patch → re-enable.
+	var workflow *client.WorkflowAPI
+	fnErr, reEnableErr := withWorkflowDisabled(ctx, r.client, workflowID, func() error {
+		var err error
+		tflog.Debug(ctx, "Updating workflow trigger via SailPoint API", map[string]any{
+			"workflow_id":  workflowID,
+			"trigger_type": plan.Type.ValueString(),
+		})
+		workflow, err = r.client.SetWorkflowTrigger(ctx, workflowID, apiTrigger)
+		return err
 	})
-	currentWorkflow, err := r.client.GetWorkflow(ctx, workflowID)
-	if err != nil {
+
+	if reEnableErr != nil {
 		resp.Diagnostics.AddError(
-			"Error Updating Workflow Trigger",
-			fmt.Sprintf("Could not read workflow %q before updating trigger: %s", workflowID, err.Error()),
+			"Error Re-enabling Workflow After Trigger Update",
+			fmt.Sprintf("Could not re-enable workflow %q after updating trigger: %s", workflowID, reEnableErr.Error()),
 		)
-		return
 	}
-
-	wasEnabled := currentWorkflow.Enabled != nil && *currentWorkflow.Enabled
-	if wasEnabled {
-		// PATCH is blocked on enabled workflows, so we must use PUT to disable first.
-		tflog.Info(ctx, "Workflow is enabled, disabling before trigger update", map[string]any{
-			"workflow_id": workflowID,
-		})
-		disabledWorkflow := *currentWorkflow
-		falseVal := false
-		disabledWorkflow.Enabled = &falseVal
-		if _, disableErr := r.client.UpdateWorkflow(ctx, workflowID, &disabledWorkflow); disableErr != nil {
-			resp.Diagnostics.AddError(
-				"Error Updating Workflow Trigger",
-				fmt.Sprintf("Could not disable workflow %q before updating trigger: %s", workflowID, disableErr.Error()),
-			)
-			return
-		}
-		tflog.Info(ctx, "Workflow disabled, proceeding with trigger update", map[string]any{
-			"workflow_id": workflowID,
-		})
-	}
-
-	// Update the trigger on the workflow
-	tflog.Debug(ctx, "Updating workflow trigger via SailPoint API", map[string]any{
-		"workflow_id":  workflowID,
-		"trigger_type": plan.Type.ValueString(),
-	})
-	workflow, patchErr := r.client.SetWorkflowTrigger(ctx, workflowID, apiTrigger)
-
-	// Re-enable the workflow if it was enabled before, regardless of whether the
-	// trigger patch succeeded. This avoids leaving the workflow in an unexpected
-	// disabled state when the patch fails.
-	if wasEnabled {
-		tflog.Info(ctx, "Re-enabling workflow after trigger update", map[string]any{
-			"workflow_id": workflowID,
-		})
-		reEnableOps := []client.JSONPatchOperation{client.NewReplacePatch("/enabled", true)}
-		if _, reEnableErr := r.client.PatchWorkflow(ctx, workflowID, reEnableOps); reEnableErr != nil {
-			resp.Diagnostics.AddError(
-				"Error Re-enabling Workflow After Trigger Update",
-				fmt.Sprintf("Could not re-enable workflow %q after updating trigger: %s", workflowID, reEnableErr.Error()),
-			)
-		}
-	}
-
-	if patchErr != nil {
+	if fnErr != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating Workflow Trigger",
-			fmt.Sprintf("Could not update trigger on workflow %q: %s", workflowID, patchErr.Error()),
+			fmt.Sprintf("Could not update trigger on workflow %q: %s", workflowID, fnErr.Error()),
 		)
 		tflog.Error(ctx, "Failed to update workflow trigger", map[string]any{
 			"workflow_id": workflowID,
-			"error":       patchErr.Error(),
+			"error":       fnErr.Error(),
 		})
 		return
 	}
@@ -301,7 +265,6 @@ func (r *workflowTriggerResource) Update(ctx context.Context, req resource.Updat
 		return
 	}
 
-	// Convert API response back to Terraform model
 	var state workflowTriggerModel
 	tflog.Debug(ctx, "Mapping SailPoint API response to resource model", map[string]any{
 		"workflow_id": workflowID,
@@ -311,7 +274,6 @@ func (r *workflowTriggerResource) Update(ctx context.Context, req resource.Updat
 		return
 	}
 
-	// Set the state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -333,21 +295,30 @@ func (r *workflowTriggerResource) Delete(ctx context.Context, req resource.Delet
 
 	workflowID := state.WorkflowID.ValueString()
 
-	tflog.Debug(ctx, "Removing workflow trigger via SailPoint API", map[string]any{
-		"workflow_id":  workflowID,
-		"trigger_type": state.Type.ValueString(),
+	// The ISC API rejects PATCH on enabled workflows; disable → patch → re-enable.
+	fnErr, reEnableErr := withWorkflowDisabled(ctx, r.client, workflowID, func() error {
+		tflog.Debug(ctx, "Removing workflow trigger via SailPoint API", map[string]any{
+			"workflow_id":  workflowID,
+			"trigger_type": state.Type.ValueString(),
+		})
+		_, err := r.client.RemoveWorkflowTrigger(ctx, workflowID)
+		return err
 	})
 
-	// Remove the trigger from the workflow (set to empty object)
-	_, err := r.client.RemoveWorkflowTrigger(ctx, workflowID)
-	if err != nil {
+	if reEnableErr != nil {
+		resp.Diagnostics.AddError(
+			"Error Re-enabling Workflow After Trigger Delete",
+			fmt.Sprintf("Could not re-enable workflow %q after removing trigger: %s", workflowID, reEnableErr.Error()),
+		)
+	}
+	if fnErr != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting Workflow Trigger",
-			fmt.Sprintf("Could not remove trigger from workflow %q: %s", workflowID, err.Error()),
+			fmt.Sprintf("Could not remove trigger from workflow %q: %s", workflowID, fnErr.Error()),
 		)
 		tflog.Error(ctx, "Failed to remove workflow trigger", map[string]any{
 			"workflow_id": workflowID,
-			"error":       err.Error(),
+			"error":       fnErr.Error(),
 		})
 		return
 	}
@@ -359,7 +330,6 @@ func (r *workflowTriggerResource) Delete(ctx context.Context, req resource.Delet
 
 // ImportState implements resource.ResourceWithImportState.
 func (r *workflowTriggerResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	// The import ID is the workflow_id
 	tflog.Debug(ctx, "Importing workflow trigger resource", map[string]any{
 		"workflow_id": req.ID,
 	})
