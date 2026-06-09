@@ -5,6 +5,81 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - Unreleased
+
+### Changed
+
+- **BREAKING — Workflow `definition.steps` is now a typed map.** It was an opaque `jsonencode({...})` string; it is now an HCL map keyed by step name. Each step is an object: `type` (required), `action_id`, `attributes` (JSON), `next_step`, `display_name`, `version_number`, `catch` (JSON), and `config` (JSON catch-all for any other top-level step keys, e.g. `choiceList`/`defaultStep` on `type = "choice"` steps). Existing state is migrated automatically by the v0/v1 → v2 state upgraders, but **you must update your configuration** — see _Migration_. (#141)
+- **BREAKING — Workflow `enabled` no longer auto-toggles, and converges.** SailPoint cannot create a workflow in the enabled state, so the provider now always creates a workflow disabled; a declared `enabled = true` is applied on the _next_ apply. The attribute stays `Optional` (default `false`) and the provider never silently flips it. (#140)
+- **BREAKING — Automatic `sp:http` refID masking removed.** The built-in suppression of server-minted `param_oauth.refID` / `param_header.refID` / `param_oauth_scopes.refID` is gone, replaced by the practitioner-driven `ignore_json_changes`. If you use `sp:http` steps, declare those paths — see _Migration_. (#142)
+
+### Added
+
+- **Workflow `ignore_json_changes`** — a resource-level list of paths whose drift inside JSON step fields the provider should ignore, analogous to `lifecycle.ignore_changes` but reaching _inside_ a JSON string. Paths look like `definition.steps['<step>'].attributes.param_oauth.refID` (fields `attributes` / `config` / `catch`). The provider keeps your value at those paths so server-minted values never surface as drift. (#142, #147)
+- Internal `jsonpath` helpers — bracket-quoted key parsing (`['key']` / `["key"]`) and `PreservePathsInJSON` — underpinning `ignore_json_changes`. (#145)
+
+### Fixed
+
+- **Workflow `definition.steps` round-trip** (also released as 2.4.6): every Create/Read/Update, `terraform import`, and the data source failed on any workflow with a definition in 2.4.4/2.4.5. (#139)
+- **Workflow trigger changes on an enabled workflow**: ISC rejects patching an enabled workflow, so creating/updating/deleting a `sailpoint_workflow_trigger` against an enabled workflow failed. The provider now wraps trigger mutations in a disable → patch → re-enable cycle, restoring the enabled state even if the patch errors. (#135)
+
+### Migration
+
+**1. `definition.steps` — convert `jsonencode` to an HCL map**
+
+Before (≤ 2.4.x):
+
+```hcl
+definition {
+  start = "Send Email"
+  steps = jsonencode({
+    "Send Email" = { actionId = "sp:send-email", attributes = { ... }, nextStep = "End", type = "action" }
+    "End"        = { type = "success" }
+  })
+}
+```
+
+After (3.0.0):
+
+```hcl
+definition {
+  start = "Send Email"
+  steps = {
+    "Send Email" = {
+      type       = "action"
+      action_id  = "sp:send-email"
+      attributes = jsonencode({ ... })
+      next_step  = "End"
+    }
+    "End" = { type = "success" }
+  }
+}
+```
+
+Promoted keys: `type`, `action_id`, `attributes`, `next_step`, `display_name`, `version_number`, `catch`. Any other top-level step key (e.g. `choiceList` / `defaultStep` on a `type = "choice"` step) goes into `config = jsonencode({ ... })`.
+
+**2. `sp:http` steps — re-declare ignored refIDs**
+
+The automatic refID masking is gone. Add the minted paths to `ignore_json_changes`:
+
+```hcl
+ignore_json_changes = [
+  "definition.steps['<step>'].attributes.param_oauth.refID",
+  "definition.steps['<step>'].attributes.param_header.refID",
+  "definition.steps['<step>'].attributes.param_oauth_scopes.refID",
+]
+```
+
+**3. `enabled`** — no config change required. Creating a _new_ workflow with `enabled = true` now takes two applies (created disabled, enabled on the next apply). Existing enabled workflows are unaffected.
+
+**4. State** — migrates automatically on the first plan/apply with 3.0.0 (v1 → v2 upgrader). Run `terraform plan` after upgrading and confirm it reports **no changes** beyond your intended config edits.
+
+## [2.4.6] - 2026-06-09
+
+### Fixed
+
+- **Workflow**: `definition.steps` round-trip was broken in 2.4.4 and 2.4.5 — every Create, Read, Update, `terraform import`, and the `sailpoint_workflow` data source failed on any workflow that has a `definition`. `ToAPI` silently dropped the steps, and `FromAPI` raised _"Invalid Object Attribute Type"_. Both directions now use the `workflowStepsValue` custom value type, with a `ToAPI` → `FromAPI` round-trip regression test. (#139)
+
 ## [2.4.5] - 2026-06-08
 
 ### Fixed
