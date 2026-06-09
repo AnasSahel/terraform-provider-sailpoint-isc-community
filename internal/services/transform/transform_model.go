@@ -15,10 +15,11 @@ import (
 
 // transformModel represents the Terraform state for a SailPoint transform.
 type transformModel struct {
-	ID         types.String         `tfsdk:"id"`
-	Name       types.String         `tfsdk:"name"`
-	Type       types.String         `tfsdk:"type"`
-	Attributes jsontypes.Normalized `tfsdk:"attributes"`
+	ID                types.String         `tfsdk:"id"`
+	Name              types.String         `tfsdk:"name"`
+	Type              types.String         `tfsdk:"type"`
+	Attributes        jsontypes.Normalized `tfsdk:"attributes"`
+	IgnoreJSONChanges types.List           `tfsdk:"ignore_json_changes"`
 }
 
 // FromAPI maps fields from the API response to the Terraform model.

@@ -10,19 +10,22 @@ import (
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common/ignorejson"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 var (
-	_ resource.Resource                = &transformResource{}
-	_ resource.ResourceWithConfigure   = &transformResource{}
-	_ resource.ResourceWithImportState = &transformResource{}
+	_ resource.Resource                   = &transformResource{}
+	_ resource.ResourceWithConfigure      = &transformResource{}
+	_ resource.ResourceWithImportState    = &transformResource{}
+	_ resource.ResourceWithValidateConfig = &transformResource{}
 )
 
 type transformResource struct {
@@ -81,8 +84,26 @@ func (r *transformResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				Computed:            true,
 				CustomType:          jsontypes.NormalizedType{},
 			},
+			"ignore_json_changes": schema.ListAttribute{
+				MarkdownDescription: "Paths inside the JSON `attributes` whose drift to ignore — analogous to " +
+					"`lifecycle.ignore_changes`, but reaching inside the JSON string. Each entry has the form " +
+					"`attributes.<json-path>` (e.g. `attributes.requiresPeriodicRefresh`). The provider keeps the " +
+					"configured value at those paths so server-side drift there never surfaces.",
+				Optional:    true,
+				ElementType: types.StringType,
+			},
 		},
 	}
+}
+
+// ValidateConfig implements resource.ResourceWithValidateConfig.
+func (r *transformResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var config transformModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.Diagnostics.Append(ignorejson.ValidatePaths(ctx, config.IgnoreJSONChanges, []string{"attributes"})...)
 }
 
 // Create implements resource.Resource.
@@ -141,6 +162,16 @@ func (r *transformResource) Create(ctx context.Context, req resource.CreateReque
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	// Carry ignore_json_changes from plan and keep the configured value at those
+	// paths so server-side drift never surfaces. (#142)
+	state.IgnoreJSONChanges = plan.IgnoreJSONChanges
+	attrs, applyDiags := ignorejson.ApplyToField(ctx, state.Attributes, plan.Attributes, "attributes", plan.IgnoreJSONChanges)
+	resp.Diagnostics.Append(applyDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	state.Attributes = attrs
 
 	// Set the state
 	tflog.Debug(ctx, "Setting state for transform resource", map[string]any{
@@ -203,10 +234,22 @@ func (r *transformResource) Read(ctx context.Context, req resource.ReadRequest, 
 	tflog.Debug(ctx, "Mapping SailPoint Transform API response to resource model", map[string]any{
 		"id": state.ID.ValueString(),
 	})
+	priorAttributes := state.Attributes
+	priorIgnore := state.IgnoreJSONChanges
 	resp.Diagnostics.Append(state.FromAPI(ctx, *transformResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	// Keep prior values at ignore_json_changes paths so server drift on refresh
+	// doesn't surface. (#142)
+	state.IgnoreJSONChanges = priorIgnore
+	attrs, applyDiags := ignorejson.ApplyToField(ctx, state.Attributes, priorAttributes, "attributes", priorIgnore)
+	resp.Diagnostics.Append(applyDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	state.Attributes = attrs
 
 	// Set the state
 	tflog.Debug(ctx, "Setting state for transform resource", map[string]any{
@@ -283,6 +326,16 @@ func (r *transformResource) Update(ctx context.Context, req resource.UpdateReque
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	// Carry ignore_json_changes from plan; keep prior-state values at those paths
+	// so server drift never surfaces. (#142)
+	newState.IgnoreJSONChanges = plan.IgnoreJSONChanges
+	attrs, applyDiags := ignorejson.ApplyToField(ctx, newState.Attributes, state.Attributes, "attributes", plan.IgnoreJSONChanges)
+	resp.Diagnostics.Append(applyDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	newState.Attributes = attrs
 
 	// Set the state
 	tflog.Debug(ctx, "Setting state for transform resource", map[string]any{
