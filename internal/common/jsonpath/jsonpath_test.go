@@ -4,6 +4,8 @@
 package jsonpath
 
 import (
+	"encoding/json"
+	"fmt"
 	"testing"
 )
 
@@ -70,6 +72,46 @@ func TestParse_valid(t *testing.T) {
 			wantKeys:  []string{"a", "b", "c"},
 			wantIdxs:  []int{0, 0, 0},
 		},
+		// Bracket-quoted keys (single quotes).
+		{
+			path:      "$['foo']",
+			wantKinds: []segKind{segKey},
+			wantKeys:  []string{"foo"},
+			wantIdxs:  []int{0},
+		},
+		{
+			path:      "$['key with spaces']",
+			wantKinds: []segKind{segKey},
+			wantKeys:  []string{"key with spaces"},
+			wantIdxs:  []int{0},
+		},
+		// Bracket-quoted keys (double quotes).
+		{
+			path:      "$[\"foo\"]",
+			wantKinds: []segKind{segKey},
+			wantKeys:  []string{"foo"},
+			wantIdxs:  []int{0},
+		},
+		{
+			path:      "$[\"key with spaces\"]",
+			wantKinds: []segKind{segKey},
+			wantKeys:  []string{"key with spaces"},
+			wantIdxs:  []int{0},
+		},
+		// Mixed: dot-key prefix followed by bracket-quoted key.
+		{
+			path:      "$.steps['Create Ticket'].attr",
+			wantKinds: []segKind{segKey, segKey, segKey},
+			wantKeys:  []string{"steps", "Create Ticket", "attr"},
+			wantIdxs:  []int{0, 0, 0},
+		},
+		// Chained bracket-quoted keys.
+		{
+			path:      "$['outer']['inner']",
+			wantKinds: []segKind{segKey, segKey},
+			wantKeys:  []string{"outer", "inner"},
+			wantIdxs:  []int{0, 0},
+		},
 	}
 
 	for _, tc := range cases {
@@ -100,13 +142,16 @@ func TestParse_invalid(t *testing.T) {
 	cases := []struct {
 		path string
 	}{
-		{path: "foo"},            // no leading $
-		{path: "$"},              // no segments
-		{path: "$."},             // empty key
-		{path: "$.foo["},         // unclosed bracket
-		{path: "$.foo[-1].bar"},  // negative index
-		{path: "$.foo[abc].bar"}, // non-integer index
-		{path: "$!foo"},          // unexpected char
+		{path: "foo"},              // no leading $
+		{path: "$"},                // no segments
+		{path: "$."},               // empty key
+		{path: "$.foo["},           // unclosed bracket
+		{path: "$.foo[-1].bar"},    // negative index
+		{path: "$.foo[abc].bar"},   // non-integer, non-quoted index
+		{path: "$!foo"},            // unexpected char
+		{path: "$['']"},            // empty single-quoted key
+		{path: "$[\"\"]"},          // empty double-quoted key
+		{path: "$['mismatched\"]"}, // mismatched quotes (opens ', closes ")
 	}
 
 	for _, tc := range cases {
@@ -278,6 +323,133 @@ func TestPreservePaths_invalidPath(t *testing.T) {
 	err := PreservePaths(merged, server, []string{"invalid-path"})
 	if err == nil {
 		t.Error("expected error for invalid path")
+	}
+}
+
+func TestPreservePathsInJSON(t *testing.T) {
+	cases := []struct {
+		name       string
+		mergedJSON string
+		priorJSON  string
+		paths      []string
+		wantJSON   string // expected result; use checkKey/checkMissing instead when order varies
+		wantErr    bool
+	}{
+		{
+			name:       "top-level key",
+			mergedJSON: `{"host":"ldap.example.com"}`,
+			priorJSON:  `{"host":"ldap.example.com","password":"secret"}`,
+			paths:      []string{"$.password"},
+			wantJSON:   `{"host":"ldap.example.com","password":"secret"}`,
+		},
+		{
+			name:       "nested key",
+			mergedJSON: `{"conn":{"host":"ldap.example.com"}}`,
+			priorJSON:  `{"conn":{"host":"ldap.example.com","password":"secret"}}`,
+			paths:      []string{"$.conn.password"},
+			wantJSON:   `{"conn":{"host":"ldap.example.com","password":"secret"}}`,
+		},
+		{
+			name:       "wildcard array",
+			mergedJSON: `{"items":[{"name":"a"},{"name":"b"}]}`,
+			priorJSON:  `{"items":[{"name":"a","token":"t1"},{"name":"b","token":"t2"}]}`,
+			paths:      []string{"$.items[*].token"},
+		},
+		{
+			name:       "bracket-quoted key with spaces",
+			mergedJSON: `{"steps":{"Create Ticket":{"type":"action"}}}`,
+			priorJSON:  `{"steps":{"Create Ticket":{"type":"action","refID":"abc"}}}`,
+			paths:      []string{"$.steps['Create Ticket'].refID"},
+			wantJSON:   `{"steps":{"Create Ticket":{"refID":"abc","type":"action"}}}`,
+		},
+		{
+			name:       "prior-missing path is no-op",
+			mergedJSON: `{"foo":"bar"}`,
+			priorJSON:  `{"foo":"bar"}`,
+			paths:      []string{"$.password"},
+			wantJSON:   `{"foo":"bar"}`,
+		},
+		{
+			name:       "invalid path error",
+			mergedJSON: `{"foo":"bar"}`,
+			priorJSON:  `{"foo":"bar"}`,
+			paths:      []string{"invalid-path"},
+			wantErr:    true,
+		},
+		{
+			name:       "invalid merged JSON error",
+			mergedJSON: `not-json`,
+			priorJSON:  `{}`,
+			paths:      []string{"$.foo"},
+			wantErr:    true,
+		},
+		{
+			name:       "invalid prior JSON error",
+			mergedJSON: `{}`,
+			priorJSON:  `not-json`,
+			paths:      []string{"$.foo"},
+			wantErr:    true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := PreservePathsInJSON(tc.mergedJSON, tc.priorJSON, tc.paths)
+			if tc.wantErr {
+				if err == nil {
+					t.Errorf("PreservePathsInJSON(%q, %q, %v) expected error, got nil", tc.mergedJSON, tc.priorJSON, tc.paths)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("PreservePathsInJSON unexpected error: %v", err)
+			}
+			if tc.wantJSON != "" {
+				// Normalise both through JSON round-trip to avoid key-ordering sensitivity.
+				var gotObj, wantObj interface{}
+				if e := json.Unmarshal([]byte(got), &gotObj); e != nil {
+					t.Fatalf("result is not valid JSON: %v", e)
+				}
+				if e := json.Unmarshal([]byte(tc.wantJSON), &wantObj); e != nil {
+					t.Fatalf("wantJSON is not valid JSON: %v", e)
+				}
+				gotNorm, gotMarshalErr := json.Marshal(gotObj)
+				if gotMarshalErr != nil {
+					t.Fatalf("marshal result: %v", gotMarshalErr)
+				}
+				wantNorm, wantMarshalErr := json.Marshal(wantObj)
+				if wantMarshalErr != nil {
+					t.Fatalf("marshal want: %v", wantMarshalErr)
+				}
+				if string(gotNorm) != string(wantNorm) {
+					t.Errorf("got  %s\nwant %s", gotNorm, wantNorm)
+				}
+			}
+			// For the wildcard case, verify element-level values directly.
+			if tc.name == "wildcard array" {
+				var obj map[string]interface{}
+				if e := json.Unmarshal([]byte(got), &obj); e != nil {
+					t.Fatalf("result is not valid JSON: %v", e)
+				}
+				items := mustArray(t, obj["items"], "items")
+				for i, wantToken := range []string{"t1", "t2"} {
+					elem := mustObject(t, items[i], fmt.Sprintf("items[%d]", i))
+					tokenAny, exists := elem["token"]
+					if !exists {
+						t.Errorf("items[%d].token missing", i)
+						continue
+					}
+					token, ok := tokenAny.(string)
+					if !ok {
+						t.Errorf("items[%d].token: expected string, got %T", i, tokenAny)
+						continue
+					}
+					if token != wantToken {
+						t.Errorf("items[%d].token = %q, want %q", i, token, wantToken)
+					}
+				}
+			}
+		})
 	}
 }
 

@@ -2,17 +2,22 @@
 // SPDX-License-Identifier: MPL-2.0
 
 // Package jsonpath implements a minimal subset of JSONPath for preserving
-// server-managed fields in connector_attributes arrays.
+// server-managed fields in JSON attributes.
 //
 // Supported syntax:
 //
 //	$.key
 //	$.key.nested
-//	$.key[N].field   (N is a non-negative integer index)
-//	$.key[*].field   (wildcard: all array elements)
+//	$.key[N].field          (N is a non-negative integer index)
+//	$.key[*].field          (wildcard: all array elements)
+//	$.key['obj key']        (bracket-quoted, single quotes: for keys containing spaces or dots)
+//	$.key["obj key"]        (bracket-quoted, double quotes: equivalent double-quote variant)
+//	$['obj key']            (bracket-quoted key directly after root '$')
+//	$['outer']['inner']     (chained bracket-quoted keys)
 package jsonpath
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -66,10 +71,20 @@ func Parse(path string) ([]segment, error) {
 			rest = rest[end+1:]
 			if inner == "*" {
 				segs = append(segs, segment{kind: segWildcard})
+			} else if len(inner) >= 2 && (inner[0] == '\'' || inner[0] == '"') {
+				quote := inner[0]
+				if inner[len(inner)-1] != quote {
+					return nil, fmt.Errorf("mismatched quotes in bracket key in path: %q", path)
+				}
+				key := inner[1 : len(inner)-1]
+				if key == "" {
+					return nil, fmt.Errorf("empty bracket-quoted key in path: %q", path)
+				}
+				segs = append(segs, segment{kind: segKey, key: key})
 			} else {
 				idx, err := strconv.Atoi(inner)
 				if err != nil || idx < 0 {
-					return nil, fmt.Errorf("invalid index %q in path: %q (expected non-negative integer or *)", inner, path)
+					return nil, fmt.Errorf("invalid index %q in path: %q (expected non-negative integer, *, 'key', or \"key\")", inner, path)
 				}
 				segs = append(segs, segment{kind: segIndex, idx: idx})
 			}
@@ -103,6 +118,30 @@ func PreservePaths(merged, serverAttrs map[string]interface{}, paths []string) e
 		preserveNode(merged, serverAttrs, segs)
 	}
 	return nil
+}
+
+// PreservePathsInJSON unmarshals mergedJSON and priorJSON, re-injects the values
+// from priorJSON into mergedJSON at each path (using PreservePaths), and
+// re-marshals the result. Paths absent from priorJSON are silently skipped.
+// Returns the merged JSON string, or an error if either input is invalid JSON or
+// a path cannot be parsed.
+func PreservePathsInJSON(mergedJSON, priorJSON string, paths []string) (string, error) {
+	var merged map[string]interface{}
+	if err := json.Unmarshal([]byte(mergedJSON), &merged); err != nil {
+		return "", fmt.Errorf("unmarshal merged JSON: %w", err)
+	}
+	var prior map[string]interface{}
+	if err := json.Unmarshal([]byte(priorJSON), &prior); err != nil {
+		return "", fmt.Errorf("unmarshal prior JSON: %w", err)
+	}
+	if err := PreservePaths(merged, prior, paths); err != nil {
+		return "", err
+	}
+	out, err := json.Marshal(merged)
+	if err != nil {
+		return "", fmt.Errorf("marshal merged JSON: %w", err)
+	}
+	return string(out), nil
 }
 
 // preserveNode walks merged and server in lock-step following segs,
