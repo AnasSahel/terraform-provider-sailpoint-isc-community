@@ -13,10 +13,12 @@ resource "sailpoint_workflow" "external_integration" {
 
   definition {
     start = "Create Ticket"
-    steps = jsonencode({
+
+    steps = {
       "Create Ticket" = {
-        actionId = "sp:http"
-        attributes = {
+        type      = "action"
+        action_id = "sp:http"
+        attributes = jsonencode({
           authenticationType = "OAuth"
           httpConfig = {
             oauthSecretId = "oauth-secret-id"
@@ -28,33 +30,32 @@ resource "sailpoint_workflow" "external_integration" {
               priority        = "medium"
             }
           }
-        }
-        nextStep = "Parse Response"
-        type     = "action"
+        })
+        next_step = "Parse Response"
       }
       "Parse Response" = {
-        actionId = "sp:transform"
-        attributes = {
+        type      = "action"
+        action_id = "sp:transform"
+        attributes = jsonencode({
           transformScript = "return {ticketId: $.createTicket.response.body.id}"
-        }
-        nextStep = "Send Confirmation"
-        type     = "action"
+        })
+        next_step = "Send Confirmation"
       }
       "Send Confirmation" = {
-        actionId = "sp:send-email"
-        attributes = {
+        type      = "action"
+        action_id = "sp:send-email"
+        attributes = jsonencode({
           "body.$"        = "'Ticket ' + $.parseResponse.ticketId + ' has been created'"
           from            = "sailpoint@company.com"
           "recipientId.$" = "$.trigger.requesterId"
           subject         = "Ticket Created"
-        }
-        nextStep = "End Step"
-        type     = "action"
+        })
+        next_step = "End Step"
       }
       "End Step" = {
         type = "success"
       }
-    })
+    }
   }
 
   enabled = false

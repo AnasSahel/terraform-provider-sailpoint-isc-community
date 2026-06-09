@@ -13,22 +13,23 @@ resource "sailpoint_workflow" "send_email" {
 
   definition {
     start = "Send Email"
-    steps = jsonencode({
+
+    steps = {
       "Send Email" = {
-        actionId = "sp:send-email"
-        attributes = {
+        type      = "action"
+        action_id = "sp:send-email"
+        attributes = jsonencode({
           body            = "This is a test email from the workflow"
           from            = "sailpoint@company.com"
           "recipientId.$" = "$.identity.id"
           subject         = "Workflow Notification"
-        }
-        nextStep = "End Step"
-        type     = "action"
+        })
+        next_step = "End Step"
       }
       "End Step" = {
         type = "success"
       }
-    })
+    }
   }
 
   enabled = false

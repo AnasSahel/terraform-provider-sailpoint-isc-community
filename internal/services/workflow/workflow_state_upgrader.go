@@ -5,9 +5,11 @@ package workflow
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -18,10 +20,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
-// workflowModelV0 mirrors workflowModel for state shape v0. Field set is
-// identical; the only on-the-wire difference is that definition.steps used
-// jsontypes.NormalizedType. The framework decodes prior state into this
-// struct via priorWorkflowSchemaV0.
+// workflowModelV0 mirrors the state shape stored by provider ≤2.4.3.
+// definition.steps was jsontypes.NormalizedType (plain JSON string).
 type workflowModelV0 struct {
 	ID             types.String         `tfsdk:"id"`
 	Name           types.String         `tfsdk:"name"`
@@ -38,111 +38,163 @@ type workflowModelV0 struct {
 	FailureCount   types.Int32          `tfsdk:"failure_count"`
 }
 
+// workflowModelV1 mirrors the state shape stored by provider 2.4.4–2.x.
+// definition.steps was workflowStepsType (a custom jsontypes.Normalized subtype).
+// The wire format is identical to V0 (a JSON string), so the same Go struct
+// and jsontypes.NormalizedType schema field decodes it correctly.
+type workflowModelV1 = workflowModelV0
+
 // priorWorkflowSchemaV0 returns the workflow resource schema as it shipped
-// in provider 2.4.3. Frozen — do not edit when v1 evolves; v0 is a
-// historical artifact used only by the framework to decode existing state
-// during upgrade. The only attribute that differs from v1 is
-// definition.steps (jsontypes.NormalizedType vs. workflowStepsType).
+// in provider ≤2.4.3. Frozen — do not modify.
 func priorWorkflowSchemaV0() *schema.Schema {
 	return &schema.Schema{
-		Version: 0,
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Computed: true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
+		Version:    0,
+		Attributes: workflowSchemaAttrsWithStringSteps(),
+	}
+}
+
+// priorWorkflowSchemaV1 returns the workflow resource schema as it shipped
+// in provider 2.4.4–2.x. The only on-the-wire difference from v0 is the
+// custom type identity of definition.steps (workflowStepsType); both are
+// stored as a plain JSON string. Frozen — do not modify.
+func priorWorkflowSchemaV1() *schema.Schema {
+	return &schema.Schema{
+		Version:    1,
+		Attributes: workflowSchemaAttrsWithStringSteps(),
+	}
+}
+
+// workflowSchemaAttrsWithStringSteps returns the attribute map shared by
+// priorWorkflowSchemaV0 and priorWorkflowSchemaV1. In both prior versions
+// definition.steps was stored as a JSON string.
+func workflowSchemaAttrsWithStringSteps() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"id": schema.StringAttribute{
+			Computed: true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"name": schema.StringAttribute{
+			Required: true,
+		},
+		"description": schema.StringAttribute{
+			Optional: true,
+		},
+		"enabled": schema.BoolAttribute{
+			Optional: true,
+			Computed: true,
+			Default:  booldefault.StaticBool(false),
+		},
+		"trigger": schema.StringAttribute{
+			Computed:   true,
+			CustomType: jsontypes.NormalizedType{},
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"created": schema.StringAttribute{
+			Computed: true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"modified": schema.StringAttribute{
+			Computed: true,
+		},
+		"creator": schema.SingleNestedAttribute{
+			Computed: true,
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
+			Attributes: map[string]schema.Attribute{
+				"type": schema.StringAttribute{Computed: true},
+				"id":   schema.StringAttribute{Computed: true},
+				"name": schema.StringAttribute{Computed: true},
+			},
+		},
+		"modified_by": schema.SingleNestedAttribute{
+			Computed: true,
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
+			Attributes: map[string]schema.Attribute{
+				"type": schema.StringAttribute{Computed: true},
+				"id":   schema.StringAttribute{Computed: true},
+				"name": schema.StringAttribute{Computed: true},
+			},
+		},
+		"execution_count": schema.Int32Attribute{
+			Computed: true,
+		},
+		"failure_count": schema.Int32Attribute{
+			Computed: true,
+		},
+		"owner": schema.SingleNestedAttribute{
+			Required: true,
+			Attributes: map[string]schema.Attribute{
+				"type": schema.StringAttribute{Required: true},
+				"id":   schema.StringAttribute{Required: true},
+				"name": schema.StringAttribute{Computed: true},
+			},
+		},
+		"definition": schema.SingleNestedAttribute{
+			Optional: true,
+			Attributes: map[string]schema.Attribute{
+				"start": schema.StringAttribute{
+					Required: true,
 				},
-			},
-			"name": schema.StringAttribute{
-				Required: true,
-			},
-			"description": schema.StringAttribute{
-				Optional: true,
-			},
-			"enabled": schema.BoolAttribute{
-				Optional: true,
-				Computed: true,
-				Default:  booldefault.StaticBool(false),
-			},
-			"trigger": schema.StringAttribute{
-				Computed:   true,
-				CustomType: jsontypes.NormalizedType{},
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"created": schema.StringAttribute{
-				Computed: true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"modified": schema.StringAttribute{
-				Computed: true,
-			},
-			"creator": schema.SingleNestedAttribute{
-				Computed: true,
-				PlanModifiers: []planmodifier.Object{
-					objectplanmodifier.UseStateForUnknown(),
-				},
-				Attributes: map[string]schema.Attribute{
-					"type": schema.StringAttribute{Computed: true},
-					"id":   schema.StringAttribute{Computed: true},
-					"name": schema.StringAttribute{Computed: true},
-				},
-			},
-			"modified_by": schema.SingleNestedAttribute{
-				Computed: true,
-				PlanModifiers: []planmodifier.Object{
-					objectplanmodifier.UseStateForUnknown(),
-				},
-				Attributes: map[string]schema.Attribute{
-					"type": schema.StringAttribute{Computed: true},
-					"id":   schema.StringAttribute{Computed: true},
-					"name": schema.StringAttribute{Computed: true},
-				},
-			},
-			"execution_count": schema.Int32Attribute{
-				Computed: true,
-			},
-			"failure_count": schema.Int32Attribute{
-				Computed: true,
-			},
-			"owner": schema.SingleNestedAttribute{
-				Required: true,
-				Attributes: map[string]schema.Attribute{
-					"type": schema.StringAttribute{Required: true},
-					"id":   schema.StringAttribute{Required: true},
-					"name": schema.StringAttribute{Computed: true},
-				},
-			},
-			"definition": schema.SingleNestedAttribute{
-				Optional: true,
-				Attributes: map[string]schema.Attribute{
-					"start": schema.StringAttribute{
-						Required: true,
-					},
-					"steps": schema.StringAttribute{
-						Required:   true,
-						CustomType: jsontypes.NormalizedType{},
-					},
+				"steps": schema.StringAttribute{
+					Required:   true,
+					CustomType: jsontypes.NormalizedType{},
 				},
 			},
 		},
 	}
 }
 
-// upgradeWorkflowStateV0ToV1 maps a v0 workflow state to v1. The only
-// on-the-wire change between v0 and v1 is the framework type identity of
-// definition.steps (jsontypes.NormalizedType → workflowStepsType). The
-// underlying string is preserved verbatim — this is a no-op cast at the
-// data level, but the framework requires an explicit upgrader because it
-// rejects type-identity mismatches when reading prior state.
-//
-// See #114: provider 2.4.4 introduced workflowStepsType without this
-// upgrader, breaking every plan/refresh on existing state until users
-// pinned back to 2.4.3.
-func upgradeWorkflowStateV0ToV1(ctx context.Context, req resource.UpgradeStateRequest, resp *resource.UpgradeStateResponse) {
+// upgradeDefinitionToV2 converts a prior-state definition object (steps as a
+// JSON string) into the v2 definition object (steps as a typed map). Used by
+// both the v0→v2 and v1→v2 upgraders.
+func upgradeDefinitionToV2(priorDef types.Object) (types.Object, diag.Diagnostics) {
+	var diagnostics diag.Diagnostics
+
+	if priorDef.IsNull() {
+		return types.ObjectNull(definitionAttrTypes), diagnostics
+	}
+	if priorDef.IsUnknown() {
+		return types.ObjectUnknown(definitionAttrTypes), diagnostics
+	}
+
+	priorAttrs := priorDef.Attributes()
+	startAttr, _ := priorAttrs["start"].(types.String)
+	stepsAttr, _ := priorAttrs["steps"].(jsontypes.Normalized)
+
+	var rawAllSteps map[string]any
+	if !stepsAttr.IsNull() && !stepsAttr.IsUnknown() && stepsAttr.ValueString() != "" {
+		if err := json.Unmarshal([]byte(stepsAttr.ValueString()), &rawAllSteps); err != nil {
+			diagnostics.AddError("Error parsing steps JSON during state upgrade", err.Error())
+			return types.ObjectNull(definitionAttrTypes), diagnostics
+		}
+	}
+
+	stepsMap, diags := stepsFromAPI(rawAllSteps)
+	diagnostics.Append(diags...)
+	if diagnostics.HasError() {
+		return types.ObjectNull(definitionAttrTypes), diagnostics
+	}
+
+	defObj, diags := types.ObjectValue(definitionAttrTypes, map[string]attr.Value{
+		"start": startAttr,
+		"steps": stepsMap,
+	})
+	diagnostics.Append(diags...)
+	return defObj, diagnostics
+}
+
+// upgradeWorkflowStateV0ToV2 maps a v0 workflow state to v2. In v0,
+// definition.steps was a plain JSON string (jsontypes.NormalizedType).
+func upgradeWorkflowStateV0ToV2(ctx context.Context, req resource.UpgradeStateRequest, resp *resource.UpgradeStateResponse) {
 	var prior workflowModelV0
 	resp.Diagnostics.Append(req.State.Get(ctx, &prior)...)
 	if resp.Diagnostics.HasError() {
@@ -164,29 +216,54 @@ func upgradeWorkflowStateV0ToV1(ctx context.Context, req resource.UpgradeStateRe
 		FailureCount:   prior.FailureCount,
 	}
 
-	// Re-emit definition with the v1 attr types: steps wrapped in
-	// workflowStepsValue. The underlying JSON string is unchanged.
-	if prior.Definition.IsNull() {
-		upgraded.Definition = types.ObjectNull(definitionAttrTypes)
-	} else if prior.Definition.IsUnknown() {
-		upgraded.Definition = types.ObjectUnknown(definitionAttrTypes)
-	} else {
-		priorAttrs := prior.Definition.Attributes()
-		startAttr, _ := priorAttrs["start"].(types.String)
-		stepsAttr, _ := priorAttrs["steps"].(jsontypes.Normalized)
+	defObj, diags := upgradeDefinitionToV2(prior.Definition)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	upgraded.Definition = defObj
 
-		defObj, d := types.ObjectValue(definitionAttrTypes, map[string]attr.Value{
-			"start": startAttr,
-			"steps": workflowStepsValue{Normalized: stepsAttr},
-		})
-		resp.Diagnostics.Append(d...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		upgraded.Definition = defObj
+	tflog.Info(ctx, "Upgraded workflow state from v0 to v2", map[string]any{
+		"id":   upgraded.ID.ValueString(),
+		"name": upgraded.Name.ValueString(),
+	})
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &upgraded)...)
+}
+
+// upgradeWorkflowStateV1ToV2 maps a v1 workflow state to v2. In v1,
+// definition.steps was workflowStepsType — a custom string subtype with the
+// same wire format as jsontypes.NormalizedType.
+func upgradeWorkflowStateV1ToV2(ctx context.Context, req resource.UpgradeStateRequest, resp *resource.UpgradeStateResponse) {
+	var prior workflowModelV1
+	resp.Diagnostics.Append(req.State.Get(ctx, &prior)...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
-	tflog.Info(ctx, "Upgraded workflow state from v0 to v1", map[string]any{
+	upgraded := workflowModel{
+		ID:             prior.ID,
+		Name:           prior.Name,
+		Owner:          prior.Owner,
+		Description:    prior.Description,
+		Trigger:        prior.Trigger,
+		Enabled:        prior.Enabled,
+		Created:        prior.Created,
+		Modified:       prior.Modified,
+		Creator:        prior.Creator,
+		ModifiedBy:     prior.ModifiedBy,
+		ExecutionCount: prior.ExecutionCount,
+		FailureCount:   prior.FailureCount,
+	}
+
+	defObj, diags := upgradeDefinitionToV2(prior.Definition)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	upgraded.Definition = defObj
+
+	tflog.Info(ctx, "Upgraded workflow state from v1 to v2", map[string]any{
 		"id":   upgraded.ID.ValueString(),
 		"name": upgraded.Name.ValueString(),
 	})

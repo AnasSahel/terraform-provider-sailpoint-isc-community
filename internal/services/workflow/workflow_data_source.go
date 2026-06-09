@@ -150,10 +150,48 @@ func (d *workflowDataSource) Schema(_ context.Context, _ datasource.SchemaReques
 						MarkdownDescription: "The name of the starting step.",
 						Computed:            true,
 					},
-					"steps": schema.StringAttribute{
-						MarkdownDescription: "JSON object containing the workflow steps.",
+					"steps": schema.MapNestedAttribute{
+						MarkdownDescription: "Map of workflow steps keyed by step name.",
 						Computed:            true,
-						CustomType:          workflowStepsType{},
+						NestedObject: schema.NestedAttributeObject{
+							Attributes: map[string]schema.Attribute{
+								"type": schema.StringAttribute{
+									MarkdownDescription: "Step discriminator (e.g. `action`, `choice`, `success`).",
+									Computed:            true,
+								},
+								"action_id": schema.StringAttribute{
+									MarkdownDescription: "SailPoint action identifier. API field: `actionId`.",
+									Computed:            true,
+								},
+								"attributes": schema.StringAttribute{
+									MarkdownDescription: "Action-specific attributes as a JSON object.",
+									Computed:            true,
+									CustomType:          jsontypes.NormalizedType{},
+								},
+								"next_step": schema.StringAttribute{
+									MarkdownDescription: "Name of the next step to execute. API field: `nextStep`.",
+									Computed:            true,
+								},
+								"display_name": schema.StringAttribute{
+									MarkdownDescription: "Human-readable step label. API field: `displayName`.",
+									Computed:            true,
+								},
+								"version_number": schema.Int32Attribute{
+									MarkdownDescription: "Step schema version. API field: `versionNumber`.",
+									Computed:            true,
+								},
+								"catch": schema.StringAttribute{
+									MarkdownDescription: "Error-catch configuration as a JSON object.",
+									Computed:            true,
+									CustomType:          jsontypes.NormalizedType{},
+								},
+								"config": schema.StringAttribute{
+									MarkdownDescription: "Catch-all JSON for step keys not covered by named attributes.",
+									Computed:            true,
+									CustomType:          jsontypes.NormalizedType{},
+								},
+							},
+						},
 					},
 				},
 			},
