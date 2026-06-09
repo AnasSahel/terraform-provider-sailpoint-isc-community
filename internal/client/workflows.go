@@ -28,7 +28,7 @@ type WorkflowAPI struct {
 	Description    string                 `json:"description,omitempty"`
 	Definition     *WorkflowDefinitionAPI `json:"definition,omitempty"`
 	Trigger        *WorkflowTriggerAPI    `json:"trigger,omitempty"`
-	Enabled        bool                   `json:"enabled,omitempty"`
+	Enabled        *bool                  `json:"enabled,omitempty"`
 	Created        string                 `json:"created,omitempty"`
 	Modified       string                 `json:"modified,omitempty"`
 	Creator        *ObjectRefAPI          `json:"creator,omitempty"`
