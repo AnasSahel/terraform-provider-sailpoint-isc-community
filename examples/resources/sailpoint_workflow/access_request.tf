@@ -13,68 +13,71 @@ resource "sailpoint_workflow" "access_request_approval" {
 
   definition {
     start = "Get Manager"
-    steps = jsonencode({
+
+    steps = {
       "Get Manager" = {
-        actionId = "sp:get-identity"
-        attributes = {
+        type      = "action"
+        action_id = "sp:get-identity"
+        attributes = jsonencode({
           "id.$" = "$.trigger.requestedFor.manager.id"
-        }
-        nextStep = "Send Approval Request"
-        type     = "action"
+        })
+        next_step = "Send Approval Request"
       }
       "Send Approval Request" = {
-        actionId = "sp:send-email"
-        attributes = {
+        type      = "action"
+        action_id = "sp:send-email"
+        attributes = jsonencode({
           body            = "An access request requires your approval"
           from            = "sailpoint@company.com"
           "recipientId.$" = "$.getManager.id"
           subject         = "Access Request Pending Approval"
-        }
-        nextStep = "Wait for Approval"
-        type     = "action"
+        })
+        next_step = "Wait for Approval"
       }
       "Wait for Approval" = {
-        actionId = "sp:forms"
-        attributes = {
+        type      = "action"
+        action_id = "sp:forms"
+        attributes = jsonencode({
           formDefinitionId = "approval-form-id"
           "recipient.$"    = "$.getManager.id"
-        }
-        nextStep = "Check Decision"
-        type     = "action"
+        })
+        next_step = "Check Decision"
       }
       "Check Decision" = {
-        choiceList = [
-          {
-            comparator    = "StringEquals"
-            nextStep      = "Approve Request"
-            "variableA.$" = "$.waitForApproval.formData.decision"
-            variableB     = "APPROVE"
-          }
-        ]
-        defaultStep = "Deny Request"
-        type        = "choice"
+        type = "choice"
+        config = jsonencode({
+          choiceList = [
+            {
+              comparator    = "StringEquals"
+              nextStep      = "Approve Request"
+              "variableA.$" = "$.waitForApproval.formData.decision"
+              variableB     = "APPROVE"
+            }
+          ]
+          defaultStep = "Deny Request"
+        })
       }
       "Approve Request" = {
-        actionId = "sp:approve-access-request"
-        attributes = {
+        type      = "action"
+        action_id = "sp:approve-access-request"
+        attributes = jsonencode({
           "requestId.$" = "$.trigger.accessRequestId"
-        }
-        nextStep = "End Success"
-        type     = "action"
+        })
+        next_step = "End Success"
       }
       "Deny Request" = {
-        actionId = "sp:deny-access-request"
-        attributes = {
+        type      = "action"
+        action_id = "sp:deny-access-request"
+        attributes = jsonencode({
           "requestId.$" = "$.trigger.accessRequestId"
           reason        = "Manager denied the request"
-        }
-        nextStep = "End Success"
-        type     = "action"
+        })
+        next_step = "End Success"
       }
       "End Success" = {
         type = "success"
       }
-    })
+    }
   }
 
   enabled = false

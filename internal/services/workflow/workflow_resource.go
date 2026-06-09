@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int32planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -55,11 +56,10 @@ func (r *workflowResource) Configure(ctx context.Context, req resource.Configure
 // Schema implements resource.Resource.
 func (r *workflowResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		// Version 1 introduced the workflowStepsType custom string type on
-		// definition.steps (provider 2.4.4, closes #90). State written by
-		// provider 2.4.3 or earlier is upgraded by the v0 → v1 state upgrader
-		// in workflow_state_upgrader.go (closes #114).
-		Version:             1,
+		// Version 2 replaces the opaque definition.steps JSON string with a
+		// typed MapNestedAttribute (closes #141). Prior state is upgraded by
+		// the v0→v2 and v1→v2 upgraders in workflow_state_upgrader.go.
+		Version:             2,
 		Description:         "Manages a SailPoint Workflow.",
 		MarkdownDescription: "Manages a SailPoint Workflow. Workflows are custom automation scripts that respond to event triggers and perform a series of actions. The trigger is managed separately using the `sailpoint_workflow_trigger` resource.",
 		Attributes: map[string]schema.Attribute{
@@ -179,21 +179,76 @@ func (r *workflowResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 						MarkdownDescription: "The name of the starting step.",
 						Required:            true,
 					},
-					"steps": schema.StringAttribute{
-						MarkdownDescription: "JSON object containing the workflow steps. Each key is a step name and the value defines the step configuration including action type, attributes, and flow control.\n\n" +
-							"~> **Note:** When configuring steps that use secrets (e.g., OAuth client secrets for `sp:http` actions), " +
-							"set the secret value through the SailPoint UI first, then copy the resulting vault reference " +
-							"(e.g., `$.secrets.<uid>`) into your Terraform configuration to prevent drift.\n\n" +
-							"~> **Server-minted fields:** SailPoint mints fresh values for some fields at workflow creation " +
-							"regardless of what the client sends — currently `param_oauth.refID`, `param_header.refID`, and " +
-							"`param_oauth_scopes.refID` inside `sp:http` step `attributes`. The provider treats those paths " +
-							"as semantically equal across plan and state so `tofu apply` succeeds and no drift is reported. " +
-							"You can write any UUID for those fields (or omit them and SailPoint will mint one on create), but " +
-							"a `refID` that does not point to a real Storage Parameter Service entry will fail at workflow " +
-							"runtime — typically you obtain a valid `refID` by configuring auth via the Workflow Builder UI " +
-							"once and copying back the persisted value.",
-						Required:   true,
-						CustomType: workflowStepsType{},
+					"steps": schema.MapNestedAttribute{
+						MarkdownDescription: "Map of workflow steps keyed by step name. Each entry defines a step's type, action, and flow-control fields.",
+						Required:            true,
+						NestedObject: schema.NestedAttributeObject{
+							Attributes: map[string]schema.Attribute{
+								"type": schema.StringAttribute{
+									MarkdownDescription: "Step discriminator (e.g. `action`, `choice`, `success`). Required.",
+									Required:            true,
+								},
+								"action_id": schema.StringAttribute{
+									MarkdownDescription: "SailPoint action identifier (e.g. `sp:send-email`). API field: `actionId`.",
+									Optional:            true,
+									Computed:            true,
+									PlanModifiers: []planmodifier.String{
+										stringplanmodifier.UseStateForUnknown(),
+									},
+								},
+								"attributes": schema.StringAttribute{
+									MarkdownDescription: "Action-specific attributes as a JSON object.",
+									Optional:            true,
+									Computed:            true,
+									CustomType:          jsontypes.NormalizedType{},
+									PlanModifiers: []planmodifier.String{
+										stringplanmodifier.UseStateForUnknown(),
+									},
+								},
+								"next_step": schema.StringAttribute{
+									MarkdownDescription: "Name of the next step to execute. API field: `nextStep`.",
+									Optional:            true,
+									Computed:            true,
+									PlanModifiers: []planmodifier.String{
+										stringplanmodifier.UseStateForUnknown(),
+									},
+								},
+								"display_name": schema.StringAttribute{
+									MarkdownDescription: "Human-readable step label. API field: `displayName`.",
+									Optional:            true,
+									Computed:            true,
+									PlanModifiers: []planmodifier.String{
+										stringplanmodifier.UseStateForUnknown(),
+									},
+								},
+								"version_number": schema.Int32Attribute{
+									MarkdownDescription: "Step schema version. API field: `versionNumber`.",
+									Optional:            true,
+									Computed:            true,
+									PlanModifiers: []planmodifier.Int32{
+										int32planmodifier.UseStateForUnknown(),
+									},
+								},
+								"catch": schema.StringAttribute{
+									MarkdownDescription: "Error-catch configuration as a JSON object.",
+									Optional:            true,
+									Computed:            true,
+									CustomType:          jsontypes.NormalizedType{},
+									PlanModifiers: []planmodifier.String{
+										stringplanmodifier.UseStateForUnknown(),
+									},
+								},
+								"config": schema.StringAttribute{
+									MarkdownDescription: "Catch-all JSON object for step keys not covered by the named attributes (e.g. `choiceList`, `defaultStep`).",
+									Optional:            true,
+									Computed:            true,
+									CustomType:          jsontypes.NormalizedType{},
+									PlanModifiers: []planmodifier.String{
+										stringplanmodifier.UseStateForUnknown(),
+									},
+								},
+							},
+						},
 					},
 				},
 			},
@@ -498,7 +553,11 @@ func (r *workflowResource) UpgradeState(_ context.Context) map[int64]resource.St
 	return map[int64]resource.StateUpgrader{
 		0: {
 			PriorSchema:   priorWorkflowSchemaV0(),
-			StateUpgrader: upgradeWorkflowStateV0ToV1,
+			StateUpgrader: upgradeWorkflowStateV0ToV2,
+		},
+		1: {
+			PriorSchema:   priorWorkflowSchemaV1(),
+			StateUpgrader: upgradeWorkflowStateV1ToV2,
 		},
 	}
 }

@@ -50,7 +50,21 @@ Read-Only:
 Read-Only:
 
 - `start` (String) The name of the starting step.
-- `steps` (String) JSON object containing the workflow steps.
+- `steps` (Attributes Map) Map of workflow steps keyed by step name. (see [below for nested schema](#nestedatt--definition--steps))
+
+<a id="nestedatt--definition--steps"></a>
+### Nested Schema for `definition.steps`
+
+Read-Only:
+
+- `action_id` (String) SailPoint action identifier. API field: `actionId`.
+- `attributes` (String) Action-specific attributes as a JSON object.
+- `catch` (String) Error-catch configuration as a JSON object.
+- `config` (String) Catch-all JSON for step keys not covered by named attributes.
+- `display_name` (String) Human-readable step label. API field: `displayName`.
+- `next_step` (String) Name of the next step to execute. API field: `nextStep`.
+- `type` (String) Step discriminator (e.g. `action`, `choice`, `success`).
+- `version_number` (Number) Step schema version. API field: `versionNumber`.
 
 
 <a id="nestedatt--modified_by"></a>
