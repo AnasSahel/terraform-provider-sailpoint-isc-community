@@ -47,19 +47,20 @@ var promotedStepKeys = map[string]bool{
 
 // workflowModel represents the Terraform model for a SailPoint Workflow.
 type workflowModel struct {
-	ID             types.String         `tfsdk:"id"`
-	Name           types.String         `tfsdk:"name"`
-	Owner          types.Object         `tfsdk:"owner"`
-	Description    types.String         `tfsdk:"description"`
-	Definition     types.Object         `tfsdk:"definition"`
-	Trigger        jsontypes.Normalized `tfsdk:"trigger"`
-	Enabled        types.Bool           `tfsdk:"enabled"`
-	Created        types.String         `tfsdk:"created"`
-	Modified       types.String         `tfsdk:"modified"`
-	Creator        types.Object         `tfsdk:"creator"`
-	ModifiedBy     types.Object         `tfsdk:"modified_by"`
-	ExecutionCount types.Int32          `tfsdk:"execution_count"`
-	FailureCount   types.Int32          `tfsdk:"failure_count"`
+	ID                types.String         `tfsdk:"id"`
+	Name              types.String         `tfsdk:"name"`
+	Owner             types.Object         `tfsdk:"owner"`
+	Description       types.String         `tfsdk:"description"`
+	Definition        types.Object         `tfsdk:"definition"`
+	Trigger           jsontypes.Normalized `tfsdk:"trigger"`
+	Enabled           types.Bool           `tfsdk:"enabled"`
+	Created           types.String         `tfsdk:"created"`
+	Modified          types.String         `tfsdk:"modified"`
+	Creator           types.Object         `tfsdk:"creator"`
+	ModifiedBy        types.Object         `tfsdk:"modified_by"`
+	ExecutionCount    types.Int32          `tfsdk:"execution_count"`
+	FailureCount      types.Int32          `tfsdk:"failure_count"`
+	IgnoreJSONChanges types.List           `tfsdk:"ignore_json_changes"`
 }
 
 // objectRefAttrTypes returns the attribute types for ObjectRef-like nested objects.
