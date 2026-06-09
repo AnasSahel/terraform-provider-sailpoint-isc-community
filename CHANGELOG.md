@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.6] - 2026-06-09
+
+### Fixed
+
+- **Workflow**: `definition.steps` round-trip was broken in 2.4.4 and 2.4.5 — every Create, Read, Update, `terraform import`, and the `sailpoint_workflow` data source failed on any workflow that has a `definition`. `ToAPI` silently dropped the steps (the workflow was sent with `start` but no steps), and `FromAPI` raised _"Invalid Object Attribute Type"_. The cause was an incomplete migration in 2.4.4: the custom `workflowStepsType` was wired into the schema but the model conversion still used a plain `jsontypes.Normalized`. Both directions now use the `workflowStepsValue` custom value type, with a `ToAPI` → `FromAPI` round-trip regression test. (#139)
+
 ## [2.4.5] - 2026-06-08
 
 ### Fixed
