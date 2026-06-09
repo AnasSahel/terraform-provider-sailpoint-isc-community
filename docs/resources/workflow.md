@@ -12,9 +12,11 @@ Manages a SailPoint Workflow. Workflows are custom automation scripts that respo
 
 ## Example Usage
 
-### Basic Workflow
-
 ```terraform
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
+# Basic workflow that sends an email
 resource "sailpoint_workflow" "send_email" {
   name        = "Send Email Workflow"
   description = "A simple workflow that sends an email notification"
@@ -111,6 +113,7 @@ Optional:
 - `display_name` (String) Human-readable step label. API field: `displayName`.
 - `next_step` (String) Name of the next step to execute. API field: `nextStep`.
 - `version_number` (Number) Step schema version. API field: `versionNumber`.
+
 
 
 <a id="nestedatt--creator"></a>
