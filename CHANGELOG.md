@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-06-10
+
+### Added
+
+- **Source Attribute Synchronization** — new `sailpoint_source_attribute_sync_config` resource and data source, plus the `sailpoint_sync_source_attributes` provider action. (#91)
+  - **`sailpoint_source_attribute_sync_config`** (resource + data source): manages which identity attributes are synced to a source's accounts (the per-attribute `enabled` flags). Adopt-only lifecycle — Create reads the existing config and applies declared `enabled` flags via PUT, Update sends a full PUT, and Delete is a no-op (the config always exists for a source). Partial management is supported: attributes you don't list keep their current server value, so a subset can be managed without disabling the rest. Importable by source ID. Backed by the Beta `/beta/sources/{id}/attribute-sync-config` API; requires `ORG_ADMIN`.
+  - **`sailpoint_sync_source_attributes`** (action): triggers a one-time attribute sync for a source (`POST /v2025/sources/{id}/synchronize-attributes`, experimental). Usable standalone or as a lifecycle `action_trigger` to resync automatically after the sync config changes. Requires Terraform >= 1.14 and `ORG_ADMIN`; propagation is asynchronous.
+  - First provider Action and first Beta-API resource — the provider now implements `provider.ProviderWithActions`.
+
 ## [3.0.0] - 2026-06-10
 
 ### Changed
@@ -573,6 +582,7 @@ This release ensures all documentation and examples match the actual provider ca
 
 ---
 
+[3.1.0]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v3.0.0...v3.1.0
 [2.3.3]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v2.3.2...v2.3.3
 [2.3.2]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v2.3.1...v2.3.2
 [2.3.1]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v2.1.1...v2.3.1
