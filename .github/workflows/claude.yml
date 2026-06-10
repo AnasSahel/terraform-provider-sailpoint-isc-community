@@ -43,9 +43,11 @@ jobs:
           # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
           # prompt: 'Update the pull request description to include a summary of changes.'
 
-          # Allow Claude to open/update the PR itself (with pull-requests: write above),
-          # so a tagged issue lands as a ready PR instead of a "Create PR" link.
-          claude_args: '--allowed-tools "Bash(gh pr create:*),Bash(gh pr edit:*),Bash(gh pr view:*)"'
+          # Allow Claude to push its work branch and open/update the PR itself (with
+          # contents:write + pull-requests:write above), so a tagged issue lands as a
+          # ready PR. Without Bash(git push:*) the work is committed only inside the
+          # ephemeral runner and is lost when the job ends.
+          claude_args: '--allowed-tools "Bash(git push:*),Bash(gh pr create:*),Bash(gh pr edit:*),Bash(gh pr view:*)"'
 
       # Deterministic fallback: if Claude pushed a claude/issue-<n>-* branch but did not
       # open a PR itself (model-dependent — it sometimes leaves only a "Create PR" link),
