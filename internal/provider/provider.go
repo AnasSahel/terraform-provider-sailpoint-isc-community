@@ -22,11 +22,14 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/segment"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/source"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/source_aggregation_schedule"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/source_attribute_sync_config"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/source_correlation_config"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/sync_source_attributes_action"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/transform"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/workflow"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/workflow_trigger"
 
+	"github.com/hashicorp/terraform-plugin-framework/action"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -38,7 +41,8 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ provider.Provider = &sailpointProvider{}
+	_ provider.Provider            = &sailpointProvider{}
+	_ provider.ProviderWithActions = &sailpointProvider{}
 )
 
 // sailpointProvider is the provider implementation.
@@ -163,6 +167,7 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 
 	resp.DataSourceData = apiClient
 	resp.ResourceData = apiClient
+	resp.ActionData = apiClient
 
 	tflog.Info(ctx, "Configured SailPoint client", map[string]any{"success": true})
 }
@@ -184,6 +189,7 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 		source.NewSourceDataSource,
 		source.NewSourceSchemaDataSource,
 		source.NewSourceProvisioningPolicyDataSource,
+		source_attribute_sync_config.NewSourceAttributeSyncConfigDataSource,
 		transform.NewTransformDataSource,
 		workflow.NewWorkflowDataSource,
 	}
@@ -206,9 +212,17 @@ func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resou
 		source.NewSourceSchemaResource,
 		source.NewSourceProvisioningPolicyResource,
 		source_aggregation_schedule.NewSourceAggregationScheduleResource,
+		source_attribute_sync_config.NewSourceAttributeSyncConfigResource,
 		source_correlation_config.NewSourceCorrelationConfigResource,
 		transform.NewTransformResource,
 		workflow.NewWorkflowResource,
 		workflow_trigger.NewWorkflowTriggerResource,
+	}
+}
+
+// Actions defines the provider actions implemented in the provider.
+func (p *sailpointProvider) Actions(_ context.Context) []func() action.Action {
+	return []func() action.Action{
+		sync_source_attributes_action.NewSyncSourceAttributesAction,
 	}
 }
