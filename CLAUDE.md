@@ -81,85 +81,58 @@ make generate  # tfplugindocs — regenerates docs/ from schema descriptions
 ### Directory Structure
 
 ```
-internal/provider/
-├── client/          # Custom REST client for SailPoint API
-│   ├── client.go    # Base client with retry logic and error handling
-│   ├── auth.go      # OAuth2 token management
-│   ├── errors.go    # Error formatting and handling
-│   ├── transforms.go # Transform-specific API methods
-│   ├── forms.go     # Form Definition-specific API methods
-│   ├── workflows.go # Workflow-specific API methods
-│   ├── patch.go     # JSON Patch utilities
-│   └── types.go     # Shared client types
-├── models/          # Terraform model structs with conversion methods
-│   ├── transform.go # Transform resource model
-│   ├── form_definition.go # Form Definition resource model
-│   ├── workflow.go  # Workflow resource model
-│   ├── object_ref.go # Reusable nested object reference
-│   └── helpers.go   # Generic conversion utilities
-├── schemas/         # Terraform schema definitions
-│   ├── transform_schemas.go     # Transform schema builder
-│   ├── form_definition_schemas.go # Form Definition schema builder
-│   ├── workflow_schemas.go      # Workflow schema builder
-│   └── object_ref_schema.go     # Reusable nested schema
-├── resources/       # Resource implementations
-│   ├── transform_resource.go          # Transform resource CRUD operations
-│   ├── form_definition_resource.go    # Form Definition resource CRUD operations
-│   └── workflow_resource.go           # Workflow resource CRUD operations
-├── datasources/     # Data source implementations
-│   ├── transform_data_source.go       # Transform data source Read operation
-│   ├── form_definition_data_source.go # Form Definition data source Read operation
-│   └── workflow_data_source.go        # Workflow data source Read operation
-└── provider.go      # Main provider registration
+internal/
+├── client/          # Custom REST client for the SailPoint ISC API (Resty v3)
+│   ├── client.go        # Base client: middleware, retry, prepareRequest() helper, ErrNotFound sentinel
+│   ├── auth.go          # OAuth2 client-credentials token management
+│   ├── patch.go         # JSON Patch helpers (NewReplacePatch, NewRemovePatch, ...)
+│   ├── object_ref.go    # Shared ObjectRefAPI ({type, id, name})
+│   └── <area>.go        # One file per API area: entitlements.go, sources.go, transforms.go,
+│                        #   source_attribute_sync_config.go, source_sync_actions.go, ...
+├── common/          # Cross-resource helpers reused by every service package
+│   ├── helpers.go          # ConfigureClient + generic Map{List,Slice}FromAPI / MapListToAPI + JSON helpers
+│   ├── object_ref_model.go # ObjectRefModel + NewObjectRefFromAPI(Ptr) / NewObjectRefToAPI(Ptr)
+│   ├── types.go
+│   └── ignorejson/, jsonpath/, planmodifiers/   # custom types & plan modifiers
+├── services/        # One package per resource / data source / action
+│   └── <resource>/
+│       ├── <resource>_resource.go     # Resource CRUD + inline Schema()
+│       ├── <resource>_model.go        # tfsdk model + FromAPI / ToAPI (or ToPatchOperations)
+│       └── <resource>_data_source.go  # Data source Read + inline Schema()
+│   #   ~20 packages: access_profile, entitlement, form_definition, governance_group, identity,
+│   #   identity_attribute, identity_profile, launcher, lifecycle_state, role, segment, source,
+│   #   source_aggregation_schedule, source_attribute_sync_config, source_correlation_config,
+│   #   transform, workflow, workflow_trigger, and sync_source_attributes_action (a Provider Action)
+└── provider/
+    └── provider.go  # Provider config + Resources() / DataSources() / Actions() registration
 ```
+
+> **Schemas are defined inline** in each resource's / data source's `Schema(ctx, req, resp)` method (`resp.Schema = schema.Schema{...}`). There is **no** separate `schemas/` package or builder — the old `internal/provider/{models,schemas,resources,datasources}` layout no longer exists.
 
 ### Key Architectural Patterns
 
 #### 1. Custom REST Client (not SailPoint SDK)
-The provider uses a custom Resty-based HTTP client instead of the official SailPoint SDK:
-- **Location**: `internal/provider/client/`
+The provider uses a custom Resty v3 HTTP client instead of the official SailPoint SDK:
+- **Location**: `internal/client/` — one file per API area; build requests with `c.prepareRequest(ctx).SetResult(&x).SetPathParam("id", id).Get(endpoint)`.
 - **Features**:
   - Automatic OAuth2 token refresh with expiry tracking
   - Built-in retry logic for rate limits (429), timeouts, and 5xx errors
   - Thread-safe token management with RWMutex
   - Request/response middleware for auth headers and rate limit logging
-- **Authentication**: OAuth2 client credentials flow with 5-minute early refresh buffer
-- **Error handling**: Centralized error formatting with `ErrorContext` struct
+- **Endpoints**: each method declares its own full path constant (e.g. `"/v2025/sources/{id}"`). Most are `/v2025` (GA); a few are `/beta` (e.g. attribute-sync-config). Set per-request headers where needed (e.g. `X-SailPoint-Experimental: true` for experimental endpoints).
+- **Error handling**: per-resource `formatXError(...)` helpers wrapping a shared `ErrNotFound` sentinel — check with `errors.Is(err, client.ErrNotFound)` to detect a deleted/absent object.
 
-#### 2. Three-Layer Model Conversion
-Models implement interfaces for bidirectional conversion between Terraform and SailPoint:
+#### 2. Model conversion (`<resource>_model.go`)
+Each service package owns a `tfsdk`-tagged model plus conversion methods:
+- `FromAPI(ctx, *client.XAPI) diag.Diagnostics` — API → Terraform state.
+- `ToAPI(ctx, ...) (*client.XAPI, diag.Diagnostics)` for **PUT**-based resources, **or** `ToPatchOperations(ctx, ...) ([]client.JSONPatchOperation, diag.Diagnostics)` for **PATCH**-based resources.
+- Reuse `internal/common` helpers: `MapListFromAPI` / `MapSliceFromAPI` / `MapListToAPI` for nested collections, `common.NewObjectRefFromAPIPtr` / `NewObjectRefToAPIPtr` for `ObjectRef` attributes, and `MarshalJSONOrDefault` / `UnmarshalJSONField` for `jsontypes.Normalized` JSON fields.
 
-```go
-// From internal/provider/models/transform.go
-type Transform struct {
-    ID          types.String `tfsdk:"id"`
-    Name        types.String `tfsdk:"name"`
-    Type        types.String `tfsdk:"type"`
-    Attributes  types.String `tfsdk:"attributes"`
-    // ... terraform-plugin-framework types
-}
+#### 3. Schemas (inline)
+Schemas are defined **inline** in each resource's and data source's `Schema(ctx, req, resp)` method (`resp.Schema = schema.Schema{...}`). There is no shared schema-builder package. Use plan modifiers — `stringplanmodifier.UseStateForUnknown()` for computed-stable fields, `stringplanmodifier.RequiresReplace()` for immutable fields — and the custom modifiers in `internal/common/planmodifiers`.
 
-// Conversion methods:
-func (t *Transform) ConvertToSailPoint(ctx context.Context) client.Transform
-func (t *Transform) ConvertFromSailPoint(ctx context.Context, transform *client.Transform, includeNull bool)
-func (t *Transform) GeneratePatchOperations(ctx context.Context, newTransform Transform) []map[string]any
-```
-
-**Important**: The `includeNull` parameter controls whether null API values overwrite Terraform state. Use `false` for data sources to preserve state, `true` for resources to clear values.
-
-#### 3. Schema Builders
-Schemas are generated via builder pattern to share definitions between resources and data sources:
-- **Location**: `internal/provider/schemas/`
-- **Pattern**: Each builder implements `GetResourceSchema()` and `GetDataSourceSchema()`
-- **Reusability**: Nested objects like `ObjectRef` are defined once and reused
-
-#### 4. Generic Conversion Helpers
-The `models/helpers.go` file contains type-safe generic functions for converting between Terraform types and Go types:
-- `NewGoTypeValueIf[TTerraform, TGo]()` - Terraform → Go with conditional setting
-- `NewTerraformTypeValueIf[TTerraform, TGo]()` - Go → Terraform with null handling
-- `IsTerraformValueNullOrUnknown()` - Check if Terraform value should be skipped
-
-These helpers reduce boilerplate when handling optional fields.
+#### 4. Shared helpers (`internal/common`)
+`common/helpers.go` provides the cross-resource utilities — notably `ConfigureClient(ctx, providerData, resourceType)` (used in every `Configure` method to obtain the `*client.Client`) and the generic `Map*FromAPI`/`MapListToAPI` collection mappers. `common/object_ref_model.go` provides the reusable `ObjectRefModel`.
 
 ## Authentication Pattern
 
@@ -177,40 +150,19 @@ provider "sailpoint" {
 
 ## Resource Implementation Pattern
 
-When adding new resources:
+When adding a new resource, create one package under `internal/services/<resource>/` and mirror an existing one. Good references by shape:
+- **Standard CRUD** (own create/delete): `source`, `role`, `access_profile`.
+- **Adopt-only, PUT** (config that always exists; Create reads + applies diffs, Delete is a no-op): `source_correlation_config`, `source_attribute_sync_config`.
+- **Adopt-only, PATCH** (`ToPatchOperations`, `ImportStatePassthroughID`): `entitlement`.
+- **Provider Action** (imperative, no state): `sync_source_attributes_action`.
 
-1. **Define the API client method** in `internal/provider/client/`:
-   ```go
-   func (c *Client) CreateResource(ctx context.Context, resource *Resource) (*Resource, error) {
-       var result Resource
-       resp, err := c.doRequest(ctx, http.MethodPost, "/v2025/resources", resource, &result)
-       if err != nil {
-           return nil, c.formatError(ErrorContext{Operation: "create", Resource: "resource"}, err, 0)
-       }
-       if resp.IsError() {
-           return nil, c.formatError(ErrorContext{Operation: "create", Resource: "resource"}, nil, resp.StatusCode())
-       }
-       return &result, nil
-   }
-   ```
+Steps:
 
-2. **Create the model** in `internal/provider/models/`:
-   - Use `types.String`, `types.Bool`, `types.Int32`, etc. from terraform-plugin-framework
-   - Implement conversion methods using helpers from `helpers.go`
-   - For updates, implement `GeneratePatchOperations()` to create JSON Patch arrays
-
-3. **Define the schema** in `internal/provider/schemas/`:
-   - Create a builder struct implementing both resource and data source schemas
-   - Use plan modifiers: `stringplanmodifier.UseStateForUnknown()` for computed fields
-   - Use `stringplanmodifier.RequiresReplace()` for immutable fields
-
-4. **Implement CRUD** in `internal/provider/resources/`:
-   - Follow the pattern in `transform_resource.go` or `form_definition_resource.go`
-   - Use structured logging with `tflog.Debug()` and `tflog.Info()`
-   - For updates, consider using `GeneratePatchOperations()` for PATCH or full PUT depending on API requirements
-
-5. **Register** in `internal/provider/provider.go`:
-   - Add to `Resources()` or `DataSources()` slice
+1. **Add the client method(s)** in `internal/client/<area>.go` using the `prepareRequest(ctx)...` pattern (see `entitlements.go`, `sources.go`). Declare the full path constant; add a per-resource `formatXError` wrapping `ErrNotFound`.
+2. **Add the model** in `<resource>_model.go`: a `tfsdk` struct plus `FromAPI` and `ToAPI` (PUT) or `ToPatchOperations` (PATCH). Lean on `internal/common` helpers.
+3. **Implement the resource** in `<resource>_resource.go`: `Schema()` inline, CRUD, `Configure()` via `common.ConfigureClient`, structured `tflog` logging. Add the data source in `<resource>_data_source.go` (Read with `includeNull: false` semantics).
+4. **Register** in `internal/provider/provider.go` — add the constructor to `Resources()`, `DataSources()`, and/or `Actions()` (the provider implements `provider.ProviderWithActions`).
+5. **Add an example** under `examples/` and run `make generate` (tfplugindocs reads the examples + inline schema descriptions); stage the `docs/` diff.
 
 ## Testing Strategy
 
@@ -218,12 +170,16 @@ When adding new resources:
 - **Acceptance tests**: Require `TF_ACC=1` and valid SailPoint credentials to test against real API
 - Examples in `examples/` are used by tfplugindocs for documentation generation
 
-## Current Resources
+## Current Capabilities
 
-The provider currently supports:
-- **Transform** - Resource and data source for managing identity transforms
-- **Form Definition** - Resource and data source for managing custom forms
-- **Workflow** - Resource and data source for managing custom automation workflows
+`internal/provider/provider.go` is the source of truth for what's registered. As of this writing the provider exposes ~19 resources, ~16 data sources, and 1 action, spanning:
+- **Identity**: identity (data source), identity_attribute, identity_profile, lifecycle_state, launcher
+- **Access model**: access_profile, role, entitlement, segment, governance_group
+- **Sources**: source, source schema, source provisioning policy, source_aggregation_schedule, source_correlation_config, **source_attribute_sync_config**
+- **Automation & extensibility**: transform, form_definition, workflow, workflow_trigger
+- **Actions**: **sync_source_attributes** (Provider Action — triggers a one-time source attribute sync; requires Terraform ≥ 1.14)
+
+When in doubt about the current set, read the `Resources()` / `DataSources()` / `Actions()` slices in `provider.go` rather than trusting this list.
 
 ## Common Pitfalls
 
