@@ -23,7 +23,8 @@ func makeTestAPI() *client.SourceAttributeSyncConfigAPI {
 	}
 }
 
-func makeModel(sourceID string, attrs []sourceAttrSyncAttributeModel) sourceAttrSyncConfigModel {
+func makeModel(attrs []sourceAttrSyncAttributeModel) sourceAttrSyncConfigModel {
+	const sourceID = "src-1"
 	return sourceAttrSyncConfigModel{
 		ID:         types.StringValue(sourceID),
 		SourceID:   types.StringValue(sourceID),
@@ -35,7 +36,7 @@ func makeModel(sourceID string, attrs []sourceAttrSyncAttributeModel) sourceAttr
 func TestFromAPI_NoFilter(t *testing.T) {
 	t.Parallel()
 	api := makeTestAPI()
-	m := makeModel("src-1", nil)
+	m := makeModel(nil)
 	diags := m.FromAPI(context.Background(), api, nil)
 	if diags.HasError() {
 		t.Fatalf("unexpected diagnostics: %v", diags)
@@ -49,7 +50,7 @@ func TestFromAPI_NoFilter(t *testing.T) {
 func TestFromAPI_WithFilter(t *testing.T) {
 	t.Parallel()
 	api := makeTestAPI()
-	m := makeModel("src-1", nil)
+	m := makeModel(nil)
 	filter := map[string]struct{}{"email": {}, "department": {}}
 	diags := m.FromAPI(context.Background(), api, filter)
 	if diags.HasError() {
@@ -70,7 +71,7 @@ func TestFromAPI_WithFilter(t *testing.T) {
 func TestFromAPI_RoundTrip(t *testing.T) {
 	t.Parallel()
 	api := makeTestAPI()
-	m := makeModel("src-1", nil)
+	m := makeModel(nil)
 	diags := m.FromAPI(context.Background(), api, nil)
 	if diags.HasError() {
 		t.Fatalf("unexpected diagnostics: %v", diags)
@@ -91,7 +92,7 @@ func TestToAPI_MergeLogic(t *testing.T) {
 	t.Parallel()
 	remote := makeTestAPI()
 
-	m := makeModel("src-1", []sourceAttrSyncAttributeModel{
+	m := makeModel([]sourceAttrSyncAttributeModel{
 		{Name: types.StringValue("email"), Enabled: types.BoolValue(false)},
 	})
 	m.Source = &common.ObjectRefModel{
@@ -128,7 +129,7 @@ func TestToAPI_InvalidAttributeName(t *testing.T) {
 	t.Parallel()
 	remote := makeTestAPI()
 
-	m := makeModel("src-1", []sourceAttrSyncAttributeModel{
+	m := makeModel([]sourceAttrSyncAttributeModel{
 		{Name: types.StringValue("nonexistent"), Enabled: types.BoolValue(true)},
 	})
 	m.Source = &common.ObjectRefModel{

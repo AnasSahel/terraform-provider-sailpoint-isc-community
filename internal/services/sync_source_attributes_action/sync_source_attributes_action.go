@@ -85,7 +85,7 @@ func (a *syncSourceAttributesAction) Invoke(ctx context.Context, req action.Invo
 	sourceID := config.SourceID.ValueString()
 	tflog.Debug(ctx, "Invoking sync_source_attributes action", map[string]any{"source_id": sourceID})
 
-	resp.SendProgress(ctx, fmt.Sprintf("Triggering attribute sync for source %q...", sourceID))
+	resp.SendProgress(action.InvokeProgressEvent{Message: fmt.Sprintf("Triggering attribute sync for source %q...", sourceID)})
 
 	if err := a.client.SyncSourceAttributes(ctx, sourceID); err != nil {
 		resp.Diagnostics.AddError(
@@ -95,6 +95,6 @@ func (a *syncSourceAttributesAction) Invoke(ctx context.Context, req action.Invo
 		return
 	}
 
-	resp.SendProgress(ctx, fmt.Sprintf("Attribute sync triggered for source %q. Propagation is asynchronous.", sourceID))
+	resp.SendProgress(action.InvokeProgressEvent{Message: fmt.Sprintf("Attribute sync triggered for source %q. Propagation is asynchronous.", sourceID)})
 	tflog.Info(ctx, "Successfully triggered source attribute sync", map[string]any{"source_id": sourceID})
 }
