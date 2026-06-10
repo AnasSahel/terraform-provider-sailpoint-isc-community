@@ -19,9 +19,9 @@ jobs:
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      pull-requests: read
-      issues: read
+      contents: write # Push the work branch
+      pull-requests: write # Open the PR automatically (no manual "Create PR" click)
+      issues: write # Comment results back on the issue
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
     steps:
@@ -43,8 +43,41 @@ jobs:
           # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
           # prompt: 'Update the pull request description to include a summary of changes.'
 
-          # Optional: Add claude_args to customize behavior and configuration
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr *)'
+          # Allow Claude to open/update the PR itself (with pull-requests: write above),
+          # so a tagged issue lands as a ready PR instead of a "Create PR" link.
+          claude_args: '--allowed-tools "Bash(gh pr create:*),Bash(gh pr edit:*),Bash(gh pr view:*)"'
+
+      # Deterministic fallback: if Claude pushed a claude/issue-<n>-* branch but did not
+      # open a PR itself (model-dependent — it sometimes leaves only a "Create PR" link),
+      # open the PR here. Idempotent and never fails the run.
+      - name: Ensure PR exists for Claude's branch
+        if: ${{ always() && (github.event_name == 'issues' || github.event_name == 'issue_comment') }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          [ -z "${ISSUE:-}" ] && { echo "No issue number in context; skipping."; exit 0; }
+          git fetch origin --prune --quiet
+          BRANCH=$(git for-each-ref --sort=-committerdate \
+            --format='%(refname:short)' \
+            "refs/remotes/origin/claude/issue-${ISSUE}-*" | head -n1 | sed 's#^origin/##' || true)
+          if [ -z "${BRANCH:-}" ]; then
+            echo "No claude/issue-${ISSUE}-* branch was pushed; nothing to PR."
+            exit 0
+          fi
+          OPEN=$(gh pr list --head "$BRANCH" --state open --json number --jq 'length')
+          if [ "$OPEN" != "0" ]; then
+            echo "PR already open for $BRANCH; nothing to do."
+            exit 0
+          fi
+          TITLE=$(gh issue view "$ISSUE" --json title --jq '.title')
+          gh pr create --base main --head "$BRANCH" \
+            --title "${TITLE}" \
+            --body "Automated implementation for #${ISSUE}, opened by the Claude Code workflow.
+
+          Closes #${ISSUE}
+
+          Review CI (\`make lint\` + \`make generate\` diff check) before merging."
 
