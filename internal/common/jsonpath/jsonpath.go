@@ -144,6 +144,87 @@ func PreservePathsInJSON(mergedJSON, priorJSON string, paths []string) (string, 
 	return string(out), nil
 }
 
+// RemovePaths deletes the leaf at each path from m. Paths that don't exist in m
+// are silently skipped. Returns an error only if a path cannot be parsed.
+//
+// Unlike PreservePaths (which copies a value in), this prunes the path entirely.
+// It is used to honour an "ignore this nested field" contract: a path the
+// practitioner declared as ignored is removed from the projected state so it can
+// never produce a diff (the config omits it, so the state must omit it too).
+func RemovePaths(m map[string]interface{}, paths []string) error {
+	for _, path := range paths {
+		segs, err := Parse(path)
+		if err != nil {
+			return fmt.Errorf("remove paths: %w", err)
+		}
+		removeNode(m, segs)
+	}
+	return nil
+}
+
+// RemovePathsInJSON unmarshals jsonStr, removes the leaf at each path (using
+// RemovePaths), and re-marshals the result. Paths absent from the input are
+// silently skipped. Returns an error if the input is invalid JSON or a path
+// cannot be parsed.
+func RemovePathsInJSON(jsonStr string, paths []string) (string, error) {
+	var m map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &m); err != nil {
+		return "", fmt.Errorf("unmarshal JSON: %w", err)
+	}
+	if err := RemovePaths(m, paths); err != nil {
+		return "", err
+	}
+	out, err := json.Marshal(m)
+	if err != nil {
+		return "", fmt.Errorf("marshal JSON: %w", err)
+	}
+	return string(out), nil
+}
+
+// removeNode walks node following segs and deletes the leaf key. Array segments
+// (wildcard/index) recurse into the matching element(s); a leaf key inside an
+// array element is deleted from each element map.
+func removeNode(node interface{}, segs []segment) {
+	if len(segs) == 0 {
+		return
+	}
+
+	seg := segs[0]
+	rest := segs[1:]
+
+	switch seg.kind {
+	case segKey:
+		m, ok := node.(map[string]interface{})
+		if !ok {
+			return
+		}
+		if len(rest) == 0 {
+			delete(m, seg.key)
+			return
+		}
+		removeNode(m[seg.key], rest)
+
+	case segWildcard:
+		arr, ok := node.([]interface{})
+		if !ok {
+			return
+		}
+		for i := range arr {
+			removeNode(arr[i], rest)
+		}
+
+	case segIndex:
+		arr, ok := node.([]interface{})
+		if !ok {
+			return
+		}
+		if seg.idx >= len(arr) {
+			return
+		}
+		removeNode(arr[seg.idx], rest)
+	}
+}
+
 // preserveNode walks merged and server in lock-step following segs,
 // and at the leaf key copies the server value into merged.
 func preserveNode(mergedNode, serverNode interface{}, segs []segment) {

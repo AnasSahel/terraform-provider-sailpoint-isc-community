@@ -4,11 +4,22 @@
 package source
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
+
+func mustStringList(t *testing.T, vals ...string) types.List {
+	t.Helper()
+	l, diags := types.ListValueFrom(context.Background(), types.StringType, vals)
+	if diags.HasError() {
+		t.Fatalf("building list: %v", diags)
+	}
+	return l
+}
 
 // TestUnit_projectConnectorAttributes verifies the projection helper in
 // isolation — no SailPoint credentials needed. All values are invented; no
@@ -140,6 +151,119 @@ func TestUnit_projectConnectorAttributes(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestUnit_ignoreJSONChanges_readProjectionPrune exercises the #162 fix path at
+// the model level: the Read projection copies the full server value of a declared
+// top-level key (masked nested secret included), then the ignored path is pruned
+// so the managed connector_attributes matches the config (which omits it) and
+// reaches No changes — while non-ignored siblings still surface drift. No
+// SailPoint credentials needed; all values are invented.
+func TestUnit_ignoreJSONChanges_readProjectionPrune(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	// Config / prior managed state: declares domainSettings WITHOUT password.
+	const managed = `{"domainSettings":[{"domainDN":"DC=example,DC=com","user":"svc@example.com"}]}`
+	// Full API set: server returns the password masked, plus undeclared keys.
+	const full = `{"domainSettings":[{"domainDN":"DC=example,DC=com","user":"svc@example.com","password":"********"}],"status":"SOURCE_STATE_HEALTHY"}`
+
+	cases := map[string]struct {
+		model sourceModel
+	}{
+		"via ignore_json_changes (new, field-rooted)": {
+			model: sourceModel{IgnoreJSONChanges: mustStringList(t, "connector_attributes.domainSettings[*].password")},
+		},
+		"via ignore_attributes_paths (deprecated, $-rooted)": {
+			model: sourceModel{IgnoreAttributesPaths: mustStringList(t, "$.domainSettings[*].password")},
+		},
+		"both set, union applied": {
+			model: sourceModel{
+				IgnoreJSONChanges:     mustStringList(t, "connector_attributes.domainSettings[*].password"),
+				IgnoreAttributesPaths: mustStringList(t, "$.status"),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			paths, diags := tc.model.resolvedIgnorePaths(ctx)
+			if diags.HasError() {
+				t.Fatalf("resolvedIgnorePaths: %v", diags)
+			}
+
+			projected, diags := projectConnectorAttributes(jsontypes.NewNormalizedValue(managed), jsontypes.NewNormalizedValue(full))
+			if diags.HasError() {
+				t.Fatalf("projectConnectorAttributes: %v", diags)
+			}
+			pruned, diags := pruneIgnoredPaths(projected, paths)
+			if diags.HasError() {
+				t.Fatalf("pruneIgnoredPaths: %v", diags)
+			}
+
+			var got map[string]interface{}
+			if err := json.Unmarshal([]byte(pruned.ValueString()), &got); err != nil {
+				t.Fatalf("pruned value not valid JSON: %v", err)
+			}
+
+			arr, ok := got["domainSettings"].([]interface{})
+			if !ok || len(arr) != 1 {
+				t.Fatalf("domainSettings shape unexpected: %v", got["domainSettings"])
+			}
+			el, ok := arr[0].(map[string]interface{})
+			if !ok {
+				t.Fatalf("domainSettings[0] not an object: %v", arr[0])
+			}
+			if _, ok := el["password"]; ok {
+				t.Errorf("ignored password must be pruned, got %v", el["password"])
+			}
+			if el["domainDN"] != "DC=example,DC=com" || el["user"] != "svc@example.com" {
+				t.Errorf("non-ignored siblings must survive, got %v", el)
+			}
+			// status is a server-managed undeclared key — projection drops it
+			// regardless of the ignore set.
+			if _, ok := got["status"]; ok {
+				t.Errorf("undeclared server key must not be in managed attributes, got %v", got)
+			}
+		})
+	}
+}
+
+// TestUnit_ignoreJSONChanges_siblingDriftSurfaces confirms a real change on a
+// NON-ignored field inside a declared key is still reflected after prune.
+func TestUnit_ignoreJSONChanges_siblingDriftSurfaces(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	const managed = `{"domainSettings":[{"domainDN":"DC=old,DC=com","password":"********"}]}`
+	// Server changed domainDN (real drift) and still masks the password.
+	const full = `{"domainSettings":[{"domainDN":"DC=new,DC=com","password":"********"}]}`
+
+	m := sourceModel{IgnoreJSONChanges: mustStringList(t, "connector_attributes.domainSettings[*].password")}
+	paths, _ := m.resolvedIgnorePaths(ctx)
+	projected, _ := projectConnectorAttributes(jsontypes.NewNormalizedValue(managed), jsontypes.NewNormalizedValue(full))
+	pruned, _ := pruneIgnoredPaths(projected, paths)
+
+	var got map[string]interface{}
+	if err := json.Unmarshal([]byte(pruned.ValueString()), &got); err != nil {
+		t.Fatal(err)
+	}
+	arr, ok := got["domainSettings"].([]interface{})
+	if !ok || len(arr) != 1 {
+		t.Fatalf("domainSettings shape unexpected: %v", got["domainSettings"])
+	}
+	el, ok := arr[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("domainSettings[0] not an object: %v", arr[0])
+	}
+	if el["domainDN"] != "DC=new,DC=com" {
+		t.Errorf("sibling drift must surface: domainDN = %v, want DC=new,DC=com", el["domainDN"])
+	}
+	if _, ok := el["password"]; ok {
+		t.Error("ignored password must still be pruned")
 	}
 }
 

@@ -153,6 +153,77 @@ resource "sailpoint_source" "test" {
 `, name, ownerID)
 }
 
+// testAccSourceConfigIgnoreJSON declares ignore_json_changes on a nested path.
+// The masked-secret prune semantics (#162) are covered deterministically by the
+// unit tests (they require a masking connector to reproduce against a live
+// tenant); this config guards the practitioner-facing wiring: the attribute is
+// accepted, validated, survives a state round-trip, and introduces no phantom
+// diff of its own.
+func testAccSourceConfigIgnoreJSON(name, ownerID string) string {
+	return fmt.Sprintf(`
+resource "sailpoint_source" "test" {
+  name      = %[1]q
+  connector = "delimited-file"
+
+  owner = {
+    type = "IDENTITY"
+    id   = %[2]q
+  }
+
+  connector_attributes = jsonencode({
+    cloudDisplayName = %[1]q
+    hasHeader        = true
+  })
+
+  ignore_json_changes = ["connector_attributes.domainSettings[*].password"]
+}
+`, name, ownerID)
+}
+
+// TestAccSource_ignoreJSONChanges verifies that ignore_json_changes is accepted,
+// round-trips through import, and does not itself create a phantom diff.
+func TestAccSource_ignoreJSONChanges(t *testing.T) {
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("Set TF_ACC=1 to run acceptance tests (requires SailPoint test tenant credentials)")
+	}
+
+	ownerID := os.Getenv("SAILPOINT_TEST_SOURCE_OWNER_ID")
+	if ownerID == "" {
+		t.Fatal("SAILPOINT_TEST_SOURCE_OWNER_ID must be set to a valid identity ID in the test tenant")
+	}
+
+	sourceName := "tf-acc-ignore-json-test"
+	resourceName := "sailpoint_source.test"
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: providerFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccSourceConfigIgnoreJSON(sourceName, ownerID),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttrSet(resourceName, "id"),
+					resource.TestCheckResourceAttr(resourceName, "ignore_json_changes.#", "1"),
+					checkConnectorAttributesProjection(resourceName, []string{"cloudDisplayName", "hasHeader"}),
+				),
+			},
+			// Refresh-only plan must be empty: the ignore path is a no-op when the
+			// server returns no such nested field.
+			{
+				Config:             testAccSourceConfigIgnoreJSON(sourceName, ownerID),
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: false,
+			},
+			// Import round-trip preserves ignore_json_changes.
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"provision_as_csv", "ignore_json_changes"},
+			},
+		},
+	})
+}
+
 // TestAccSource_connectorAttributesPartialManagement exercises the full
 // partial-management lifecycle:
 //

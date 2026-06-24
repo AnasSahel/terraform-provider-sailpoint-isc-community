@@ -10,6 +10,7 @@ import (
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common/ignorejson"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common/jsonpath"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -28,6 +29,7 @@ type sourceModel struct {
 	ConnectorAttributes       jsontypes.Normalized   `tfsdk:"connector_attributes"`
 	ConnectorAttributesAll    jsontypes.Normalized   `tfsdk:"connector_attributes_all"`
 	IgnoreAttributesPaths     types.List             `tfsdk:"ignore_attributes_paths"`
+	IgnoreJSONChanges         types.List             `tfsdk:"ignore_json_changes"`
 	ConnectionType            types.String           `tfsdk:"connection_type"`
 	Type                      types.String           `tfsdk:"type"`
 	DeleteThreshold           types.Int64            `tfsdk:"delete_threshold"`
@@ -259,16 +261,16 @@ func (m *sourceModel) ToPatchOperations(ctx context.Context, state *sourceModel)
 
 				// Re-inject server values at paths the user wants to ignore, so that
 				// nested server-managed fields (e.g. passwords inside domainSettings)
-				// are not wiped by the top-level array replacement.
-				if !m.IgnoreAttributesPaths.IsNull() && !m.IgnoreAttributesPaths.IsUnknown() && serverAttrs != nil {
-					var paths []string
-					diags = m.IgnoreAttributesPaths.ElementsAs(ctx, &paths, false)
-					diagnostics.Append(diags...)
-					if !diagnostics.HasError() {
-						if err := jsonpath.PreservePaths(merged, serverAttrs, paths); err != nil {
+				// are not wiped by the top-level key replacement. Covers both the
+				// deprecated ignore_attributes_paths and ignore_json_changes.
+				if serverAttrs != nil {
+					ignorePaths, d := m.resolvedIgnorePaths(ctx)
+					diagnostics.Append(d...)
+					if !diagnostics.HasError() && len(ignorePaths) > 0 {
+						if err := jsonpath.PreservePaths(merged, serverAttrs, ignorePaths); err != nil {
 							diagnostics.AddError(
-								"Invalid ignore_attributes_paths",
-								fmt.Sprintf("Failed to apply ignore_attributes_paths: %s", err),
+								"Invalid ignore paths",
+								fmt.Sprintf("Failed to apply ignore paths: %s", err),
 							)
 						}
 					}
@@ -313,6 +315,53 @@ func (m *sourceModel) ToPatchOperations(ctx context.Context, state *sourceModel)
 	}
 
 	return patchOps, diagnostics
+}
+
+// resolvedIgnorePaths returns the union of ignore paths as jsonpath remainders
+// rooted at "$", drawn from both the deprecated ignore_attributes_paths (already
+// "$"-rooted, e.g. "$.domainSettings[*].password") and ignore_json_changes
+// (rooted at the resource field, e.g. "connector_attributes.domainSettings[*].password",
+// whose remainder is "$.domainSettings[*].password").
+//
+// These feed jsonpath.RemovePaths (Read / ModifyPlan, to prune the ignored leaf
+// from the projected connector_attributes so it never produces a diff) and
+// jsonpath.PreservePaths (apply, to keep the server value out of the PATCH wipe).
+func (m *sourceModel) resolvedIgnorePaths(ctx context.Context) ([]string, diag.Diagnostics) {
+	var diags diag.Diagnostics
+	var paths []string
+
+	if !m.IgnoreAttributesPaths.IsNull() && !m.IgnoreAttributesPaths.IsUnknown() {
+		var legacy []string
+		diags.Append(m.IgnoreAttributesPaths.ElementsAs(ctx, &legacy, false)...)
+		paths = append(paths, legacy...)
+	}
+
+	remainders, d := ignorejson.Remainders(ctx, m.IgnoreJSONChanges, "connector_attributes")
+	diags.Append(d...)
+	paths = append(paths, remainders...)
+
+	return paths, diags
+}
+
+// pruneIgnoredPaths removes every ignored path from attrs, returning the pruned
+// value. It is a no-op when attrs is null/unknown or there are no paths. Used by
+// Read and ModifyPlan so a masked/server-managed nested field the practitioner
+// chose to ignore is absent from the managed connector_attributes — matching the
+// config (which omits it) and reaching No changes.
+func pruneIgnoredPaths(attrs jsontypes.Normalized, paths []string) (jsontypes.Normalized, diag.Diagnostics) {
+	var diags diag.Diagnostics
+	if attrs.IsNull() || attrs.IsUnknown() || len(paths) == 0 {
+		return attrs, diags
+	}
+	pruned, err := jsonpath.RemovePathsInJSON(attrs.ValueString(), paths)
+	if err != nil {
+		diags.AddError(
+			"Invalid ignore paths",
+			fmt.Sprintf("Failed to prune ignored paths from connector_attributes: %s", err),
+		)
+		return attrs, diags
+	}
+	return jsontypes.NewNormalizedValue(pruned), diags
 }
 
 // projectConnectorAttributes returns a jsontypes.Normalized containing only

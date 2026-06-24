@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Source `ignore_json_changes`** — `sailpoint_source` now supports the provider-wide `ignore_json_changes` list for paths inside `connector_attributes`, consistent with the `transform` and `workflow` resources. Entries take the form `connector_attributes.<json-path>` (e.g. `connector_attributes.domainSettings[*].password`). A declared path is fully ignored in **plan and apply**: a server-managed or masked nested field is absent from the managed `connector_attributes` (so it never produces a phantom diff) and its server value is never overwritten on apply. Drift on non-ignored sibling fields is still surfaced. (#162)
+- Internal `jsonpath.RemovePaths` / `RemovePathsInJSON` and `ignorejson.Remainders` helpers underpinning the prune-on-read behaviour. (#162)
+
+### Deprecated
+
+- **Source `ignore_attributes_paths`** is deprecated in favour of `ignore_json_changes`. Existing configurations keep working unchanged; migrate `$.<path>` entries to `connector_attributes.<path>`. The attribute will be removed in a future major version. (#162)
+
+### Fixed
+
+- **`sailpoint_source` phantom diff on ignored nested secrets.** `ignore_attributes_paths` was only consulted in the apply PATCH, never in Read or `ModifyPlan`, so a nested field the API returns masked (`"********"`) produced a permanent `1 to change` that never reached `No changes`. Ignored paths are now pruned from the projected `connector_attributes` on read, so the resource converges. (#162)
+
 ## [3.1.0] - 2026-06-10
 
 ### Added
