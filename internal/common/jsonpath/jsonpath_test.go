@@ -488,3 +488,102 @@ func TestPreservePaths_multiplePaths(t *testing.T) {
 		t.Errorf("forestSettings[0].servicePassword = %v, want %q", v, "pass2")
 	}
 }
+
+func TestRemovePaths_wildcardLeaf(t *testing.T) {
+	merged := map[string]interface{}{
+		"domainSettings": []interface{}{
+			map[string]interface{}{"domainDN": "DC=example,DC=com", "password": "********"},
+			map[string]interface{}{"domainDN": "DC=other,DC=com", "password": "********"},
+		},
+	}
+	if err := RemovePaths(merged, []string{"$.domainSettings[*].password"}); err != nil {
+		t.Fatal(err)
+	}
+	arr := mustArray(t, merged["domainSettings"], "merged[domainSettings]")
+	for i := range arr {
+		o := mustObject(t, arr[i], "arr[i]")
+		if _, ok := o["password"]; ok {
+			t.Errorf("element %d still has password", i)
+		}
+		if o["domainDN"] == nil {
+			t.Errorf("element %d lost domainDN (sibling must survive)", i)
+		}
+	}
+}
+
+func TestRemovePaths_topLevelAndIndexAndNested(t *testing.T) {
+	merged := map[string]interface{}{
+		"secret":   "x",
+		"keep":     "y",
+		"arr":      []interface{}{map[string]interface{}{"p": 1, "q": 2}, map[string]interface{}{"p": 3}},
+		"nestedOb": map[string]interface{}{"inner": map[string]interface{}{"z": 9, "keepZ": 10}},
+	}
+	paths := []string{"$.secret", "$.arr[0].p", "$.nestedOb.inner.z"}
+	if err := RemovePaths(merged, paths); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := merged["secret"]; ok {
+		t.Error("top-level secret not removed")
+	}
+	if merged["keep"] != "y" {
+		t.Error("unrelated top-level key altered")
+	}
+	arr := mustArray(t, merged["arr"], "merged[arr]")
+	if _, ok := mustObject(t, arr[0], "arr[0]")["p"]; ok {
+		t.Error("arr[0].p not removed")
+	}
+	if mustObject(t, arr[1], "arr[1]")["p"] != 3 {
+		t.Error("arr[1].p must survive (only index 0 targeted)")
+	}
+	inner := mustObject(t, mustObject(t, merged["nestedOb"], "nestedOb")["inner"], "inner")
+	if _, ok := inner["z"]; ok {
+		t.Error("nestedOb.inner.z not removed")
+	}
+	if inner["keepZ"] != 10 {
+		t.Error("nestedOb.inner.keepZ must survive")
+	}
+}
+
+func TestRemovePaths_absentAndTypeMismatchAreNoOps(t *testing.T) {
+	merged := map[string]interface{}{"a": map[string]interface{}{"b": 1}, "scalar": "s"}
+	// absent path, and a path that walks through a scalar as if it were a map/array
+	paths := []string{"$.missing.deep", "$.scalar[*].x", "$.a.b.c"}
+	if err := RemovePaths(merged, paths); err != nil {
+		t.Fatal(err)
+	}
+	if mustObject(t, merged["a"], "a")["b"] != 1 {
+		t.Error("a.b should be untouched by no-op paths")
+	}
+	if merged["scalar"] != "s" {
+		t.Error("scalar should be untouched")
+	}
+}
+
+// TestRemovePathsInJSON_maskedSecret is the #162 core case: a declared top-level
+// key carries a masked nested secret the practitioner ignores. After pruning, the
+// projected attributes equal the config (which omits the secret) → No changes,
+// while non-ignored siblings remain.
+func TestRemovePathsInJSON_maskedSecret(t *testing.T) {
+	projected := `{"domainSettings":[{"domainDN":"DC=example,DC=com","servers":["192.0.2.10"],"user":"svc-bind@example.com","password":"********"}]}`
+	out, err := RemovePathsInJSON(projected, []string{"$.domainSettings[*].password"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]interface{}
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatal(err)
+	}
+	el := mustObject(t, mustArray(t, got["domainSettings"], "domainSettings")[0], "el")
+	if _, ok := el["password"]; ok {
+		t.Error("password must be pruned")
+	}
+	if el["domainDN"] != "DC=example,DC=com" || el["user"] != "svc-bind@example.com" {
+		t.Error("non-ignored siblings must survive")
+	}
+}
+
+func TestRemovePathsInJSON_invalidPath(t *testing.T) {
+	if _, err := RemovePathsInJSON(`{"a":1}`, []string{"no-dollar"}); err == nil {
+		t.Error("expected error for unparseable path")
+	}
+}

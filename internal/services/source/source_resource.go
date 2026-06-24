@@ -10,6 +10,7 @@ import (
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common/ignorejson"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common/planmodifiers"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -23,10 +24,11 @@ import (
 )
 
 var (
-	_ resource.Resource                = &sourceResource{}
-	_ resource.ResourceWithConfigure   = &sourceResource{}
-	_ resource.ResourceWithImportState = &sourceResource{}
-	_ resource.ResourceWithModifyPlan  = &sourceResource{}
+	_ resource.Resource                   = &sourceResource{}
+	_ resource.ResourceWithConfigure      = &sourceResource{}
+	_ resource.ResourceWithImportState    = &sourceResource{}
+	_ resource.ResourceWithModifyPlan     = &sourceResource{}
+	_ resource.ResourceWithValidateConfig = &sourceResource{}
 )
 
 type sourceResource struct {
@@ -144,10 +146,24 @@ func (r *sourceResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				CustomType:          jsontypes.NormalizedType{},
 			},
 			"ignore_attributes_paths": schema.ListAttribute{
-				MarkdownDescription: "A list of JSONPath expressions identifying fields inside `connector_attributes` that should be preserved from the server state rather than overwritten on each apply. " +
-					"Use this to protect server-managed sensitive fields (e.g. passwords) nested inside arrays that you declare in `connector_attributes`. " +
+				MarkdownDescription: "**Deprecated** — use `ignore_json_changes` instead. " +
+					"A list of JSONPath expressions identifying fields inside `connector_attributes` whose drift the provider should ignore. " +
 					"Supported syntax: `$.key`, `$.key.nested`, `$.key[N].field` (specific index), `$.key[*].field` (all elements). " +
-					"Example: `[\"$.domainSettings[*].password\", \"$.forestSettings[*].servicePassword\"]`.",
+					"Example: `[\"$.domainSettings[*].password\", \"$.forestSettings[*].servicePassword\"]`. " +
+					"Entries are honoured exactly like `ignore_json_changes`; prefer the latter for consistency with the `transform` and `workflow` resources.",
+				Optional:           true,
+				ElementType:        types.StringType,
+				DeprecationMessage: "Use ignore_json_changes instead. ignore_attributes_paths still works but will be removed in a future major version. Migrate `$.<path>` entries to `connector_attributes.<path>`.",
+			},
+			"ignore_json_changes": schema.ListAttribute{
+				MarkdownDescription: "Paths inside the JSON `connector_attributes` whose drift to ignore — analogous to " +
+					"`lifecycle.ignore_changes`, but reaching inside the JSON string. Each entry has the form " +
+					"`connector_attributes.<json-path>` (e.g. `connector_attributes.domainSettings[*].password`). " +
+					"The path is fully ignored in plan and apply: a server-managed or masked nested field you declare here is " +
+					"absent from the managed `connector_attributes`, so it never produces a phantom diff, and its server value is " +
+					"never overwritten on apply. Drift on non-ignored sibling fields is still surfaced. " +
+					"Supported syntax: `connector_attributes.key`, `connector_attributes.key.nested`, " +
+					"`connector_attributes.key[N].field`, `connector_attributes.key[*].field`.",
 				Optional:    true,
 				ElementType: types.StringType,
 			},
@@ -227,6 +243,18 @@ func (r *sourceResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 	}
 }
 
+// ValidateConfig implements resource.ResourceWithValidateConfig. It checks that
+// every ignore_json_changes entry targets connector_attributes with a parseable
+// jsonpath remainder. (ignore_attributes_paths is validated lazily at apply.)
+func (r *sourceResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var config sourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.Diagnostics.Append(ignorejson.ValidatePaths(ctx, config.IgnoreJSONChanges, []string{"connector_attributes"})...)
+}
+
 // Create implements resource.Resource.
 func (r *sourceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan sourceModel
@@ -280,6 +308,7 @@ func (r *sourceResource) Create(ctx context.Context, req resource.CreateRequest,
 
 	// Preserve Terraform-only fields not populated by FromAPI.
 	state.IgnoreAttributesPaths = plan.IgnoreAttributesPaths
+	state.IgnoreJSONChanges = plan.IgnoreJSONChanges
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
@@ -357,8 +386,23 @@ func (r *sourceResource) Read(ctx context.Context, req resource.ReadRequest, res
 		state.ConnectorAttributes = state.ConnectorAttributesAll
 	}
 
+	// Prune ignored paths from the projected attributes so a masked/server-managed
+	// nested field the practitioner chose to ignore is absent from the managed
+	// connector_attributes — matching the config and reaching No changes. (#162)
+	ignorePaths, d := priorState.resolvedIgnorePaths(ctx)
+	resp.Diagnostics.Append(d...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	state.ConnectorAttributes, d = pruneIgnoredPaths(state.ConnectorAttributes, ignorePaths)
+	resp.Diagnostics.Append(d...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	// Preserve Terraform-only fields not populated by FromAPI.
 	state.IgnoreAttributesPaths = priorState.IgnoreAttributesPaths
+	state.IgnoreJSONChanges = priorState.IgnoreJSONChanges
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
@@ -436,6 +480,7 @@ func (r *sourceResource) Update(ctx context.Context, req resource.UpdateRequest,
 
 	// Preserve Terraform-only fields not populated by FromAPI.
 	newState.IgnoreAttributesPaths = plan.IgnoreAttributesPaths
+	newState.IgnoreJSONChanges = plan.IgnoreJSONChanges
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 	if resp.Diagnostics.HasError() {
@@ -527,6 +572,26 @@ func (r *sourceResource) ModifyPlan(ctx context.Context, req resource.ModifyPlan
 	// Project the full API set down to the config's declared keys.
 	projected, diags := projectConnectorAttributes(configAttrs, planAll)
 	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Prune ignored paths so the planned connector_attributes omits them, just as
+	// the config does — otherwise an ignored masked nested field projected from the
+	// full API set would resurface as a phantom diff on the import/first-plan path. (#162)
+	var ignoreAttrs, ignoreJSON types.List
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("ignore_attributes_paths"), &ignoreAttrs)...)
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("ignore_json_changes"), &ignoreJSON)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	ignorePaths, d := (&sourceModel{IgnoreAttributesPaths: ignoreAttrs, IgnoreJSONChanges: ignoreJSON}).resolvedIgnorePaths(ctx)
+	resp.Diagnostics.Append(d...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	projected, d = pruneIgnoredPaths(projected, ignorePaths)
+	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

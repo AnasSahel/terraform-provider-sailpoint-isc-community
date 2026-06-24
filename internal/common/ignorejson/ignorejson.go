@@ -74,6 +74,25 @@ func ApplyToField(ctx context.Context, newField, sourceField jsontypes.Normalize
 	return jsontypes.NewNormalizedValue(merged), diags
 }
 
+// Remainders returns the jsonpath remainders (each rooted at "$") of every
+// ignore_json_changes entry that targets fieldName. Entries that target a
+// different field are skipped. Use this when a resource needs the raw jsonpaths
+// to feed jsonpath.PreservePaths / jsonpath.RemovePaths directly (e.g. a field
+// projected from the API that must be pruned, not re-injected).
+func Remainders(ctx context.Context, ignoreList types.List, fieldName string) ([]string, diag.Diagnostics) {
+	paths, diags := elements(ctx, ignoreList)
+	if diags.HasError() || len(paths) == 0 {
+		return nil, diags
+	}
+	var remainders []string
+	for _, p := range paths {
+		if jp, ok := fieldRemainder(p, fieldName); ok {
+			remainders = append(remainders, jp)
+		}
+	}
+	return remainders, diags
+}
+
 // ValidatePaths checks that every ignore_json_changes entry targets one of the
 // resource's JSON fields and has a parseable jsonpath remainder.
 func ValidatePaths(ctx context.Context, ignoreList types.List, jsonFields []string) diag.Diagnostics {
