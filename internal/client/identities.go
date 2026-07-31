@@ -29,7 +29,7 @@ type IdentityAPI struct {
 	IdentityProfile *ObjectRefAPI     `json:"identityProfile,omitempty"`
 	Source          *ObjectRefAPI     `json:"source,omitempty"`
 	LifecycleState  *IdentityLCSAPI   `json:"lifecycleState,omitempty"`
-	Attributes      map[string]string `json:"attributes,omitempty"`
+	Attributes      map[string]interface{} `json:"attributes,omitempty"`
 	Created         *string           `json:"created,omitempty"`
 	Modified        *string           `json:"modified,omitempty"`
 }
