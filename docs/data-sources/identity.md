@@ -62,7 +62,7 @@ output "identity_lifecycle_state" {
 ### Read-Only
 
 - `alias` (String) The login alias (username) of the identity.
-- `attributes` (Map of String) Additional identity attributes as key-value pairs. Keys depend on the org's identity schema.
+- `attributes` (Map of String) Additional identity attributes as key-value pairs. Keys depend on the org's identity schema. Scalar values are returned as plain strings; multi-valued or complex values are JSON-encoded strings.
 - `created` (String)
 - `email_address` (String) The email address of the identity.
 - `employee_number` (String) The employee number of the identity.

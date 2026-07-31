@@ -5,7 +5,10 @@ package identity
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"math"
+	"strconv"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
@@ -155,9 +158,10 @@ func (d *identityDataSource) Schema(_ context.Context, _ datasource.SchemaReques
 				},
 			},
 			"attributes": schema.MapAttribute{
-				Computed:            true,
-				ElementType:         types.StringType,
-				MarkdownDescription: "Additional identity attributes as key-value pairs. Keys depend on the org's identity schema.",
+				Computed:    true,
+				ElementType: types.StringType,
+				MarkdownDescription: "Additional identity attributes as key-value pairs. Keys depend on the org's identity schema. " +
+					"Scalar values are returned as plain strings; multi-valued or complex values are JSON-encoded strings.",
 			},
 			"created":  schema.StringAttribute{Computed: true},
 			"modified": schema.StringAttribute{Computed: true},
@@ -298,7 +302,12 @@ func populateIdentityDSModel(ctx context.Context, m *identityDSModel, api *clien
 	}
 
 	if len(api.Attributes) > 0 {
-		attrMap, diags := types.MapValueFrom(ctx, types.StringType, api.Attributes)
+		attrStrings, diags := identityAttributesToStringMap(api.Attributes)
+		diagnostics.Append(diags...)
+		if diagnostics.HasError() {
+			return diagnostics
+		}
+		attrMap, diags := types.MapValueFrom(ctx, types.StringType, attrStrings)
 		diagnostics.Append(diags...)
 		m.Attributes = attrMap
 	} else {
@@ -306,6 +315,55 @@ func populateIdentityDSModel(ctx context.Context, m *identityDSModel, api *clien
 	}
 
 	return diagnostics
+}
+
+func identityAttributesToStringMap(attrs map[string]interface{}) (map[string]string, diag.Diagnostics) {
+	if len(attrs) == 0 {
+		return nil, diag.Diagnostics{}
+	}
+
+	result := make(map[string]string, len(attrs))
+	var diagnostics diag.Diagnostics
+
+	for key, value := range attrs {
+		str, diags := identityAttributeValueToString(value)
+		diagnostics.Append(diags...)
+		if diagnostics.HasError() {
+			return nil, diagnostics
+		}
+		result[key] = str
+	}
+
+	return result, diagnostics
+}
+
+func identityAttributeValueToString(value interface{}) (string, diag.Diagnostics) {
+	var diagnostics diag.Diagnostics
+	if value == nil {
+		return "", diagnostics
+	}
+
+	switch val := value.(type) {
+	case string:
+		return val, diagnostics
+	case float64:
+		if val == math.Trunc(val) && !math.IsInf(val, 0) && !math.IsNaN(val) {
+			return strconv.FormatInt(int64(val), 10), diagnostics
+		}
+		return strconv.FormatFloat(val, 'f', -1, 64), diagnostics
+	case bool:
+		return strconv.FormatBool(val), diagnostics
+	default:
+		bytes, err := json.Marshal(val)
+		if err != nil {
+			diagnostics.AddError(
+				"Error Converting Identity Attribute",
+				fmt.Sprintf("Could not serialize attribute value: %s", err.Error()),
+			)
+			return "", diagnostics
+		}
+		return string(bytes), diagnostics
+	}
 }
 
 func stringPtrToTF(s *string) types.String {
