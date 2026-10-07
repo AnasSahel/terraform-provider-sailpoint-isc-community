@@ -122,10 +122,15 @@ func (r *sourceSchemaResource) Schema(_ context.Context, _ resource.SchemaReques
 				Optional:            true,
 				CustomType:          jsontypes.NormalizedType{},
 			},
-			"attributes": schema.ListNestedAttribute{
+			"attributes": schema.SetNestedAttribute{
 				MarkdownDescription: "The attribute definitions for the schema. " +
-					"Required because `identity_attribute` must reference an attribute defined in this list.",
+					"Required because `identity_attribute` must reference an attribute defined in this set. " +
+					"Attributes are matched by content, so their order does not matter. " +
+					"When `is_multi`, `is_entitlement` or `is_group` is omitted, the value already on the schema is kept.",
 				Required: true,
+				PlanModifiers: []planmodifier.Set{
+					attributesUseStateForUnknownByName(),
+				},
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"name": schema.StringAttribute{
@@ -145,17 +150,17 @@ func (r *sourceSchemaResource) Schema(_ context.Context, _ resource.SchemaReques
 							Required:            true,
 						},
 						"is_multi": schema.BoolAttribute{
-							MarkdownDescription: "Whether the attribute supports multiple values.",
+							MarkdownDescription: "Whether the attribute supports multiple values. If omitted, the current value on the schema is kept (`false` for a new attribute).",
 							Optional:            true,
 							Computed:            true,
 						},
 						"is_entitlement": schema.BoolAttribute{
-							MarkdownDescription: "Whether the attribute is an entitlement.",
+							MarkdownDescription: "Whether the attribute is an entitlement. If omitted, the current value on the schema is kept (`false` for a new attribute).",
 							Optional:            true,
 							Computed:            true,
 						},
 						"is_group": schema.BoolAttribute{
-							MarkdownDescription: "Whether the attribute represents a group.",
+							MarkdownDescription: "Whether the attribute represents a group. If omitted, the current value on the schema is kept (`false` for a new attribute).",
 							Optional:            true,
 							Computed:            true,
 						},
