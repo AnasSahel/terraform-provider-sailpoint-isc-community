@@ -8,30 +8,38 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
+// Governance groups are exposed as "workgroups" in the ISC API and live on
+// SailPoint's per-API versioned path (/workgroups/v1), not under /v2025.
 const (
-	governanceGroupEndpointList   = "/v2025/governance-groups"
-	governanceGroupEndpointGet    = "/v2025/governance-groups/{id}"
-	governanceGroupEndpointCreate = "/v2025/governance-groups"
-	governanceGroupEndpointPatch  = "/v2025/governance-groups/{id}"
-	governanceGroupEndpointDelete = "/v2025/governance-groups/{id}"
-	governanceGroupMembersGet     = "/v2025/governance-groups/{id}/members"
-	governanceGroupMembersAdd     = "/v2025/governance-groups/{id}/members"
-	governanceGroupMembersRemove  = "/v2025/governance-groups/{id}/members/bulk-delete"
+	governanceGroupEndpointList   = "/workgroups/v1"
+	governanceGroupEndpointGet    = "/workgroups/v1/{id}"
+	governanceGroupEndpointCreate = "/workgroups/v1"
+	governanceGroupEndpointPatch  = "/workgroups/v1/{id}"
+	governanceGroupEndpointDelete = "/workgroups/v1/{id}"
+	governanceGroupMembersGet     = "/workgroups/v1/{id}/members"
+	governanceGroupMembersAdd     = "/workgroups/v1/{id}/members/bulk-add"
+	governanceGroupMembersRemove  = "/workgroups/v1/{id}/members/bulk-delete"
+
+	// governanceGroupMembersPageSize is the maximum page size accepted by the members list endpoint.
+	governanceGroupMembersPageSize = 50
 )
 
 // GovernanceGroupAPI represents a SailPoint Governance Group from the API.
 type GovernanceGroupAPI struct {
-	ID          string       `json:"id,omitempty"`
-	Name        string       `json:"name"`
-	Description *string      `json:"description,omitempty"`
-	Owner       ObjectRefAPI `json:"owner"`
-	MemberCount *int64       `json:"memberCount,omitempty"`
-	Created     *string      `json:"created,omitempty"`
-	Modified    *string      `json:"modified,omitempty"`
+	ID              string       `json:"id,omitempty"`
+	Name            string       `json:"name"`
+	Description     *string      `json:"description,omitempty"`
+	Owner           ObjectRefAPI `json:"owner"`
+	MemberCount     *int64       `json:"memberCount,omitempty"`
+	ConnectionCount *int64       `json:"connectionCount,omitempty"`
+	Created         *string      `json:"created,omitempty"`
+	Modified        *string      `json:"modified,omitempty"`
 }
 
 // GovernanceGroupMemberAPI represents a member of a governance group.
@@ -39,6 +47,14 @@ type GovernanceGroupMemberAPI struct {
 	Type string `json:"type"`
 	ID   string `json:"id"`
 	Name string `json:"name,omitempty"`
+}
+
+// governanceGroupMemberBulkAddResult is one item of the bulk-add response.
+// Status mirrors an HTTP code: 201 = added, 409 = already a member.
+type governanceGroupMemberBulkAddResult struct {
+	ID          string `json:"id"`
+	Status      int    `json:"status"`
+	Description string `json:"description,omitempty"`
 }
 
 type governanceGroupErrorContext struct {
@@ -214,7 +230,7 @@ func (c *Client) DeleteGovernanceGroup(ctx context.Context, id string) error {
 	return nil
 }
 
-// ListGovernanceGroupMembers lists all members of a governance group.
+// ListGovernanceGroupMembers lists all members of a governance group, following pagination.
 func (c *Client) ListGovernanceGroupMembers(ctx context.Context, id string) ([]GovernanceGroupMemberAPI, error) {
 	if id == "" {
 		return nil, fmt.Errorf("governance group ID cannot be empty")
@@ -222,24 +238,34 @@ func (c *Client) ListGovernanceGroupMembers(ctx context.Context, id string) ([]G
 
 	tflog.Debug(ctx, "Listing governance group members", map[string]any{"id": id})
 
-	var result []GovernanceGroupMemberAPI
-	resp, err := c.prepareRequest(ctx).
-		SetResult(&result).
-		SetPathParam("id", id).
-		Get(governanceGroupMembersGet)
+	var all []GovernanceGroupMemberAPI
+	for offset := 0; ; offset += governanceGroupMembersPageSize {
+		var page []GovernanceGroupMemberAPI
+		resp, err := c.prepareRequest(ctx).
+			SetResult(&page).
+			SetPathParam("id", id).
+			SetQueryParam("offset", strconv.Itoa(offset)).
+			SetQueryParam("limit", strconv.Itoa(governanceGroupMembersPageSize)).
+			Get(governanceGroupMembersGet)
 
-	if err != nil {
-		return nil, c.formatGovernanceGroupError(governanceGroupErrorContext{Operation: "list members", ID: id}, err, 0)
-	}
-	if resp.IsError() {
-		return nil, c.formatGovernanceGroupError(
-			governanceGroupErrorContext{Operation: "list members", ID: id, ResponseBody: string(resp.Bytes())},
-			nil, resp.StatusCode(),
-		)
+		if err != nil {
+			return nil, c.formatGovernanceGroupError(governanceGroupErrorContext{Operation: "list members", ID: id}, err, 0)
+		}
+		if resp.IsError() {
+			return nil, c.formatGovernanceGroupError(
+				governanceGroupErrorContext{Operation: "list members", ID: id, ResponseBody: string(resp.Bytes())},
+				nil, resp.StatusCode(),
+			)
+		}
+
+		all = append(all, page...)
+		if len(page) < governanceGroupMembersPageSize {
+			break
+		}
 	}
 
-	tflog.Debug(ctx, "Successfully listed governance group members", map[string]any{"id": id, "count": len(result)})
-	return result, nil
+	tflog.Debug(ctx, "Successfully listed governance group members", map[string]any{"id": id, "count": len(all)})
+	return all, nil
 }
 
 // AddGovernanceGroupMembers adds members to a governance group.
@@ -253,8 +279,10 @@ func (c *Client) AddGovernanceGroupMembers(ctx context.Context, id string, membe
 
 	tflog.Debug(ctx, "Adding governance group members", map[string]any{"id": id, "count": len(members)})
 
+	var results []governanceGroupMemberBulkAddResult
 	resp, err := c.prepareRequest(ctx).
 		SetBody(members).
+		SetResult(&results).
 		SetPathParam("id", id).
 		Post(governanceGroupMembersAdd)
 
@@ -266,6 +294,11 @@ func (c *Client) AddGovernanceGroupMembers(ctx context.Context, id string, membe
 			governanceGroupErrorContext{Operation: "add members", ID: id, ResponseBody: string(resp.Bytes())},
 			nil, resp.StatusCode(),
 		)
+	}
+
+	// The endpoint answers 207 Multi-Status; per-identity failures are only visible in the body.
+	if failed := failedBulkAddMembers(results); len(failed) > 0 {
+		return fmt.Errorf("failed to add members to governance group '%s': %s", id, strings.Join(failed, "; "))
 	}
 
 	tflog.Info(ctx, "Successfully added governance group members", map[string]any{"id": id, "count": len(members)})
@@ -310,6 +343,19 @@ func (c *Client) RemoveGovernanceGroupMembers(ctx context.Context, id string, me
 
 	tflog.Info(ctx, "Successfully removed governance group members", map[string]any{"id": id, "count": len(memberIDs)})
 	return nil
+}
+
+// failedBulkAddMembers returns a description of every bulk-add item that was neither
+// added (201) nor already a member (409).
+func failedBulkAddMembers(results []governanceGroupMemberBulkAddResult) []string {
+	var failed []string
+	for _, r := range results {
+		if r.Status == http.StatusCreated || r.Status == http.StatusConflict {
+			continue
+		}
+		failed = append(failed, fmt.Sprintf("identity %s: status %d %s", r.ID, r.Status, r.Description))
+	}
+	return failed
 }
 
 func (c *Client) formatGovernanceGroupError(errCtx governanceGroupErrorContext, err error, statusCode int) error {
