@@ -1,0 +1,38 @@
+name: Bug report
+description: Something the provider does wrong against a real tenant
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The error, or the unexpected plan/apply output. Paste it as text.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: >
+        The smallest HCL that shows the bug, and the commands that trigger it
+        (e.g. apply, then a second plan shows changes). This config becomes the
+        "How to verify" of the fix. Remove tenant names, IDs and secrets.
+      render: hcl
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Provider version
+      placeholder: e.g. v3.2.0, or a commit
+  - type: input
+    id: terraform
+    attributes:
+      label: Terraform version
+      placeholder: e.g. 1.14.0

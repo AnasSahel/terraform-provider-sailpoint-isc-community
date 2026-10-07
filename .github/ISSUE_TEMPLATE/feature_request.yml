@@ -1,0 +1,19 @@
+name: Feature request
+description: A new resource, data source, attribute or behavior
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What you need
+      description: The resource or attribute, and the SailPoint API it maps to if known.
+    validations:
+      required: true
+  - type: textarea
+    id: verify
+    attributes:
+      label: How to verify
+      description: >
+        The HCL you would like to write once this exists, and what should happen
+        on apply. This becomes the "How to verify" of the PR.
+      render: hcl
