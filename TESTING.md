@@ -5,24 +5,15 @@ SailPoint accepts the request or that Terraform state stays stable. Before a
 change is called done, run it against a real Terraform project with
 `scripts/try-pr.sh`.
 
-## One-time setup
+## Setup
 
-1. Tell Terraform to use local builds of this provider instead of the registry
-   release. Add this to `~/.terraformrc` (create the file if needed):
-
-   ```hcl
-   provider_installation {
-     dev_overrides {
-       "AnasSahel/sailpoint-isc-community" = "/Users/<you>/.terraform.d/dev-overrides/sailpoint-isc-community"
-     }
-     direct {}
-   }
-   ```
-
-   Use the absolute path; `~` is not expanded. While this block is present,
-   **every** project on the machine that uses this provider gets the local
-   build, and Terraform prints a "Provider development overrides are in
-   effect" warning. Comment the line out to go back to the registry release.
+1. Nothing to change in `~/.terraformrc`. The script writes its own Terraform
+   CLI config (your `~/.terraformrc` plus a `dev_overrides` block) to
+   `~/.terraform.d/dev-overrides/sailpoint-isc-community.tfrc` and passes it
+   through `TF_CLI_CONFIG_FILE` to the terraform commands it runs. The
+   override exists only for those commands; your shell and other projects
+   keep the registry release. The only conflict is a `provider_installation`
+   block already in `~/.terraformrc`, which the script reports.
 
 2. Pick a test project: a Terraform configuration pointed at a **sandbox**
    tenant, never a client's production tenant. Its credentials come from the
@@ -57,8 +48,15 @@ scripts/try-pr.sh --pr 193 -- -target=sailpoint_entitlement.example
 
 Arguments after `--` are passed to every `plan` and `apply`.
 
-Where the PR touches import, also run `terraform import <address> <id>` on an
-existing object and check that the next plan is empty.
+To run other commands with the same build (for example when the PR touches
+import), prefix them so they use the override too:
+
+```bash
+TF_CLI_CONFIG_FILE=~/.terraform.d/dev-overrides/sailpoint-isc-community.tfrc terraform import <address> <id>
+TF_CLI_CONFIG_FILE=~/.terraform.d/dev-overrides/sailpoint-isc-community.tfrc terraform plan   # must be empty
+```
+
+Without the prefix, terraform uses the registry release as usual.
 
 ## "How to verify" in PRs and issues
 
