@@ -74,7 +74,7 @@ resource "sailpoint_workflow" "send_email" {
 - `failure_count` (Number) The number of times the workflow has failed. Server-side live metric — refreshed on every read; do not assume stable across applies.
 - `id` (String) The unique identifier of the workflow.
 - `modified` (String) The date and time the workflow was last modified.
-- `modified_by` (Attributes) The identity who last modified the workflow. (see [below for nested schema](#nestedatt--modified_by))
+- `modified_by` (Attributes) The identity who last modified the workflow. ISC stamps it with the calling identity on every write, so it is `(known after apply)` whenever the workflow changes. (see [below for nested schema](#nestedatt--modified_by))
 - `trigger` (String) The trigger configuration as JSON. This is a computed field - use `sailpoint_workflow_trigger` resource to manage triggers.
 
 <a id="nestedatt--owner"></a>

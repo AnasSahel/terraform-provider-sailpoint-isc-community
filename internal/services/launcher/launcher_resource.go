@@ -95,8 +95,14 @@ func (r *launcherResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				Computed:            true,
 			},
 			"owner": schema.SingleNestedAttribute{
-				MarkdownDescription: "The owner of the launcher.",
-				Required:            true,
+				MarkdownDescription: "The owner of the launcher. ISC assigns it on every create and update to the " +
+					"identity behind the provider credentials, whatever is submitted, so the provider always " +
+					"reads it back from the API. Leave it unset; it shows as `(known after apply)` whenever " +
+					"the launcher changes. If set, it must match the calling identity, otherwise the apply " +
+					"fails with `inconsistent result after apply`.",
+				Optional:           true,
+				Computed:           true,
+				DeprecationMessage: "owner is assigned by ISC to the identity behind the provider credentials on every write. Remove it from the configuration; it remains readable as a computed attribute.",
 				Attributes: map[string]schema.Attribute{
 					"type": schema.StringAttribute{
 						MarkdownDescription: "The type of the owner. The SailPoint Launchers API stores this as " +

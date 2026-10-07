@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Launcher `owner` no longer required, and no longer fails apply.** ISC rewrites a launcher's owner with the identity behind the calling credentials on every create and update. The provider required `owner` and kept the planned value, so an owner other than the caller produced a permanent diff and `inconsistent result after apply`. `owner` is now Optional+Computed, always read back from the API, and deprecated as an input: remove it from configuration. `sailpoint_workflow.modified_by` is server-stamped the same way and no longer pins its prior value, fixing the same error on workflow updates. (#177)
 - **Workflow created with `enabled = true` no longer fails at plan.** The provider used to force the planned `enabled` to `false` on create, which Terraform and OpenTofu reject as an invalid plan ("planned value cty.False does not match config value cty.True"), blocking the whole plan. The configured value is now kept: the workflow is created (the API always creates it disabled) and then enabled in the same apply. If enabling fails, the created workflow is kept in state as tainted and the error is reported. (#175)
 
 ## [3.2.0] - 2026-06-24
