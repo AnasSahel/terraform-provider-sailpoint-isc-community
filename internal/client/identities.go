@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	identityEndpointGet  = "/v2025/identities/{id}"
-	identityEndpointList = "/v2025/identities"
+	identityEndpointGet  = "/identities/v1/{id}"
+	identityEndpointList = "/identities/v1"
 )
 
 // IdentityAPI represents a SailPoint Identity from the full identities endpoint.

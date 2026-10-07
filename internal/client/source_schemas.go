@@ -13,11 +13,11 @@ import (
 )
 
 const (
-	sourceSchemaEndpointList   = "/v2025/sources/{sourceId}/schemas"
-	sourceSchemaEndpointGet    = "/v2025/sources/{sourceId}/schemas/{schemaId}"
-	sourceSchemaEndpointCreate = "/v2025/sources/{sourceId}/schemas"
-	sourceSchemaEndpointUpdate = "/v2025/sources/{sourceId}/schemas/{schemaId}"
-	sourceSchemaEndpointDelete = "/v2025/sources/{sourceId}/schemas/{schemaId}"
+	sourceSchemaEndpointList   = "/sources/v1/{sourceId}/schemas"
+	sourceSchemaEndpointGet    = "/sources/v1/{sourceId}/schemas/{schemaId}"
+	sourceSchemaEndpointCreate = "/sources/v1/{sourceId}/schemas"
+	sourceSchemaEndpointUpdate = "/sources/v1/{sourceId}/schemas/{schemaId}"
+	sourceSchemaEndpointDelete = "/sources/v1/{sourceId}/schemas/{schemaId}"
 )
 
 // SourceSchemaAPI represents a SailPoint source schema from the API.

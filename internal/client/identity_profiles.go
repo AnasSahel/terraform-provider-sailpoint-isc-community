@@ -13,11 +13,11 @@ import (
 )
 
 const (
-	identityProfilesEndpointList   = "/v2025/identity-profiles"
-	identityProfilesEndpointGet    = "/v2025/identity-profiles/{profileId}"
-	identityProfilesEndpointCreate = "/v2025/identity-profiles"
-	identityProfilesEndpointPatch  = "/v2025/identity-profiles/{profileId}"
-	identityProfilesEndpointDelete = "/v2025/identity-profiles/{profileId}"
+	identityProfilesEndpointList   = "/identity-profiles/v1"
+	identityProfilesEndpointGet    = "/identity-profiles/v1/{profileId}"
+	identityProfilesEndpointCreate = "/identity-profiles/v1"
+	identityProfilesEndpointPatch  = "/identity-profiles/v1/{profileId}"
+	identityProfilesEndpointDelete = "/identity-profiles/v1/{profileId}"
 )
 
 // IdentityProfileAPI represents a SailPoint Identity Profile from the API.

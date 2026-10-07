@@ -12,11 +12,11 @@ import (
 )
 
 const (
-	sourceScheduleEndpointList   = "/v2025/sources/{sourceId}/schedules"
-	sourceScheduleEndpointGet    = "/v2025/sources/{sourceId}/schedules/{scheduleType}"
-	sourceScheduleEndpointCreate = "/v2025/sources/{sourceId}/schedules"
-	sourceScheduleEndpointUpdate = "/v2025/sources/{sourceId}/schedules/{scheduleType}"
-	sourceScheduleEndpointDelete = "/v2025/sources/{sourceId}/schedules/{scheduleType}"
+	sourceScheduleEndpointList   = "/sources/v1/{sourceId}/schedules"
+	sourceScheduleEndpointGet    = "/sources/v1/{sourceId}/schedules/{scheduleType}"
+	sourceScheduleEndpointCreate = "/sources/v1/{sourceId}/schedules"
+	sourceScheduleEndpointUpdate = "/sources/v1/{sourceId}/schedules/{scheduleType}"
+	sourceScheduleEndpointDelete = "/sources/v1/{sourceId}/schedules/{scheduleType}"
 )
 
 // ScheduleHoursAPI represents the hours component of an aggregation schedule.

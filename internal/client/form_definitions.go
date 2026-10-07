@@ -13,11 +13,11 @@ import (
 )
 
 const (
-	formDefinitionsEndpointList   = "/v2025/form-definitions"
-	formDefinitionsEndpointGet    = "/v2025/form-definitions/{formId}"
-	formDefinitionsEndpointCreate = "/v2025/form-definitions"
-	formDefinitionsEndpointPatch  = "/v2025/form-definitions/{formId}"
-	formDefinitionsEndpointDelete = "/v2025/form-definitions/{formId}"
+	formDefinitionsEndpointList   = "/form-definitions/v1"
+	formDefinitionsEndpointGet    = "/form-definitions/v1/{formId}"
+	formDefinitionsEndpointCreate = "/form-definitions/v1"
+	formDefinitionsEndpointPatch  = "/form-definitions/v1/{formId}"
+	formDefinitionsEndpointDelete = "/form-definitions/v1/{formId}"
 )
 
 // FormDefinitionAPI represents a SailPoint Form Definition from the API.

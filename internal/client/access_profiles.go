@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	accessProfileEndpointGet    = "/v2025/access-profiles/{id}"
-	accessProfileEndpointCreate = "/v2025/access-profiles"
-	accessProfileEndpointPatch  = "/v2025/access-profiles/{id}"
-	accessProfileEndpointDelete = "/v2025/access-profiles/{id}"
+	accessProfileEndpointGet    = "/access-profiles/v1/{id}"
+	accessProfileEndpointCreate = "/access-profiles/v1"
+	accessProfileEndpointPatch  = "/access-profiles/v1/{id}"
+	accessProfileEndpointDelete = "/access-profiles/v1/{id}"
 )
 
 // AccessProfileAPI represents a SailPoint Access Profile from the API.

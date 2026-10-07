@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	provisioningPolicyEndpointGet    = "/v2025/sources/{sourceId}/provisioning-policies/{usageType}"
-	provisioningPolicyEndpointCreate = "/v2025/sources/{sourceId}/provisioning-policies"
-	provisioningPolicyEndpointUpdate = "/v2025/sources/{sourceId}/provisioning-policies/{usageType}"
-	provisioningPolicyEndpointDelete = "/v2025/sources/{sourceId}/provisioning-policies/{usageType}"
+	provisioningPolicyEndpointGet    = "/sources/v1/{sourceId}/provisioning-policies/{usageType}"
+	provisioningPolicyEndpointCreate = "/sources/v1/{sourceId}/provisioning-policies"
+	provisioningPolicyEndpointUpdate = "/sources/v1/{sourceId}/provisioning-policies/{usageType}"
+	provisioningPolicyEndpointDelete = "/sources/v1/{sourceId}/provisioning-policies/{usageType}"
 )
 
 // ProvisioningPolicyAPI represents a SailPoint provisioning policy from the API.

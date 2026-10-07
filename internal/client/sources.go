@@ -14,12 +14,12 @@ import (
 )
 
 const (
-	sourceEndpointGet    = "/v2025/sources/{id}"
-	sourceEndpointList   = "/v2025/sources"
-	sourceEndpointCreate = "/v2025/sources"
-	sourceEndpointUpdate = "/v2025/sources/{id}"
-	sourceEndpointPatch  = "/v2025/sources/{id}"
-	sourceEndpointDelete = "/v2025/sources/{id}"
+	sourceEndpointGet    = "/sources/v1/{id}"
+	sourceEndpointList   = "/sources/v1"
+	sourceEndpointCreate = "/sources/v1"
+	sourceEndpointUpdate = "/sources/v1/{id}"
+	sourceEndpointPatch  = "/sources/v1/{id}"
+	sourceEndpointDelete = "/sources/v1/{id}"
 )
 
 // SourceAPI represents a SailPoint Source from the API.

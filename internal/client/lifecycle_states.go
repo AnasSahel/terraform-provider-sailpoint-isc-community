@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	lifecycleStatesEndpointGet    = "/v2025/identity-profiles/{profileId}/lifecycle-states/{lifecycleStateId}"
-	lifecycleStatesEndpointCreate = "/v2025/identity-profiles/{profileId}/lifecycle-states"
-	lifecycleStatesEndpointPatch  = "/v2025/identity-profiles/{profileId}/lifecycle-states/{lifecycleStateId}"
-	lifecycleStatesEndpointDelete = "/v2025/identity-profiles/{profileId}/lifecycle-states/{lifecycleStateId}"
+	lifecycleStatesEndpointGet    = "/identity-profiles/v1/{profileId}/lifecycle-states/{lifecycleStateId}"
+	lifecycleStatesEndpointCreate = "/identity-profiles/v1/{profileId}/lifecycle-states"
+	lifecycleStatesEndpointPatch  = "/identity-profiles/v1/{profileId}/lifecycle-states/{lifecycleStateId}"
+	lifecycleStatesEndpointDelete = "/identity-profiles/v1/{profileId}/lifecycle-states/{lifecycleStateId}"
 )
 
 // LifecycleStateAPI represents a SailPoint Lifecycle State from the API.

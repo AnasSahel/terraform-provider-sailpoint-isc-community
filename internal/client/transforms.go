@@ -30,11 +30,11 @@ type transformErrorContext struct {
 }
 
 const (
-	transformEndpointList   = "/v2025/transforms"
-	transformEndpointGet    = "/v2025/transforms/{id}"
-	transformEndpointCreate = "/v2025/transforms"
-	transformEndpointUpdate = "/v2025/transforms/{id}"
-	transformEndpointDelete = "/v2025/transforms/{id}"
+	transformEndpointList   = "/transforms/v1"
+	transformEndpointGet    = "/transforms/v1/{id}"
+	transformEndpointCreate = "/transforms/v1"
+	transformEndpointUpdate = "/transforms/v1/{id}"
+	transformEndpointDelete = "/transforms/v1/{id}"
 )
 
 // ListTransforms retrieves all transforms from SailPoint.

@@ -15,11 +15,11 @@ import (
 )
 
 const (
-	identityAttributesEndpointList   = "/v2025/identity-attributes"
-	identityAttributesEndpointGet    = "/v2025/identity-attributes/{attributeName}"
-	identityAttributesEndpointCreate = "/v2025/identity-attributes"
-	identityAttributesEndpointUpdate = "/v2025/identity-attributes/{attributeName}"
-	identityAttributesEndpointDelete = "/v2025/identity-attributes/{attributeName}"
+	identityAttributesEndpointList   = "/identity-attributes/v1"
+	identityAttributesEndpointGet    = "/identity-attributes/v1/{attributeName}"
+	identityAttributesEndpointCreate = "/identity-attributes/v1"
+	identityAttributesEndpointUpdate = "/identity-attributes/v1/{attributeName}"
+	identityAttributesEndpointDelete = "/identity-attributes/v1/{attributeName}"
 )
 
 // defaultIdentityAttributeReadBackDelays is how long CreateIdentityAttribute

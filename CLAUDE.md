@@ -119,7 +119,7 @@ The provider uses a custom Resty v3 HTTP client instead of the official SailPoin
   - Built-in retry logic for rate limits (429), timeouts, and 5xx errors
   - Thread-safe token management with RWMutex
   - Request/response middleware for auth headers and rate limit logging
-- **Endpoints**: each method declares its own full path constant (e.g. `"/v2025/sources/{id}"`). Most are `/v2025` (GA); a few are `/beta` (e.g. attribute-sync-config). Set per-request headers where needed (e.g. `X-SailPoint-Experimental: true` for experimental endpoints).
+- **Endpoints**: each method declares its own full path constant (e.g. `"/v2025/sources/{id}"`). Most use SailPoint's per-API versioned paths (`/sources/v1`, `/roles/v1`, `/workgroups/v1`, ...); entitlements are still on `/v2025` because `/entitlements/v1` changes the payload. Set per-request headers where needed (e.g. `X-SailPoint-Experimental: true` for experimental endpoints).
 - **Error handling**: per-resource `formatXError(...)` helpers wrapping a shared `ErrNotFound` sentinel — check with `errors.Is(err, client.ErrNotFound)` to detect a deleted/absent object.
 
 #### 2. Model conversion (`<resource>_model.go`)

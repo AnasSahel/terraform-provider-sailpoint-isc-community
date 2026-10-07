@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	launchersEndpointGet    = "/v2025/launchers/{launcherId}"
-	launchersEndpointCreate = "/v2025/launchers"
-	launchersEndpointUpdate = "/v2025/launchers/{launcherId}"
-	launchersEndpointDelete = "/v2025/launchers/{launcherId}"
+	launchersEndpointGet    = "/launchers/v1/{launcherId}"
+	launchersEndpointCreate = "/launchers/v1"
+	launchersEndpointUpdate = "/launchers/v1/{launcherId}"
+	launchersEndpointDelete = "/launchers/v1/{launcherId}"
 )
 
 // LauncherAPI represents a SailPoint Launcher from the API.

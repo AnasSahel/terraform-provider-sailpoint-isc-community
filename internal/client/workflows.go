@@ -12,12 +12,12 @@ import (
 )
 
 const (
-	workflowEndpointList   = "/v2025/workflows"
-	workflowEndpointGet    = "/v2025/workflows/{id}"
-	workflowEndpointCreate = "/v2025/workflows"
-	workflowEndpointUpdate = "/v2025/workflows/{id}"
-	workflowEndpointPatch  = "/v2025/workflows/{id}"
-	workflowEndpointDelete = "/v2025/workflows/{id}"
+	workflowEndpointList   = "/workflows/v1"
+	workflowEndpointGet    = "/workflows/v1/{id}"
+	workflowEndpointCreate = "/workflows/v1"
+	workflowEndpointUpdate = "/workflows/v1/{id}"
+	workflowEndpointPatch  = "/workflows/v1/{id}"
+	workflowEndpointDelete = "/workflows/v1/{id}"
 )
 
 // WorkflowAPI represents a SailPoint Workflow from the API.
