@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -88,21 +89,23 @@ func (r *formDefinitionResource) Schema(_ context.Context, _ resource.SchemaRequ
 				},
 			},
 			"used_by": schema.ListNestedAttribute{
-				MarkdownDescription: "List of objects that use this form definition.",
-				Optional:            true,
+				MarkdownDescription: "List of objects that use this form definition. Derived by ISC from the objects referencing the form.",
+				Computed:            true,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"type": schema.StringAttribute{
 							MarkdownDescription: "The type of the referencing object (WORKFLOW, SOURCE, MySailPoint).",
-							Optional:            true,
+							Computed:            true,
 						},
 						"id": schema.StringAttribute{
 							MarkdownDescription: "The unique identifier of the referencing object.",
-							Optional:            true,
+							Computed:            true,
 						},
 						"name": schema.StringAttribute{
 							MarkdownDescription: "The name of the referencing object.",
-							Optional:            true,
 							Computed:            true,
 						},
 					},

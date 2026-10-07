@@ -372,16 +372,6 @@ func (m *formDefinitionModel) ToPatchOperations(ctx context.Context, state *form
 		patchOps = append(patchOps, client.NewReplacePatch("/owner", ownerAPI))
 	}
 
-	// Compare usedBy
-	if !m.UsedBy.Equal(state.UsedBy) {
-		usedBy, diags := common.MapListToAPI(ctx, m.UsedBy, common.NewObjectRefToAPI)
-		diagnostics.Append(diags...)
-		if usedBy == nil {
-			usedBy = []client.ObjectRefAPI{}
-		}
-		patchOps = append(patchOps, client.NewReplacePatch("/usedBy", usedBy))
-	}
-
 	// Compare formInput
 	if !m.FormInput.Equal(state.FormInput) {
 		formInput, diags := common.MapListToAPI(ctx, m.FormInput, NewFormInputToAPI)
