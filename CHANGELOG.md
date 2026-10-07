@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Workflow created with `enabled = true` no longer fails at plan.** The provider used to force the planned `enabled` to `false` on create, which Terraform and OpenTofu reject as an invalid plan ("planned value cty.False does not match config value cty.True"), blocking the whole plan. The configured value is now kept: the workflow is created (the API always creates it disabled) and then enabled in the same apply. If enabling fails, the created workflow is kept in state as tainted and the error is reported. (#175)
+
 ## [3.2.0] - 2026-06-24
 
 ### Added
