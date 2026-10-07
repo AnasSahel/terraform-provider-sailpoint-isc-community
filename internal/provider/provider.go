@@ -10,6 +10,7 @@ import (
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/access_profile"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/application"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/entitlement"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/form_definition"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/governance_group"
@@ -176,6 +177,7 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		access_profile.NewAccessProfileDataSource,
+		application.NewApplicationDataSource,
 		entitlement.NewEntitlementDataSource,
 		form_definition.NewFormDefinitionDataSource,
 		governance_group.NewGovernanceGroupDataSource,
@@ -199,6 +201,7 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		access_profile.NewAccessProfileResource,
+		application.NewApplicationResource,
 		entitlement.NewEntitlementResource,
 		form_definition.NewFormDefinitionResource,
 		governance_group.NewGovernanceGroupResource,
