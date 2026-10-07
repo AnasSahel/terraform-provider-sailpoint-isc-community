@@ -135,3 +135,36 @@ func TestWithWorkflowDisabled_FnError_StillReEnables(t *testing.T) {
 		t.Error("workflow should be re-enabled even when fn fails")
 	}
 }
+
+// TestDeleteTriggerDiagnostics covers #178: a failed re-enable after a
+// successful trigger removal must not fail the destroy.
+func TestDeleteTriggerDiagnostics(t *testing.T) {
+	t.Parallel()
+	removeErr := errors.New("remove failed")
+	reEnableErr := errors.New("step 'sp:interactive-form' is used without interactive trigger")
+
+	tests := []struct {
+		name         string
+		fnErr        error
+		reEnableErr  error
+		wantErrors   int
+		wantWarnings int
+	}{
+		{name: "success", wantErrors: 0, wantWarnings: 0},
+		{name: "re-enable fails after removal", reEnableErr: reEnableErr, wantErrors: 0, wantWarnings: 1},
+		{name: "removal fails", fnErr: removeErr, wantErrors: 1, wantWarnings: 0},
+		{name: "removal and re-enable fail", fnErr: removeErr, reEnableErr: reEnableErr, wantErrors: 2, wantWarnings: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			diags := deleteTriggerDiagnostics("wf1", tt.fnErr, tt.reEnableErr)
+			if got := diags.ErrorsCount(); got != tt.wantErrors {
+				t.Errorf("errors: got %d, want %d (%v)", got, tt.wantErrors, diags)
+			}
+			if got := diags.WarningsCount(); got != tt.wantWarnings {
+				t.Errorf("warnings: got %d, want %d (%v)", got, tt.wantWarnings, diags)
+			}
+		})
+	}
+}
