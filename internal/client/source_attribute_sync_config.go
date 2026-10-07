@@ -13,12 +13,12 @@ import (
 )
 
 const (
-	sourceAttrSyncConfigGet = "/beta/sources/{sourceId}/attribute-sync-config"
-	sourceAttrSyncConfigPut = "/beta/sources/{sourceId}/attribute-sync-config"
+	sourceAttrSyncConfigGet = "/sources/v1/{sourceId}/attribute-sync-config"
+	sourceAttrSyncConfigPut = "/sources/v1/{sourceId}/attribute-sync-config"
 )
 
 // SourceAttributeSyncConfigAPI represents the attribute sync configuration for a SailPoint source.
-// This uses the Beta API endpoint. Only the `enabled` field on each attribute is mutable;
+// This uses the experimental /sources/v1 endpoint (X-SailPoint-Experimental header). Only the `enabled` field on each attribute is mutable;
 // `name`, `displayName`, and `target` are derived from the source's Create Account definition.
 type SourceAttributeSyncConfigAPI struct {
 	Source     ObjectRefAPI                      `json:"source"`
@@ -39,7 +39,7 @@ type sourceAttrSyncConfigErrorContext struct {
 	ResponseBody string
 }
 
-// GetSourceAttributeSyncConfig retrieves the attribute sync config for a source (Beta API).
+// GetSourceAttributeSyncConfig retrieves the attribute sync config for a source (experimental /sources/v1 API).
 func (c *Client) GetSourceAttributeSyncConfig(ctx context.Context, sourceID string) (*SourceAttributeSyncConfigAPI, error) {
 	if sourceID == "" {
 		return nil, fmt.Errorf("source ID cannot be empty")
@@ -49,6 +49,7 @@ func (c *Client) GetSourceAttributeSyncConfig(ctx context.Context, sourceID stri
 
 	var result SourceAttributeSyncConfigAPI
 	resp, err := c.prepareRequest(ctx).
+		SetHeader("X-SailPoint-Experimental", "true").
 		SetResult(&result).
 		SetPathParam("sourceId", sourceID).
 		Get(sourceAttrSyncConfigGet)
@@ -67,7 +68,7 @@ func (c *Client) GetSourceAttributeSyncConfig(ctx context.Context, sourceID stri
 	return &result, nil
 }
 
-// PutSourceAttributeSyncConfig replaces the attribute sync config for a source (Beta API).
+// PutSourceAttributeSyncConfig replaces the attribute sync config for a source (experimental /sources/v1 API).
 // Only the `enabled` flag on each attribute is writable; other fields are read-only.
 func (c *Client) PutSourceAttributeSyncConfig(ctx context.Context, sourceID string, cfg *SourceAttributeSyncConfigAPI) (*SourceAttributeSyncConfigAPI, error) {
 	if sourceID == "" {
@@ -85,6 +86,7 @@ func (c *Client) PutSourceAttributeSyncConfig(ctx context.Context, sourceID stri
 
 	var result SourceAttributeSyncConfigAPI
 	resp, err := c.prepareRequest(ctx).
+		SetHeader("X-SailPoint-Experimental", "true").
 		SetBody(cfg).
 		SetResult(&result).
 		SetPathParam("sourceId", sourceID).

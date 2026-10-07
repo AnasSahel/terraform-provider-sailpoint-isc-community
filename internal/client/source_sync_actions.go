@@ -12,11 +12,11 @@ import (
 )
 
 const (
-	sourceSyncAttributesEndpoint = "/v2025/sources/{sourceId}/synchronize-attributes"
+	sourceSyncAttributesEndpoint = "/sources/v1/{sourceId}/synchronize-attributes"
 )
 
 // SyncSourceAttributes triggers a one-time attribute synchronization for a source.
-// This uses the v2025 API with the X-SailPoint-Experimental header.
+// This uses the experimental /sources/v1 API with the X-SailPoint-Experimental header.
 // The sync happens asynchronously in ISC — this call returns once the request is accepted.
 func (c *Client) SyncSourceAttributes(ctx context.Context, sourceID string) error {
 	if sourceID == "" {

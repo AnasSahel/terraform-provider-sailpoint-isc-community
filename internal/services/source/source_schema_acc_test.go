@@ -20,7 +20,7 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 )
 
-// fakeSchemaAPI is an in-memory stand-in for the /v2025/sources/{id}/schemas
+// fakeSchemaAPI is an in-memory stand-in for the /sources/v1/{id}/schemas
 // endpoints. It returns attributes in the reverse of the order they were sent,
 // the way ISC may reorder a schema, so tests prove the provider does not
 // depend on attribute order.
@@ -47,9 +47,9 @@ func (f *fakeSchemaAPI) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// /v2025/sources/{sourceId}/schemas[/{schemaId}]
+	// /sources/v1/{sourceId}/schemas[/{schemaId}]
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-	if len(parts) < 4 || parts[0] != "v2025" || parts[1] != "sources" || parts[3] != "schemas" {
+	if len(parts) < 4 || parts[0] != "sources" || parts[1] != "v1" || parts[3] != "schemas" {
 		http.NotFound(w, r)
 		return
 	}

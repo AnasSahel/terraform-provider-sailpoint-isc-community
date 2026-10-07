@@ -22,8 +22,8 @@ func TestListSourcesSendsFiltersAndLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListSources: %v", err)
 	}
-	if gotPath != "/v2025/sources" {
-		t.Errorf("path = %q, want /v2025/sources", gotPath)
+	if gotPath != "/sources/v1" {
+		t.Errorf("path = %q, want /sources/v1", gotPath)
 	}
 	if gotFilters != `name eq "Active Directory"` {
 		t.Errorf("filters = %q", gotFilters)

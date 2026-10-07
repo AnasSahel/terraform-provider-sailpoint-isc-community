@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`sailpoint_application` resource and data source.** Manages source apps (the applications within a source shown in the request center and used for password management) on the experimental `/source-apps/v1` API. The resource creates the app, then applies `enabled`, `provision_request_enabled`, `app_center_enabled` and `owner` with a follow-up JSON Patch, since the create call does not accept them. Attributes left out of the configuration keep their server value instead of being reset. Import by ID is supported. The data source looks up an app by `id` or by exact `name`. Ported from André Faria's fork. (#194)
 
+### Changed
+
+- **Move to SailPoint's per-API versioned endpoints (`/<api>/v1`).** Every resource, data source and action, except entitlements, now calls the per-API versioned paths (`/sources/v1`, `/roles/v1`, `/transforms/v1`, `/workflows/v1`, …) instead of `/v2025` and `/beta`. The request and response bodies are identical, so there is nothing to change in configuration or state. `sailpoint_source_attribute_sync_config` moves from `/beta` to `/sources/v1` and now sends `X-SailPoint-Experimental: true`, which that endpoint requires. Entitlements stay on `/v2025` for now, because `/entitlements/v1` replaces `privileged` with `privilegeLevel`.
+
 ### Fixed
 
 - **Launcher `owner` no longer required, and no longer fails apply.** ISC rewrites a launcher's owner with the identity behind the calling credentials on every create and update. The provider required `owner` and kept the planned value, so an owner other than the caller produced a permanent diff and `inconsistent result after apply`. `owner` is now Optional+Computed, always read back from the API, and deprecated as an input: remove it from configuration. `sailpoint_workflow.modified_by` is server-stamped the same way and no longer pins its prior value, fixing the same error on workflow updates. (#177)

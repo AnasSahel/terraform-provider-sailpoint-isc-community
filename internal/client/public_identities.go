@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
-const publicIdentitiesEndpoint = "/v2025/public-identities"
+const publicIdentitiesEndpoint = "/public-identities/v1"
 
 // PublicIdentityAPI represents a public identity from the SailPoint API.
 type PublicIdentityAPI struct {

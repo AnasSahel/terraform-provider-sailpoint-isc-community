@@ -17,7 +17,7 @@ import (
 )
 
 // newTestSourceDataSource wires the data source to a fake tenant that serves
-// the given sources from both /v2025/sources and /v2025/sources/{id}.
+// the given sources from both /sources/v1 and /sources/v1/{id}.
 func newTestSourceDataSource(t *testing.T, sources []client.SourceAPI, gotFilters *string) *sourceDataSource {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -26,7 +26,7 @@ func newTestSourceDataSource(t *testing.T, sources []client.SourceAPI, gotFilter
 		case "/oauth/token":
 			_, _ = w.Write([]byte(`{"access_token":"test","expires_in":3600,"token_type":"bearer"}`))
 			return
-		case "/v2025/sources":
+		case "/sources/v1":
 			*gotFilters = r.URL.Query().Get("filters")
 			if err := json.NewEncoder(w).Encode(sources); err != nil {
 				t.Errorf("encode: %v", err)
@@ -34,7 +34,7 @@ func newTestSourceDataSource(t *testing.T, sources []client.SourceAPI, gotFilter
 			return
 		}
 		for _, s := range sources {
-			if r.URL.Path == "/v2025/sources/"+s.ID {
+			if r.URL.Path == "/sources/v1/"+s.ID {
 				if err := json.NewEncoder(w).Encode(s); err != nil {
 					t.Errorf("encode: %v", err)
 				}

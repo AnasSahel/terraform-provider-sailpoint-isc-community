@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	roleEndpointGet    = "/v2025/roles/{id}"
-	roleEndpointCreate = "/v2025/roles"
-	roleEndpointPatch  = "/v2025/roles/{id}"
-	roleEndpointDelete = "/v2025/roles/{id}"
+	roleEndpointGet    = "/roles/v1/{id}"
+	roleEndpointCreate = "/roles/v1"
+	roleEndpointPatch  = "/roles/v1/{id}"
+	roleEndpointDelete = "/roles/v1/{id}"
 )
 
 // RoleAPI represents a SailPoint Role from the API.

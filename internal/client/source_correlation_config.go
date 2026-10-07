@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	sourceCorrelationConfigGet = "/v2025/sources/{sourceId}/correlation-config"
-	sourceCorrelationConfigPut = "/v2025/sources/{sourceId}/correlation-config"
+	sourceCorrelationConfigGet = "/sources/v1/{sourceId}/correlation-config"
+	sourceCorrelationConfigPut = "/sources/v1/{sourceId}/correlation-config"
 )
 
 // SourceCorrelationConfigAPI represents a SailPoint source correlation config.

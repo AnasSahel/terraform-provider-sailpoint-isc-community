@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	segmentEndpointGet    = "/v2025/segments/{id}"
-	segmentEndpointCreate = "/v2025/segments"
-	segmentEndpointPatch  = "/v2025/segments/{id}"
-	segmentEndpointDelete = "/v2025/segments/{id}"
+	segmentEndpointGet    = "/segments/v1/{id}"
+	segmentEndpointCreate = "/segments/v1"
+	segmentEndpointPatch  = "/segments/v1/{id}"
+	segmentEndpointDelete = "/segments/v1/{id}"
 )
 
 // SegmentAPI represents a SailPoint Segment from the API.
