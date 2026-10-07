@@ -56,7 +56,7 @@ func (c *Client) GetSourceAttributeSyncConfig(ctx context.Context, sourceID stri
 	if err != nil {
 		return nil, c.formatSourceAttrSyncConfigError(sourceAttrSyncConfigErrorContext{Operation: "get", SourceID: sourceID}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatSourceAttrSyncConfigError(
 			sourceAttrSyncConfigErrorContext{Operation: "get", SourceID: sourceID, ResponseBody: string(resp.Bytes())},
 			nil, resp.StatusCode(),
@@ -93,7 +93,7 @@ func (c *Client) PutSourceAttributeSyncConfig(ctx context.Context, sourceID stri
 	if err != nil {
 		return nil, c.formatSourceAttrSyncConfigError(sourceAttrSyncConfigErrorContext{Operation: "update", SourceID: sourceID}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),

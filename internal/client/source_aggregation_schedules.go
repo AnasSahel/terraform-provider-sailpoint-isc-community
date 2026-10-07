@@ -83,7 +83,7 @@ func (c *Client) ListSourceAggregationSchedules(ctx context.Context, sourceID st
 		SetPathParam("sourceId", sourceID).
 		Get(sourceScheduleEndpointList)
 
-	if resp != nil && resp.IsError() {
+	if resp != nil && resp.IsStatusFailure() {
 		return nil, c.formatSourceScheduleError(
 			sourceScheduleErrorContext{Operation: "list", SourceID: sourceID, ResponseBody: string(resp.Bytes())},
 			nil,
@@ -130,7 +130,7 @@ func (c *Client) GetSourceAggregationSchedule(ctx context.Context, sourceID, sch
 		SetPathParam("scheduleType", scheduleType).
 		Get(sourceScheduleEndpointGet)
 
-	if resp != nil && resp.IsError() {
+	if resp != nil && resp.IsStatusFailure() {
 		return nil, c.formatSourceScheduleError(
 			sourceScheduleErrorContext{
 				Operation: "get", SourceID: sourceID, ScheduleType: scheduleType,
@@ -180,7 +180,7 @@ func (c *Client) CreateSourceAggregationSchedule(ctx context.Context, sourceID s
 		SetPathParam("sourceId", sourceID).
 		Post(sourceScheduleEndpointCreate)
 
-	if resp != nil && resp.IsError() {
+	if resp != nil && resp.IsStatusFailure() {
 		return nil, c.formatSourceScheduleError(
 			sourceScheduleErrorContext{
 				Operation: "create", SourceID: sourceID, ScheduleType: schedule.Type,
@@ -235,7 +235,7 @@ func (c *Client) UpdateSourceAggregationSchedule(ctx context.Context, sourceID, 
 		SetPathParam("scheduleType", scheduleType).
 		Put(sourceScheduleEndpointUpdate)
 
-	if resp != nil && resp.IsError() {
+	if resp != nil && resp.IsStatusFailure() {
 		return nil, c.formatSourceScheduleError(
 			sourceScheduleErrorContext{
 				Operation: "update", SourceID: sourceID, ScheduleType: scheduleType,
@@ -282,7 +282,7 @@ func (c *Client) DeleteSourceAggregationSchedule(ctx context.Context, sourceID, 
 		SetPathParam("scheduleType", scheduleType).
 		Delete(sourceScheduleEndpointDelete)
 
-	if resp != nil && resp.IsError() {
+	if resp != nil && resp.IsStatusFailure() {
 		if resp.StatusCode() == http.StatusNotFound {
 			tflog.Debug(ctx, "Source aggregation schedule not found, treating as already deleted", map[string]any{
 				"source_id":     sourceID,

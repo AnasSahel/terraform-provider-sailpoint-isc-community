@@ -64,7 +64,7 @@ func (c *Client) GetIdentity(ctx context.Context, id string) (*IdentityAPI, erro
 	if err != nil {
 		return nil, c.formatIdentityError(identityErrorContext{Operation: "get", ID: id}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatIdentityError(
 			identityErrorContext{Operation: "get", ID: id, ResponseBody: string(resp.Bytes())},
 			nil, resp.StatusCode(),
@@ -94,7 +94,7 @@ func (c *Client) ListIdentities(ctx context.Context, filters string, limit int) 
 	if err != nil {
 		return nil, c.formatIdentityError(identityErrorContext{Operation: "list"}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatIdentityError(
 			identityErrorContext{Operation: "list", ResponseBody: string(resp.Bytes())},
 			nil, resp.StatusCode(),

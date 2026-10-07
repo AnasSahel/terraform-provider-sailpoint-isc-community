@@ -33,7 +33,7 @@ func (c *Client) SyncSourceAttributes(ctx context.Context, sourceID string) erro
 	if err != nil {
 		return fmt.Errorf("failed to trigger attribute sync for source '%s': %w", sourceID, err)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		detail := ""
 		if body := string(resp.Bytes()); body != "" {
 			detail = fmt.Sprintf(" - response: %s", body)

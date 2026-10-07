@@ -117,7 +117,7 @@ func (c *Client) GetLifecycleState(ctx context.Context, identityProfileID, lifec
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatLifecycleStateError(
 			lifecycleStateErrorContext{
 				Operation:         "get",
@@ -187,7 +187,7 @@ func (c *Client) CreateLifecycleState(ctx context.Context, identityProfileID str
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -260,7 +260,7 @@ func (c *Client) UpdateLifecycleState(ctx context.Context, identityProfileID, li
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -318,7 +318,7 @@ func (c *Client) DeleteLifecycleState(ctx context.Context, identityProfileID, li
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		// 404 is acceptable for delete - resource might already be deleted
 		if resp.StatusCode() == http.StatusNotFound {
 			tflog.Debug(ctx, "Lifecycle state not found, treating as already deleted", map[string]any{

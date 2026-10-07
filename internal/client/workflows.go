@@ -83,7 +83,7 @@ func (c *Client) GetWorkflow(ctx context.Context, id string) (*WorkflowAPI, erro
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatWorkflowError(
 			workflowErrorContext{Operation: "get", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
@@ -128,7 +128,7 @@ func (c *Client) CreateWorkflow(ctx context.Context, workflow *WorkflowAPI) (*Wo
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -179,7 +179,7 @@ func (c *Client) UpdateWorkflow(ctx context.Context, id string, workflow *Workfl
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -231,7 +231,7 @@ func (c *Client) PatchWorkflow(ctx context.Context, id string, operations []JSON
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -274,7 +274,7 @@ func (c *Client) DeleteWorkflow(ctx context.Context, id string) error {
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		// 404 is acceptable for delete - resource might already be deleted
 		if resp.StatusCode() == http.StatusNotFound {
 			tflog.Debug(ctx, "Workflow not found, treating as already deleted", map[string]any{
