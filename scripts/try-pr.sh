@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright IBM Corp. 2021, 2026
+# SPDX-License-Identifier: MPL-2.0
+
 # Build a branch or PR of this provider and smoke-test it against a real
 # Terraform project, without publishing anything.
 #
@@ -36,7 +39,7 @@ plan_only=false
 tf_args=()
 
 usage() {
-  sed -n '16,23p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '/^# Usage:/,/^$/p' "$0" | sed 's/^# \{0,1\}//'
   exit "${1:-0}"
 }
 
