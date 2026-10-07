@@ -91,8 +91,12 @@ func (r *lifecycleStateResource) Schema(_ context.Context, _ resource.SchemaRequ
 				},
 			},
 			"description": schema.StringAttribute{
-				MarkdownDescription: "The description of the lifecycle state.",
+				MarkdownDescription: "The description of the lifecycle state. ISC does not support clearing a description once set, so removing this attribute from configuration keeps the existing value.",
 				Optional:            true,
+				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"enabled": schema.BoolAttribute{
 				MarkdownDescription: "Whether the lifecycle state is enabled.",

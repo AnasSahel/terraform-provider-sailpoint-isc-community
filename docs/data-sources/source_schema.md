@@ -26,7 +26,7 @@ Retrieves a single SailPoint source schema. Use `include_types` or `include_name
 
 ### Read-Only
 
-- `attributes` (Attributes List) The attribute definitions for the schema. (see [below for nested schema](#nestedatt--attributes))
+- `attributes` (Attributes Set) The attribute definitions for the schema. (see [below for nested schema](#nestedatt--attributes))
 - `configuration` (String) Extra configuration data for the schema as a JSON object.
 - `created` (String) The date the schema was created.
 - `display_attribute` (String) The name of the attribute used to calculate the display value for an object in the schema.

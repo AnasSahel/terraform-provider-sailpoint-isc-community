@@ -104,7 +104,7 @@ func (d *sourceSchemaDataSource) Schema(_ context.Context, _ datasource.SchemaRe
 				Computed:            true,
 				CustomType:          jsontypes.NormalizedType{},
 			},
-			"attributes": schema.ListNestedAttribute{
+			"attributes": schema.SetNestedAttribute{
 				MarkdownDescription: "The attribute definitions for the schema.",
 				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{

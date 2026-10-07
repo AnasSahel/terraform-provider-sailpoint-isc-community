@@ -4,11 +4,14 @@ page_title: "sailpoint_identity_profile Resource - sailpoint"
 subcategory: ""
 description: |-
   Resource for SailPoint Identity Profile. Identity profiles define the source of identities and how identity attributes are mapped.
+  -> Ordering: a mapping that references a sailpoint_identity_attribute created moments earlier can be rejected (400 ... not found) or accepted and then dropped by the API (surfacing as Provider produced inconsistent result after apply). Create identity attributes in one apply and the identity profile that maps them in a later apply.
 ---
 
 # sailpoint_identity_profile (Resource)
 
 Resource for SailPoint Identity Profile. Identity profiles define the source of identities and how identity attributes are mapped.
+
+-> **Ordering:** a mapping that references a `sailpoint_identity_attribute` created moments earlier can be rejected (`400 ... not found`) or accepted and then dropped by the API (surfacing as `Provider produced inconsistent result after apply`). Create identity attributes in one apply and the identity profile that maps them in a later apply.
 
 ## Example Usage
 

@@ -55,8 +55,11 @@ func (r *identityProfileResource) Configure(ctx context.Context, req resource.Co
 // Schema implements resource.Resource.
 func (r *identityProfileResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description:         "Resource for SailPoint Identity Profile.",
-		MarkdownDescription: "Resource for SailPoint Identity Profile. Identity profiles define the source of identities and how identity attributes are mapped.",
+		Description: "Resource for SailPoint Identity Profile.",
+		MarkdownDescription: "Resource for SailPoint Identity Profile. Identity profiles define the source of identities and how identity attributes are mapped.\n\n" +
+			"-> **Ordering:** a mapping that references a `sailpoint_identity_attribute` created moments earlier can be rejected " +
+			"(`400 ... not found`) or accepted and then dropped by the API (surfacing as `Provider produced inconsistent result after apply`). " +
+			"Create identity attributes in one apply and the identity profile that maps them in a later apply.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				MarkdownDescription: "The unique identifier of the identity profile.",

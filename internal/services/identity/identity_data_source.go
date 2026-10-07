@@ -4,11 +4,14 @@
 package identity
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -155,9 +158,11 @@ func (d *identityDataSource) Schema(_ context.Context, _ datasource.SchemaReques
 				},
 			},
 			"attributes": schema.MapAttribute{
-				Computed:            true,
-				ElementType:         types.StringType,
-				MarkdownDescription: "Additional identity attributes as key-value pairs. Keys depend on the org's identity schema.",
+				Computed:    true,
+				ElementType: types.StringType,
+				MarkdownDescription: "Additional identity attributes as key-value pairs. Keys depend on the org's identity schema. " +
+					"String values are returned as-is; multi-valued (array), numeric, boolean and object values are returned as JSON-encoded strings " +
+					"(decode them with `jsondecode()`). Null values are returned as null.",
 			},
 			"created":  schema.StringAttribute{Computed: true},
 			"modified": schema.StringAttribute{Computed: true},
@@ -298,7 +303,7 @@ func populateIdentityDSModel(ctx context.Context, m *identityDSModel, api *clien
 	}
 
 	if len(api.Attributes) > 0 {
-		attrMap, diags := types.MapValueFrom(ctx, types.StringType, api.Attributes)
+		attrMap, diags := identityAttributesToTF(api.Attributes)
 		diagnostics.Append(diags...)
 		m.Attributes = attrMap
 	} else {
@@ -306,6 +311,50 @@ func populateIdentityDSModel(ctx context.Context, m *identityDSModel, api *clien
 	}
 
 	return diagnostics
+}
+
+// identityAttributesToTF converts the raw identity attributes into a Terraform map of strings.
+// JSON strings are unquoted; any other JSON value is kept as its compact JSON text.
+func identityAttributesToTF(attrs map[string]json.RawMessage) (types.Map, diag.Diagnostics) {
+	var diagnostics diag.Diagnostics
+
+	elements := make(map[string]attr.Value, len(attrs))
+	for key, raw := range attrs {
+		value, err := identityAttributeValueToTF(raw)
+		if err != nil {
+			diagnostics.AddError(
+				"Error Converting Identity Attribute",
+				fmt.Sprintf("Could not convert identity attribute %q: %s", key, err),
+			)
+			return types.MapNull(types.StringType), diagnostics
+		}
+		elements[key] = value
+	}
+
+	m, diags := types.MapValue(types.StringType, elements)
+	diagnostics.Append(diags...)
+	return m, diagnostics
+}
+
+func identityAttributeValueToTF(raw json.RawMessage) (types.String, error) {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return types.StringNull(), nil
+	}
+
+	if trimmed[0] == '"' {
+		var s string
+		if err := json.Unmarshal(trimmed, &s); err != nil {
+			return types.StringNull(), err
+		}
+		return types.StringValue(s), nil
+	}
+
+	var buf bytes.Buffer
+	if err := json.Compact(&buf, trimmed); err != nil {
+		return types.StringNull(), err
+	}
+	return types.StringValue(buf.String()), nil
 }
 
 func stringPtrToTF(s *string) types.String {

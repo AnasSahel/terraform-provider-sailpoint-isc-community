@@ -5,31 +5,31 @@ package entitlement
 
 import (
 	"context"
-	"reflect"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
 // entitlementModel represents the Terraform state for an Entitlement resource.
 type entitlementModel struct {
-	ID                     types.String           `tfsdk:"id"`
-	Name                   types.String           `tfsdk:"name"`
-	Description            types.String           `tfsdk:"description"`
-	Attribute              types.String           `tfsdk:"attribute"`
-	Value                  types.String           `tfsdk:"value"`
-	SourceSchemaObjectType types.String           `tfsdk:"source_schema_object_type"`
-	Privileged             types.Bool             `tfsdk:"privileged"`
-	CloudGoverned          types.Bool             `tfsdk:"cloud_governed"`
-	Requestable            types.Bool             `tfsdk:"requestable"`
-	Owner                  *common.ObjectRefModel `tfsdk:"owner"`
-	Source                 *common.ObjectRefModel `tfsdk:"source"`
-	Segments               types.Set              `tfsdk:"segments"`
-	ManuallyUpdatedFields  types.Map              `tfsdk:"manually_updated_fields"`
-	Created                types.String           `tfsdk:"created"`
-	Modified               types.String           `tfsdk:"modified"`
+	ID                     types.String `tfsdk:"id"`
+	Name                   types.String `tfsdk:"name"`
+	Description            types.String `tfsdk:"description"`
+	Attribute              types.String `tfsdk:"attribute"`
+	Value                  types.String `tfsdk:"value"`
+	SourceSchemaObjectType types.String `tfsdk:"source_schema_object_type"`
+	Privileged             types.Bool   `tfsdk:"privileged"`
+	CloudGoverned          types.Bool   `tfsdk:"cloud_governed"`
+	Requestable            types.Bool   `tfsdk:"requestable"`
+	Owner                  types.Object `tfsdk:"owner"`
+	Source                 types.Object `tfsdk:"source"`
+	Segments               types.Set    `tfsdk:"segments"`
+	ManuallyUpdatedFields  types.Map    `tfsdk:"manually_updated_fields"`
+	Created                types.String `tfsdk:"created"`
+	Modified               types.String `tfsdk:"modified"`
 }
 
 // FromAPI maps the API response into the Terraform state.
@@ -58,21 +58,13 @@ func (m *entitlementModel) FromAPI(ctx context.Context, api *client.EntitlementA
 		m.Modified = types.StringNull()
 	}
 
-	if api.Owner != nil {
-		owner, diags := common.NewObjectRefFromAPIPtr(ctx, *api.Owner)
-		diagnostics.Append(diags...)
-		m.Owner = owner
-	} else {
-		m.Owner = nil
-	}
+	owner, diags := objectRefFromAPI(ctx, api.Owner)
+	diagnostics.Append(diags...)
+	m.Owner = owner
 
-	if api.Source != nil {
-		source, diags := common.NewObjectRefFromAPIPtr(ctx, *api.Source)
-		diagnostics.Append(diags...)
-		m.Source = source
-	} else {
-		m.Source = nil
-	}
+	source, diags := objectRefFromAPI(ctx, api.Source)
+	diagnostics.Append(diags...)
+	m.Source = source
 
 	if api.Segments != nil {
 		segs, diags := types.SetValueFrom(ctx, types.StringType, api.Segments)
@@ -95,6 +87,9 @@ func (m *entitlementModel) FromAPI(ctx context.Context, api *client.EntitlementA
 
 // ToPatchOperations compares the plan (m) against state and returns JSON Patch ops for changed fields.
 // Only patchable fields are considered: name, description, requestable, privileged, owner, segments.
+//
+// Unknown plan values mean "not set in config, let the server decide" and never produce a patch.
+// A remove patch is only emitted when the plan is explicitly null and the state still holds a value.
 func (m *entitlementModel) ToPatchOperations(ctx context.Context, state *entitlementModel) ([]client.JSONPatchOperation, diag.Diagnostics) {
 	var diagnostics diag.Diagnostics
 	var ops []client.JSONPatchOperation
@@ -103,8 +98,8 @@ func (m *entitlementModel) ToPatchOperations(ctx context.Context, state *entitle
 		ops = append(ops, client.NewReplacePatch("/name", m.Name.ValueString()))
 	}
 
-	if !m.Description.Equal(state.Description) {
-		if !m.Description.IsNull() && !m.Description.IsUnknown() {
+	if !m.Description.IsUnknown() && !m.Description.Equal(state.Description) {
+		if !m.Description.IsNull() {
 			ops = append(ops, client.NewReplacePatch("/description", m.Description.ValueString()))
 		} else {
 			ops = append(ops, client.NewRemovePatch("/description"))
@@ -119,18 +114,25 @@ func (m *entitlementModel) ToPatchOperations(ctx context.Context, state *entitle
 		ops = append(ops, client.NewReplacePatch("/privileged", m.Privileged.ValueBool()))
 	}
 
-	if !reflect.DeepEqual(m.Owner, state.Owner) {
-		if m.Owner != nil {
-			ownerAPI, diags := common.NewObjectRefToAPIPtr(ctx, *m.Owner)
-			diagnostics.Append(diags...)
-			ops = append(ops, client.NewReplacePatch("/owner", ownerAPI))
-		} else {
-			ops = append(ops, client.NewRemovePatch("/owner"))
+	if !m.Owner.IsUnknown() {
+		switch {
+		case m.Owner.IsNull():
+			if !state.Owner.IsNull() && !state.Owner.IsUnknown() {
+				ops = append(ops, client.NewRemovePatch("/owner"))
+			}
+		default:
+			var planOwner common.ObjectRefModel
+			diagnostics.Append(m.Owner.As(ctx, &planOwner, basetypes.ObjectAsOptions{UnhandledUnknownAsEmpty: true})...)
+			if ownerChanged(ctx, planOwner, state.Owner, &diagnostics) {
+				ownerAPI, diags := common.NewObjectRefToAPIPtr(ctx, planOwner)
+				diagnostics.Append(diags...)
+				ops = append(ops, client.NewReplacePatch("/owner", ownerAPI))
+			}
 		}
 	}
 
-	if !m.Segments.Equal(state.Segments) {
-		if !m.Segments.IsNull() && !m.Segments.IsUnknown() {
+	if !m.Segments.IsUnknown() && !m.Segments.Equal(state.Segments) {
+		if !m.Segments.IsNull() {
 			var segs []string
 			diagnostics.Append(m.Segments.ElementsAs(ctx, &segs, false)...)
 			ops = append(ops, client.NewReplacePatch("/segments", segs))
@@ -140,6 +142,31 @@ func (m *entitlementModel) ToPatchOperations(ctx context.Context, state *entitle
 	}
 
 	return ops, diagnostics
+}
+
+// ownerChanged reports whether the planned owner differs from the owner in state.
+// Only type and id are compared: name is server-resolved and may be unknown in the plan.
+func ownerChanged(ctx context.Context, plan common.ObjectRefModel, state types.Object, diagnostics *diag.Diagnostics) bool {
+	if state.IsNull() || state.IsUnknown() {
+		return true
+	}
+	var stateOwner common.ObjectRefModel
+	diagnostics.Append(state.As(ctx, &stateOwner, basetypes.ObjectAsOptions{UnhandledUnknownAsEmpty: true})...)
+	return !plan.Type.Equal(stateOwner.Type) || !plan.ID.Equal(stateOwner.ID)
+}
+
+// objectRefFromAPI converts an optional API object reference to a types.Object (nil → null).
+func objectRefFromAPI(ctx context.Context, api *client.ObjectRefAPI) (types.Object, diag.Diagnostics) {
+	if api == nil {
+		return types.ObjectNull(common.ObjectRefObjectType.AttrTypes), nil
+	}
+	ref, diags := common.NewObjectRefFromAPI(ctx, *api)
+	if diags.HasError() {
+		return types.ObjectNull(common.ObjectRefObjectType.AttrTypes), diags
+	}
+	obj, objDiags := types.ObjectValueFrom(ctx, common.ObjectRefObjectType.AttrTypes, ref)
+	diags.Append(objDiags...)
+	return obj, diags
 }
 
 // boolPtrToTF converts *bool to types.Bool (nil → null).

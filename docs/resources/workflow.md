@@ -63,7 +63,7 @@ resource "sailpoint_workflow" "send_email" {
 
 - `definition` (Attributes) The workflow definition containing the steps to execute. If not specified, the workflow will have no definition. (see [below for nested schema](#nestedatt--definition))
 - `description` (String) The description of the workflow.
-- `enabled` (Boolean) Whether the workflow is enabled. Defaults to `false`. Because the SailPoint API cannot create an enabled workflow, declaring `enabled = true` at create time will produce `enabled = false` in state; the next `terraform apply` (an update) will enable the workflow (converge-over-two-applies).
+- `enabled` (Boolean) Whether the workflow is enabled. Defaults to `false`. The SailPoint API always creates workflows disabled, so when `enabled = true` is declared the provider creates the workflow and then enables it in the same apply.
 - `ignore_json_changes` (List of String) Paths inside JSON step fields whose server-minted drift the practitioner chooses to ignore (analogous to `ignore_changes`, but reaching inside JSON-string attributes). Each entry has the form `definition.steps['<step name>'].<field>.<json-path>` where `<field>` is one of `attributes`, `config`, or `catch` and `<json-path>` is a dotted path inside that JSON object (e.g. `param_oauth.refID`).
 
 ### Read-Only
@@ -74,7 +74,7 @@ resource "sailpoint_workflow" "send_email" {
 - `failure_count` (Number) The number of times the workflow has failed. Server-side live metric — refreshed on every read; do not assume stable across applies.
 - `id` (String) The unique identifier of the workflow.
 - `modified` (String) The date and time the workflow was last modified.
-- `modified_by` (Attributes) The identity who last modified the workflow. (see [below for nested schema](#nestedatt--modified_by))
+- `modified_by` (Attributes) The identity who last modified the workflow. ISC stamps it with the calling identity on every write, so it is `(known after apply)` whenever the workflow changes. (see [below for nested schema](#nestedatt--modified_by))
 - `trigger` (String) The trigger configuration as JSON. This is a computed field - use `sailpoint_workflow_trigger` resource to manage triggers.
 
 <a id="nestedatt--owner"></a>

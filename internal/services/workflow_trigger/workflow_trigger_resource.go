@@ -321,17 +321,8 @@ func (r *workflowTriggerResource) Delete(ctx context.Context, req resource.Delet
 		return err
 	})
 
-	if reEnableErr != nil {
-		resp.Diagnostics.AddError(
-			"Error Re-enabling Workflow After Trigger Delete",
-			fmt.Sprintf("Could not re-enable workflow %q after removing trigger: %s", workflowID, reEnableErr.Error()),
-		)
-	}
+	resp.Diagnostics.Append(deleteTriggerDiagnostics(workflowID, fnErr, reEnableErr)...)
 	if fnErr != nil {
-		resp.Diagnostics.AddError(
-			"Error Deleting Workflow Trigger",
-			fmt.Sprintf("Could not remove trigger from workflow %q: %s", workflowID, fnErr.Error()),
-		)
 		tflog.Error(ctx, "Failed to remove workflow trigger", map[string]any{
 			"workflow_id": workflowID,
 			"error":       fnErr.Error(),
