@@ -29,6 +29,14 @@ type Client struct {
 	token       string
 	tokenExpiry time.Time
 	tokenMutex  sync.RWMutex
+
+	// identityAttributeWriteMu serializes identity attribute writes. ISC applies
+	// each write as a read-modify-write of one shared config document, so
+	// concurrent writes silently drop each other (issue #179).
+	identityAttributeWriteMu sync.Mutex
+	// identityAttributeReadBackDelays overrides the read-back backoff after a
+	// create. Nil means defaultIdentityAttributeReadBackDelays; tests shorten it.
+	identityAttributeReadBackDelays []time.Duration
 }
 
 func NewClient(baseURL, clientID, clientSecret string) (*Client, error) {

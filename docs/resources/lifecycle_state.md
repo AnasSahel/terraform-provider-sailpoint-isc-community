@@ -27,7 +27,7 @@ Resource for SailPoint Lifecycle State. Lifecycle states define the different st
 - `access_action_configuration` (Attributes) Access action configuration for the lifecycle state. Defaults to `remove_all_access_enabled = false`. Remove this block from your configuration to reset to defaults. (see [below for nested schema](#nestedatt--access_action_configuration))
 - `access_profile_ids` (List of String) List of access profile IDs associated with this lifecycle state. Defaults to an empty list. The SailPoint API normalizes an empty list to `null` server-side; the provider re-projects that to an empty list so `[]` and the omitted attribute behave identically and `tofu apply` does not fail with `inconsistent result after apply`.
 - `account_actions` (Attributes List) List of account actions to perform when an identity enters this lifecycle state. (see [below for nested schema](#nestedatt--account_actions))
-- `description` (String) The description of the lifecycle state.
+- `description` (String) The description of the lifecycle state. ISC does not support clearing a description once set, so removing this attribute from configuration keeps the existing value.
 - `email_notification_option` (Attributes) Email notification configuration for the lifecycle state. Defaults to all notifications disabled with an empty email list. Remove this block from your configuration to reset to defaults. (see [below for nested schema](#nestedatt--email_notification_option))
 - `enabled` (Boolean) Whether the lifecycle state is enabled.
 - `priority` (Number) The priority of the lifecycle state. Lower numbers appear first when listing with `?sorters=priority`.

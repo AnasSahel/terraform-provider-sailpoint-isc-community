@@ -6,8 +6,10 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
@@ -19,6 +21,12 @@ const (
 	identityAttributesEndpointUpdate = "/v2025/identity-attributes/{attributeName}"
 	identityAttributesEndpointDelete = "/v2025/identity-attributes/{attributeName}"
 )
+
+// defaultIdentityAttributeReadBackDelays is how long CreateIdentityAttribute
+// waits before each read-back attempt (about 15s in total).
+var defaultIdentityAttributeReadBackDelays = []time.Duration{
+	0, 1 * time.Second, 2 * time.Second, 4 * time.Second, 8 * time.Second,
+}
 
 // IdentityAttributeSourceAPI represents the source configuration for an identity attribute in the SailPoint API.
 type IdentityAttributeSourceAPI struct {
@@ -121,8 +129,10 @@ func (c *Client) GetIdentityAttribute(ctx context.Context, name string) (*Identi
 	return &attribute, nil
 }
 
-// CreateIdentityAttribute creates a new identity attribute.
-// Returns the created IdentityAttributeAPI and any error encountered.
+// CreateIdentityAttribute creates a new identity attribute, then reads it back
+// to confirm it was persisted. Writes are serialized per client because the API
+// can acknowledge concurrent creates with a 2xx and still lose all but one.
+// Returns the IdentityAttributeAPI as read back from the API and any error encountered.
 func (c *Client) CreateIdentityAttribute(ctx context.Context, attribute *IdentityAttributeAPI) (*IdentityAttributeAPI, error) {
 	if attribute == nil {
 		return nil, fmt.Errorf("identity attribute cannot be nil")
@@ -131,6 +141,11 @@ func (c *Client) CreateIdentityAttribute(ctx context.Context, attribute *Identit
 	if attribute.Name == "" {
 		return nil, fmt.Errorf("identity attribute name cannot be empty")
 	}
+
+	// Hold the lock through the read-back so the next write only starts once
+	// this one is visible.
+	c.identityAttributeWriteMu.Lock()
+	defer c.identityAttributeWriteMu.Unlock()
 
 	// Log the full request body for debugging
 	requestBody, _ := json.Marshal(attribute)
@@ -166,11 +181,61 @@ func (c *Client) CreateIdentityAttribute(ctx context.Context, attribute *Identit
 		)
 	}
 
+	tflog.Debug(ctx, "Identity attribute create acknowledged, reading it back", map[string]any{
+		"name": attribute.Name,
+	})
+
+	created, err := c.readBackIdentityAttribute(ctx, attribute.Name)
+	if err != nil {
+		return nil, err
+	}
+
 	tflog.Info(ctx, "Successfully created identity attribute", map[string]any{
 		"name": attribute.Name,
 	})
 
-	return &result, nil
+	return created, nil
+}
+
+// readBackIdentityAttribute GETs a just-created identity attribute, retrying on
+// 404 with backoff. It fails if the attribute never shows up, so a create the
+// API acknowledged but did not persist is reported instead of written to state.
+func (c *Client) readBackIdentityAttribute(ctx context.Context, name string) (*IdentityAttributeAPI, error) {
+	delays := c.identityAttributeReadBackDelays
+	if delays == nil {
+		delays = defaultIdentityAttributeReadBackDelays
+	}
+
+	var lastErr error
+	for attempt, delay := range delays {
+		if delay > 0 {
+			select {
+			case <-ctx.Done():
+				return nil, fmt.Errorf("failed to read back identity attribute '%s' after create: %w", name, ctx.Err())
+			case <-time.After(delay):
+			}
+		}
+
+		attr, err := c.GetIdentityAttribute(ctx, name)
+		if err == nil {
+			return attr, nil
+		}
+		if !errors.Is(err, ErrNotFound) {
+			return nil, fmt.Errorf("failed to read back identity attribute '%s' after create: %w", name, err)
+		}
+
+		lastErr = err
+		tflog.Debug(ctx, "Identity attribute not visible yet after create", map[string]any{
+			"name":    name,
+			"attempt": attempt + 1,
+		})
+	}
+
+	return nil, fmt.Errorf(
+		"identity attribute '%s' was acknowledged by the create call but is not found on read-back "+
+			"(it was likely lost to a concurrent write); re-run apply to create it: %w",
+		name, lastErr,
+	)
 }
 
 // UpdateIdentityAttribute updates an existing identity attribute.
@@ -184,6 +249,9 @@ func (c *Client) UpdateIdentityAttribute(ctx context.Context, name string, attri
 	if attribute == nil {
 		return nil, fmt.Errorf("identity attribute cannot be nil")
 	}
+
+	c.identityAttributeWriteMu.Lock()
+	defer c.identityAttributeWriteMu.Unlock()
 
 	// Log the full request body for debugging
 	requestBody, _ := json.Marshal(attribute)
@@ -234,6 +302,9 @@ func (c *Client) DeleteIdentityAttribute(ctx context.Context, name string) error
 	if name == "" {
 		return fmt.Errorf("identity attribute name cannot be empty")
 	}
+
+	c.identityAttributeWriteMu.Lock()
+	defer c.identityAttributeWriteMu.Unlock()
 
 	tflog.Debug(ctx, "Deleting identity attribute", map[string]any{
 		"name": name,

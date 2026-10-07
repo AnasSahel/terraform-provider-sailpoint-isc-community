@@ -14,7 +14,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -67,42 +70,51 @@ func (r *entitlementResource) Schema(_ context.Context, _ resource.SchemaRequest
 				MarkdownDescription: "The name of the entitlement. Patchable; overrides the source-aggregated name when set.",
 				Optional:            true,
 				Computed:            true,
+				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"description": schema.StringAttribute{
 				MarkdownDescription: "Description of the entitlement. Patchable.",
 				Optional:            true,
 				Computed:            true,
+				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"attribute": schema.StringAttribute{
 				MarkdownDescription: "Source attribute name (e.g., `memberOf`). Read-only from aggregation.",
 				Computed:            true,
+				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"value": schema.StringAttribute{
 				MarkdownDescription: "Source attribute value (e.g., a group DN). Read-only from aggregation.",
 				Computed:            true,
+				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"source_schema_object_type": schema.StringAttribute{
 				MarkdownDescription: "Type of the entitlement in the source schema (e.g., `group`). Read-only.",
 				Computed:            true,
+				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"privileged": schema.BoolAttribute{
 				MarkdownDescription: "Whether the entitlement grants elevated access. Patchable.",
 				Optional:            true,
 				Computed:            true,
+				PlanModifiers:       []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
 			},
 			"cloud_governed": schema.BoolAttribute{
 				MarkdownDescription: "Whether the entitlement is cloud-governed. Read-only.",
 				Computed:            true,
+				PlanModifiers:       []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
 			},
 			"requestable": schema.BoolAttribute{
 				MarkdownDescription: "Whether users can request this entitlement directly. Patchable.",
 				Optional:            true,
 				Computed:            true,
+				PlanModifiers:       []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
 			},
 			"owner": schema.SingleNestedAttribute{
 				MarkdownDescription: "The owner of the entitlement. Patchable.",
 				Optional:            true,
 				Computed:            true,
+				PlanModifiers:       []planmodifier.Object{objectplanmodifier.UseStateForUnknown()},
 				Attributes: map[string]schema.Attribute{
 					"type": schema.StringAttribute{
 						MarkdownDescription: "Owner type. Must be `IDENTITY`.",
@@ -124,6 +136,7 @@ func (r *entitlementResource) Schema(_ context.Context, _ resource.SchemaRequest
 			"source": schema.SingleNestedAttribute{
 				MarkdownDescription: "Source the entitlement was aggregated from. Read-only.",
 				Computed:            true,
+				PlanModifiers:       []planmodifier.Object{objectplanmodifier.UseStateForUnknown()},
 				Attributes: map[string]schema.Attribute{
 					"type": schema.StringAttribute{Computed: true},
 					"id":   schema.StringAttribute{Computed: true},
@@ -134,6 +147,7 @@ func (r *entitlementResource) Schema(_ context.Context, _ resource.SchemaRequest
 				MarkdownDescription: "Segment UUIDs the entitlement is assigned to. Patchable.",
 				Optional:            true,
 				Computed:            true,
+				PlanModifiers:       []planmodifier.Set{setplanmodifier.UseStateForUnknown()},
 				ElementType:         types.StringType,
 			},
 			"manually_updated_fields": schema.MapAttribute{
@@ -144,6 +158,7 @@ func (r *entitlementResource) Schema(_ context.Context, _ resource.SchemaRequest
 			"created": schema.StringAttribute{
 				MarkdownDescription: "When the entitlement was first aggregated.",
 				Computed:            true,
+				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"modified": schema.StringAttribute{
 				MarkdownDescription: "When the entitlement was last modified.",

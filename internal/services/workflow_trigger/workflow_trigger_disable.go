@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -76,4 +77,38 @@ func withWorkflowDisabled(ctx context.Context, mgr workflowStateManager, workflo
 
 	fnErr = fn()
 	return
+}
+
+// deleteTriggerDiagnostics builds the diagnostics for a trigger Delete.
+//
+// When the trigger removal itself succeeded, a failed re-enable is only a
+// warning: the trigger is gone, which is what Delete was asked to do. ISC
+// validates a workflow on enable, so some workflows cannot be valid without
+// their trigger (e.g. one with an sp:interactive-form step needs an interactive
+// trigger) and re-enabling them is bound to fail. Reporting that as an error
+// would leave the trigger in state and force a second apply (#178).
+func deleteTriggerDiagnostics(workflowID string, fnErr, reEnableErr error) diag.Diagnostics {
+	var diags diag.Diagnostics
+	if fnErr != nil {
+		diags.AddError(
+			"Error Deleting Workflow Trigger",
+			fmt.Sprintf("Could not remove trigger from workflow %q: %s", workflowID, fnErr.Error()),
+		)
+		if reEnableErr != nil {
+			diags.AddError(
+				"Error Re-enabling Workflow After Trigger Delete",
+				fmt.Sprintf("Could not re-enable workflow %q after failing to remove its trigger: %s", workflowID, reEnableErr.Error()),
+			)
+		}
+		return diags
+	}
+	if reEnableErr != nil {
+		diags.AddWarning(
+			"Workflow Left Disabled After Trigger Delete",
+			fmt.Sprintf("The trigger was removed from workflow %q, but the workflow could not be re-enabled and is now disabled. "+
+				"This is expected when the workflow is not valid without a trigger (for example, a workflow with an interactive form step). "+
+				"Re-enable it once it has a valid trigger, or remove it. Details: %s", workflowID, reEnableErr.Error()),
+		)
+	}
+	return diags
 }

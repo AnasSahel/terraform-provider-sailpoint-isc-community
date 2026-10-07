@@ -10,6 +10,7 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
 // launcherModel represents the Terraform state for a Launcher.
@@ -22,7 +23,7 @@ type launcherModel struct {
 	Type        types.String           `tfsdk:"type"`
 	Disabled    types.Bool             `tfsdk:"disabled"`
 	Config      types.String           `tfsdk:"config"`
-	Owner       *common.ObjectRefModel `tfsdk:"owner"`
+	Owner       types.Object           `tfsdk:"owner"`
 	Reference   *common.ObjectRefModel `tfsdk:"reference"`
 }
 
@@ -39,11 +40,15 @@ func (m *launcherModel) FromAPI(ctx context.Context, api client.LauncherAPI) dia
 	m.Created = types.StringValue(api.Created)
 	m.Modified = types.StringValue(api.Modified)
 
-	// Map Owner (required, always returned by API)
+	// Map Owner. ISC stamps it with the identity of the calling account on
+	// every write, so it is always taken from the API response.
+	m.Owner = types.ObjectNull(common.ObjectRefObjectType.AttrTypes)
 	if api.Owner != nil {
-		var diags diag.Diagnostics
-		m.Owner, diags = common.NewObjectRefFromAPIPtr(ctx, *api.Owner)
+		owner, diags := common.NewObjectRefFromAPI(ctx, *api.Owner)
 		diagnostics.Append(diags...)
+		obj, diags := types.ObjectValueFrom(ctx, common.ObjectRefObjectType.AttrTypes, owner)
+		diagnostics.Append(diags...)
+		m.Owner = obj
 	}
 
 	// Map Reference (optional, null when not set)
@@ -72,10 +77,16 @@ func (m *launcherModel) ToAPI(ctx context.Context) (client.LauncherCreateAPI, di
 		apiRequest.Description = m.Description.ValueString()
 	}
 
-	// Map Owner (required)
-	if m.Owner != nil {
+	// Map Owner (optional). Only sent when configured; ISC overwrites it with
+	// the calling identity anyway, and it is unknown when left to the server.
+	if !m.Owner.IsNull() && !m.Owner.IsUnknown() {
+		var owner common.ObjectRefModel
+		diagnostics.Append(m.Owner.As(ctx, &owner, basetypes.ObjectAsOptions{})...)
+		if diagnostics.HasError() {
+			return apiRequest, diagnostics
+		}
 		var diags diag.Diagnostics
-		apiRequest.Owner, diags = common.NewObjectRefToAPIPtr(ctx, *m.Owner)
+		apiRequest.Owner, diags = common.NewObjectRefToAPIPtr(ctx, owner)
 		diagnostics.Append(diags...)
 	}
 

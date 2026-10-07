@@ -300,13 +300,13 @@ resource "sailpoint_form_definition" "onboarding_form" {
 - `form_conditions` (Attributes List) List of conditions for the form definition. Conditions control the visibility and behavior of form elements based on form inputs and other conditions. (see [below for nested schema](#nestedatt--form_conditions))
 - `form_elements` (String) JSON array of form elements (fields, sections, etc.). Elements must be wrapped in SECTION elements. Each element object has: id, elementType (TEXT, TOGGLE, TEXTAREA, HIDDEN, PHONE, EMAIL, SELECT, DATE, SECTION, COLUMN_SET, IMAGE, DESCRIPTION), config, key, validations. **Important:** Omit fields with zero values (empty strings `""`, empty arrays `[]`, `false`) from the JSON to avoid inconsistent plan errors.
 - `form_input` (Attributes List) List of form inputs that can be passed into the form for use in conditional logic. (see [below for nested schema](#nestedatt--form_input))
-- `used_by` (Attributes List) List of objects that use this form definition. (see [below for nested schema](#nestedatt--used_by))
 
 ### Read-Only
 
 - `created` (String) The date and time when the form definition was created.
 - `id` (String) The unique identifier of the form definition.
 - `modified` (String) The date and time when the form definition was last modified.
+- `used_by` (Attributes List) List of objects that use this form definition. Derived by ISC from the objects referencing the form. (see [below for nested schema](#nestedatt--used_by))
 
 <a id="nestedatt--owner"></a>
 ### Nested Schema for `owner`
@@ -381,7 +381,7 @@ Optional:
 <a id="nestedatt--used_by"></a>
 ### Nested Schema for `used_by`
 
-Optional:
+Read-Only:
 
 - `id` (String) The unique identifier of the referencing object.
 - `name` (String) The name of the referencing object.
