@@ -25,6 +25,59 @@ type sourceDataSource struct {
 	client *client.Client
 }
 
+// sourceDataSourceModel is the data source's view of a source. It mirrors
+// sourceModel minus the resource-only ignore_* arguments, which the data
+// source schema does not declare.
+type sourceDataSourceModel struct {
+	ID                        types.String           `tfsdk:"id"`
+	Name                      types.String           `tfsdk:"name"`
+	Description               types.String           `tfsdk:"description"`
+	Owner                     *common.ObjectRefModel `tfsdk:"owner"`
+	Cluster                   *common.ObjectRefModel `tfsdk:"cluster"`
+	Connector                 types.String           `tfsdk:"connector"`
+	ConnectorClass            types.String           `tfsdk:"connector_class"`
+	ConnectorAttributes       jsontypes.Normalized   `tfsdk:"connector_attributes"`
+	ConnectorAttributesAll    jsontypes.Normalized   `tfsdk:"connector_attributes_all"`
+	ConnectionType            types.String           `tfsdk:"connection_type"`
+	Type                      types.String           `tfsdk:"type"`
+	DeleteThreshold           types.Int64            `tfsdk:"delete_threshold"`
+	Authoritative             types.Bool             `tfsdk:"authoritative"`
+	Healthy                   types.Bool             `tfsdk:"healthy"`
+	Status                    types.String           `tfsdk:"status"`
+	Features                  types.Set              `tfsdk:"features"`
+	CredentialProviderEnabled types.Bool             `tfsdk:"credential_provider_enabled"`
+	Category                  types.String           `tfsdk:"category"`
+	ProvisionAsCsv            types.Bool             `tfsdk:"provision_as_csv"`
+	Created                   types.String           `tfsdk:"created"`
+	Modified                  types.String           `tfsdk:"modified"`
+}
+
+func newSourceDataSourceModel(m sourceModel) sourceDataSourceModel {
+	return sourceDataSourceModel{
+		ID:                        m.ID,
+		Name:                      m.Name,
+		Description:               m.Description,
+		Owner:                     m.Owner,
+		Cluster:                   m.Cluster,
+		Connector:                 m.Connector,
+		ConnectorClass:            m.ConnectorClass,
+		ConnectorAttributes:       m.ConnectorAttributes,
+		ConnectorAttributesAll:    m.ConnectorAttributesAll,
+		ConnectionType:            m.ConnectionType,
+		Type:                      m.Type,
+		DeleteThreshold:           m.DeleteThreshold,
+		Authoritative:             m.Authoritative,
+		Healthy:                   m.Healthy,
+		Status:                    m.Status,
+		Features:                  m.Features,
+		CredentialProviderEnabled: m.CredentialProviderEnabled,
+		Category:                  m.Category,
+		ProvisionAsCsv:            m.ProvisionAsCsv,
+		Created:                   m.Created,
+		Modified:                  m.Modified,
+	}
+}
+
 func NewSourceDataSource() datasource.DataSource {
 	return &sourceDataSource{}
 }
@@ -44,15 +97,19 @@ func (d *sourceDataSource) Configure(ctx context.Context, req datasource.Configu
 
 func (d *sourceDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description:         "Data source for SailPoint Source.",
-		MarkdownDescription: "Data source for SailPoint Source. Sources represent managed systems (e.g., Active Directory, Workday) in Identity Security Cloud.",
+		Description: "Data source for SailPoint Source.",
+		MarkdownDescription: "Data source for SailPoint Source. Sources represent managed systems (e.g., Active Directory, Workday) in Identity Security Cloud.\n\n" +
+			"Look up a source either by `id` or by `name`; exactly one of the two must be set. A name lookup must match exactly one " +
+			"source, which lets a configuration reference a source by its name instead of a tenant-specific ID.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				MarkdownDescription: "The unique identifier of the source.",
-				Required:            true,
+				MarkdownDescription: "The unique identifier of the source. Exactly one of `id` or `name` must be set.",
+				Optional:            true,
+				Computed:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "The human-readable name of the source.",
+				MarkdownDescription: "The human-readable name of the source. When set instead of `id`, the source is looked up by exact name. Exactly one of `id` or `name` must be set.",
+				Optional:            true,
 				Computed:            true,
 			},
 			"description": schema.StringAttribute{
@@ -169,22 +226,64 @@ func (d *sourceDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 func (d *sourceDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	tflog.Debug(ctx, "Reading SailPoint Source data source")
 
-	var config sourceModel
+	var config sourceDataSourceModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	tflog.Debug(ctx, "Fetching source from SailPoint", map[string]any{
-		"id": config.ID.ValueString(),
-	})
-	sourceResponse, err := d.client.GetSource(ctx, config.ID.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Reading SailPoint Source",
-			fmt.Sprintf("Could not read SailPoint Source %q: %s", config.ID.ValueString(), err.Error()),
-		)
+	hasID := isSet(config.ID)
+	hasName := isSet(config.Name)
+	if !hasID && !hasName {
+		resp.Diagnostics.AddError("Missing required argument", "Provide either `id` or `name` to look up a source.")
 		return
+	}
+	if hasID && hasName {
+		resp.Diagnostics.AddError("Conflicting arguments", "`id` and `name` cannot both be set. Provide only one of them.")
+		return
+	}
+
+	var sourceResponse *client.SourceAPI
+	if hasID {
+		id := config.ID.ValueString()
+		tflog.Debug(ctx, "Fetching source from SailPoint by ID", map[string]any{"id": id})
+
+		src, err := d.client.GetSource(ctx, id)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Reading SailPoint Source",
+				fmt.Sprintf("Could not read SailPoint Source %q: %s", id, err.Error()),
+			)
+			return
+		}
+		sourceResponse = src
+	} else {
+		name := config.Name.ValueString()
+		filters := "name eq " + common.QuoteFilterValue(name)
+		tflog.Debug(ctx, "Fetching source from SailPoint by name", map[string]any{"filters": filters})
+
+		// Two results are enough to tell "exactly one" from "ambiguous".
+		sources, err := d.client.ListSources(ctx, filters, 2)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Listing SailPoint Sources",
+				fmt.Sprintf("Could not list sources named %q: %s", name, err.Error()),
+			)
+			return
+		}
+		switch len(sources) {
+		case 0:
+			resp.Diagnostics.AddError("No source found", fmt.Sprintf("No source is named %q.", name))
+			return
+		case 1:
+			sourceResponse = &sources[0]
+		default:
+			resp.Diagnostics.AddError(
+				"Multiple sources found",
+				fmt.Sprintf("More than one source is named %q. Supply `id` instead.", name),
+			)
+			return
+		}
 	}
 
 	if sourceResponse == nil {
@@ -195,18 +294,23 @@ func (d *sourceDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 		return
 	}
 
-	var state sourceModel
-	resp.Diagnostics.Append(state.FromAPI(ctx, *sourceResponse)...)
+	var model sourceModel
+	resp.Diagnostics.Append(model.FromAPI(ctx, *sourceResponse)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	state := newSourceDataSourceModel(model)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 	tflog.Info(ctx, "Successfully read SailPoint Source data source", map[string]any{
-		"id":   config.ID.ValueString(),
+		"id":   state.ID.ValueString(),
 		"name": state.Name.ValueString(),
 	})
+}
+
+func isSet(v types.String) bool {
+	return !v.IsNull() && !v.IsUnknown() && v.ValueString() != ""
 }

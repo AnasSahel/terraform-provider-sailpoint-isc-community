@@ -8,12 +8,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 const (
 	sourceEndpointGet    = "/v2025/sources/{id}"
+	sourceEndpointList   = "/v2025/sources"
 	sourceEndpointCreate = "/v2025/sources"
 	sourceEndpointUpdate = "/v2025/sources/{id}"
 	sourceEndpointPatch  = "/v2025/sources/{id}"
@@ -90,6 +92,36 @@ func (c *Client) GetSource(ctx context.Context, id string) (*SourceAPI, error) {
 	})
 
 	return &source, nil
+}
+
+// ListSources retrieves sources matching an ISC filter expression
+// (e.g. `name eq "Active Directory"`); pass "" for no filter.
+// limit caps the number of results returned; pass 0 for the API default.
+func (c *Client) ListSources(ctx context.Context, filters string, limit int) ([]SourceAPI, error) {
+	tflog.Debug(ctx, "Listing sources", map[string]any{"filters": filters, "limit": limit})
+
+	req := c.prepareRequest(ctx)
+	if filters != "" {
+		req = req.SetQueryParam("filters", filters)
+	}
+	if limit > 0 {
+		req = req.SetQueryParam("limit", strconv.Itoa(limit))
+	}
+
+	var result []SourceAPI
+	resp, err := req.SetResult(&result).Get(sourceEndpointList)
+	if err != nil {
+		return nil, c.formatSourceError(sourceErrorContext{Operation: "list"}, err, 0)
+	}
+	if resp.IsStatusFailure() {
+		return nil, c.formatSourceError(
+			sourceErrorContext{Operation: "list", ResponseBody: string(resp.Bytes())},
+			nil, resp.StatusCode(),
+		)
+	}
+
+	tflog.Debug(ctx, "Successfully listed sources", map[string]any{"count": len(result)})
+	return result, nil
 }
 
 // CreateSource creates a new source.
