@@ -218,7 +218,7 @@ func buildEntitlementFilters(m entitlementDSModel) string {
 	var clauses []string
 	add := func(field string, v types.String) {
 		if isSet(v) {
-			clauses = append(clauses, fmt.Sprintf("%s eq %s", field, quoteFilterValue(v.ValueString())))
+			clauses = append(clauses, fmt.Sprintf("%s eq %s", field, common.QuoteFilterValue(v.ValueString())))
 		}
 	}
 	add("name", m.Name)
@@ -226,14 +226,6 @@ func buildEntitlementFilters(m entitlementDSModel) string {
 	add("attribute", m.Attribute)
 	add("source.id", m.SourceID)
 	return strings.Join(clauses, " and ")
-}
-
-// quoteFilterValue wraps s in double quotes for an ISC filter expression,
-// escaping backslashes and embedded quotes.
-func quoteFilterValue(s string) string {
-	s = strings.ReplaceAll(s, `\`, `\\`)
-	s = strings.ReplaceAll(s, `"`, `\"`)
-	return `"` + s + `"`
 }
 
 func isSet(v types.String) bool {
