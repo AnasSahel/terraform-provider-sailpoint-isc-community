@@ -5,6 +5,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -18,20 +19,22 @@ const (
 
 // IdentityAPI represents a SailPoint Identity from the full identities endpoint.
 type IdentityAPI struct {
-	ID              string            `json:"id"`
-	Name            string            `json:"name"`
-	Alias           string            `json:"alias,omitempty"`
-	EmailAddress    *string           `json:"emailAddress,omitempty"`
-	Status          *string           `json:"status,omitempty"`
-	EmployeeNumber  *string           `json:"employeeNumber,omitempty"`
-	IsManager       *bool             `json:"isManager,omitempty"`
-	Manager         *ObjectRefAPI     `json:"manager,omitempty"`
-	IdentityProfile *ObjectRefAPI     `json:"identityProfile,omitempty"`
-	Source          *ObjectRefAPI     `json:"source,omitempty"`
-	LifecycleState  *IdentityLCSAPI   `json:"lifecycleState,omitempty"`
-	Attributes      map[string]string `json:"attributes,omitempty"`
-	Created         *string           `json:"created,omitempty"`
-	Modified        *string           `json:"modified,omitempty"`
+	ID              string          `json:"id"`
+	Name            string          `json:"name"`
+	Alias           string          `json:"alias,omitempty"`
+	EmailAddress    *string         `json:"emailAddress,omitempty"`
+	Status          *string         `json:"status,omitempty"`
+	EmployeeNumber  *string         `json:"employeeNumber,omitempty"`
+	IsManager       *bool           `json:"isManager,omitempty"`
+	Manager         *ObjectRefAPI   `json:"manager,omitempty"`
+	IdentityProfile *ObjectRefAPI   `json:"identityProfile,omitempty"`
+	Source          *ObjectRefAPI   `json:"source,omitempty"`
+	LifecycleState  *IdentityLCSAPI `json:"lifecycleState,omitempty"`
+	// Attributes values can be strings, arrays (multi-valued attributes), numbers,
+	// booleans, objects or null, so each value is kept as raw JSON.
+	Attributes map[string]json.RawMessage `json:"attributes,omitempty"`
+	Created    *string                    `json:"created,omitempty"`
+	Modified   *string                    `json:"modified,omitempty"`
 }
 
 // IdentityLCSAPI represents the lifecycle state reference on an identity.

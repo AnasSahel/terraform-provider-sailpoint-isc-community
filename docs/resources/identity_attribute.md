@@ -4,11 +4,17 @@ page_title: "sailpoint_identity_attribute Resource - sailpoint"
 subcategory: ""
 description: |-
   Resource for SailPoint Identity Attribute.
+  ~> Concurrency: SailPoint stores all identity attributes in one shared configuration, and concurrent writes can be acknowledged but lost. The provider therefore creates, updates and deletes identity attributes one at a time, and reads each new attribute back after creating it; a create that is not found on read-back fails instead of being written to state.
+  -> Identity profiles: an identity profile mapping that references an identity attribute created moments earlier can be rejected (400 ... not found) or silently dropped while the new attribute propagates. Create identity attributes in one apply and the identity profiles that map them in a later apply.
 ---
 
 # sailpoint_identity_attribute (Resource)
 
 Resource for SailPoint Identity Attribute.
+
+~> **Concurrency:** SailPoint stores all identity attributes in one shared configuration, and concurrent writes can be acknowledged but lost. The provider therefore creates, updates and deletes identity attributes one at a time, and reads each new attribute back after creating it; a create that is not found on read-back fails instead of being written to state.
+
+-> **Identity profiles:** an identity profile mapping that references an identity attribute created moments earlier can be rejected (`400 ... not found`) or silently dropped while the new attribute propagates. Create identity attributes in one apply and the identity profiles that map them in a later apply.
 
 ## Example Usage
 

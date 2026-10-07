@@ -34,7 +34,7 @@ type sourceSchemaModel struct {
 	IncludePermissions types.Bool           `tfsdk:"include_permissions"`
 	Features           types.List           `tfsdk:"features"`
 	Configuration      jsontypes.Normalized `tfsdk:"configuration"`
-	Attributes         types.List           `tfsdk:"attributes"`
+	Attributes         types.Set            `tfsdk:"attributes"`
 	Created            types.String         `tfsdk:"created"`
 	Modified           types.String         `tfsdk:"modified"`
 }
@@ -108,7 +108,7 @@ func (m *sourceSchemaModel) FromAPI(ctx context.Context, api client.SourceSchema
 		m.Configuration = jsontypes.NewNormalizedNull()
 	}
 
-	// Map attributes (default: empty list)
+	// Map attributes (default: empty set)
 	if len(api.Attributes) > 0 {
 		attrList := make([]sourceSchemaAttributeModel, len(api.Attributes))
 		for i, attrAPI := range api.Attributes {
@@ -136,11 +136,11 @@ func (m *sourceSchemaModel) FromAPI(ctx context.Context, api client.SourceSchema
 			}
 		}
 
-		attributesList, d := types.ListValueFrom(ctx, sourceSchemaAttributeElementType(), attrList)
+		attributesSet, d := types.SetValueFrom(ctx, sourceSchemaAttributeElementType(), attrList)
 		diags.Append(d...)
-		m.Attributes = attributesList
+		m.Attributes = attributesSet
 	} else {
-		m.Attributes = types.ListValueMust(sourceSchemaAttributeElementType(), []attr.Value{})
+		m.Attributes = types.SetValueMust(sourceSchemaAttributeElementType(), []attr.Value{})
 	}
 
 	// Map timestamps

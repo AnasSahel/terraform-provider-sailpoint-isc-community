@@ -20,7 +20,7 @@ Manages a SailPoint Source Schema. Source schemas define the structure of accoun
 
 ### Required
 
-- `attributes` (Attributes List) The attribute definitions for the schema. Required because `identity_attribute` must reference an attribute defined in this list. (see [below for nested schema](#nestedatt--attributes))
+- `attributes` (Attributes Set) The attribute definitions for the schema. Required because `identity_attribute` must reference an attribute defined in this set. Attributes are matched by content, so their order does not matter. When `is_multi`, `is_entitlement` or `is_group` is omitted, the value already on the schema is kept. (see [below for nested schema](#nestedatt--attributes))
 - `identity_attribute` (String) The name of the attribute used to calculate the unique identifier for an object in the schema. Must be set at creation time because updating from null to a value is not supported by the API.
 - `name` (String) The name of the schema (e.g., `account`, `group`). Cannot be changed after creation.
 - `native_object_type` (String) The name of the object type on the native system that the schema represents (e.g., `User`, `Group`).
@@ -51,9 +51,9 @@ Required:
 
 Optional:
 
-- `is_entitlement` (Boolean) Whether the attribute is an entitlement.
-- `is_group` (Boolean) Whether the attribute represents a group.
-- `is_multi` (Boolean) Whether the attribute supports multiple values.
+- `is_entitlement` (Boolean) Whether the attribute is an entitlement. If omitted, the current value on the schema is kept (`false` for a new attribute).
+- `is_group` (Boolean) Whether the attribute represents a group. If omitted, the current value on the schema is kept (`false` for a new attribute).
+- `is_multi` (Boolean) Whether the attribute supports multiple values. If omitted, the current value on the schema is kept (`false` for a new attribute).
 - `native_name` (String) The native name of the attribute on the source system.
 - `schema` (Attributes) A reference to another schema, if applicable (e.g., group membership references the group schema). (see [below for nested schema](#nestedatt--attributes--schema))
 

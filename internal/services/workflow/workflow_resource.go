@@ -11,7 +11,6 @@ import (
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
-	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common/planmodifiers"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -112,15 +111,11 @@ func (r *workflowResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			},
 			"enabled": schema.BoolAttribute{
 				MarkdownDescription: "Whether the workflow is enabled. Defaults to `false`. " +
-					"Because the SailPoint API cannot create an enabled workflow, declaring `enabled = true` at " +
-					"create time will produce `enabled = false` in state; the next `terraform apply` (an update) " +
-					"will enable the workflow (converge-over-two-applies).",
+					"The SailPoint API always creates workflows disabled, so when `enabled = true` is declared " +
+					"the provider creates the workflow and then enables it in the same apply.",
 				Optional: true,
 				Computed: true,
 				Default:  booldefault.StaticBool(false),
-				PlanModifiers: []planmodifier.Bool{
-					planmodifiers.ForceDisabledOnCreate(),
-				},
 			},
 			"trigger": schema.StringAttribute{
 				MarkdownDescription: "The trigger configuration as JSON. This is a computed field - use `sailpoint_workflow_trigger` resource to manage triggers.",
@@ -163,11 +158,9 @@ func (r *workflowResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				},
 			},
 			"modified_by": schema.SingleNestedAttribute{
-				MarkdownDescription: "The identity who last modified the workflow.",
-				Computed:            true,
-				PlanModifiers: []planmodifier.Object{
-					objectplanmodifier.UseStateForUnknown(),
-				},
+				MarkdownDescription: "The identity who last modified the workflow. ISC stamps it with the " +
+					"calling identity on every write, so it is `(known after apply)` whenever the workflow changes.",
+				Computed: true,
 				Attributes: map[string]schema.Attribute{
 					"type": schema.StringAttribute{
 						MarkdownDescription: "The type of the modifier (e.g., `IDENTITY`).",
@@ -341,6 +334,34 @@ func (r *workflowResource) Create(ctx context.Context, req resource.CreateReques
 			"Received nil response from SailPoint API",
 		)
 		return
+	}
+
+	// The API always creates workflows disabled. When the configuration asks for
+	// enabled = true, enable it with a follow-up update so state matches the plan. (#175)
+	if plan.Enabled.ValueBool() {
+		tflog.Debug(ctx, "Enabling newly created workflow", map[string]any{
+			"id": workflowAPIResponse.ID,
+		})
+		enabledWorkflow, enableErr := enableCreatedWorkflow(ctx, r.client, workflowAPIResponse)
+		if enableErr != nil {
+			// Save the created (disabled) workflow so it is tracked; the error marks it
+			// tainted and Terraform recreates it on the next apply.
+			var createdState workflowModel
+			resp.Diagnostics.Append(createdState.FromAPI(ctx, *workflowAPIResponse)...)
+			createdState.IgnoreJSONChanges = plan.IgnoreJSONChanges
+			createdState.Description = plan.Description
+			resp.Diagnostics.Append(resp.State.Set(ctx, &createdState)...)
+			resp.Diagnostics.AddError(
+				"Error Enabling SailPoint Workflow",
+				fmt.Sprintf("Workflow %q was created but could not be enabled: %s", workflowAPIResponse.ID, enableErr.Error()),
+			)
+			tflog.Error(ctx, "Failed to enable SailPoint Workflow after create", map[string]any{
+				"id":    workflowAPIResponse.ID,
+				"error": enableErr.Error(),
+			})
+			return
+		}
+		workflowAPIResponse = enabledWorkflow
 	}
 
 	// Map the API response back to the resource model

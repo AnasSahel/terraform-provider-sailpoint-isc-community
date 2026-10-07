@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
@@ -15,6 +16,7 @@ import (
 const (
 	entitlementEndpointGet   = "/v2025/entitlements/{id}"
 	entitlementEndpointPatch = "/v2025/entitlements/{id}"
+	entitlementEndpointList  = "/v2025/entitlements"
 )
 
 // EntitlementAPI represents a SailPoint Entitlement from the API.
@@ -72,6 +74,36 @@ func (c *Client) GetEntitlement(ctx context.Context, id string) (*EntitlementAPI
 		"name": ent.Name,
 	})
 	return &ent, nil
+}
+
+// ListEntitlements retrieves entitlements matching an ISC filter expression
+// (e.g. `name eq "example" and source.id eq "abc"`); pass "" for no filter.
+// limit caps the number of results returned; pass 0 for the API default.
+func (c *Client) ListEntitlements(ctx context.Context, filters string, limit int) ([]EntitlementAPI, error) {
+	tflog.Debug(ctx, "Listing entitlements", map[string]any{"filters": filters, "limit": limit})
+
+	req := c.prepareRequest(ctx)
+	if filters != "" {
+		req = req.SetQueryParam("filters", filters)
+	}
+	if limit > 0 {
+		req = req.SetQueryParam("limit", strconv.Itoa(limit))
+	}
+
+	var result []EntitlementAPI
+	resp, err := req.SetResult(&result).Get(entitlementEndpointList)
+	if err != nil {
+		return nil, c.formatEntitlementError(entitlementErrorContext{Operation: "list"}, err, 0)
+	}
+	if resp.IsStatusFailure() {
+		return nil, c.formatEntitlementError(
+			entitlementErrorContext{Operation: "list", ResponseBody: string(resp.Bytes())},
+			nil, resp.StatusCode(),
+		)
+	}
+
+	tflog.Debug(ctx, "Successfully listed entitlements", map[string]any{"count": len(result)})
+	return result, nil
 }
 
 // PatchEntitlement applies a JSON Patch document to the entitlement.

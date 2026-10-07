@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Launcher `owner` no longer required, and no longer fails apply.** ISC rewrites a launcher's owner with the identity behind the calling credentials on every create and update. The provider required `owner` and kept the planned value, so an owner other than the caller produced a permanent diff and `inconsistent result after apply`. `owner` is now Optional+Computed, always read back from the API, and deprecated as an input: remove it from configuration. `sailpoint_workflow.modified_by` is server-stamped the same way and no longer pins its prior value, fixing the same error on workflow updates. (#177)
+- **Workflow created with `enabled = true` no longer fails at plan.** The provider used to force the planned `enabled` to `false` on create, which Terraform and OpenTofu reject as an invalid plan ("planned value cty.False does not match config value cty.True"), blocking the whole plan. The configured value is now kept: the workflow is created (the API always creates it disabled) and then enabled in the same apply. If enabling fails, the created workflow is kept in state as tainted and the error is reported. (#175)
+- **`sailpoint_source_schema` no longer needs `ignore_changes = [attributes]`.** `attributes` is now a set matched by content, so a schema whose attributes come back from ISC in another order than the config plans nothing (and no longer fails the apply with "inconsistent result"), and adding or removing one attribute is a single-element diff. When `is_multi`, `is_entitlement` or `is_group` is omitted, the value already on the schema is carried over (matched by attribute `name`) instead of being planned as `(known after apply)` on every run. The `sailpoint_source_schema` data source's `attributes` is a set too, so index it with a `for` expression rather than `[0]`. Existing state needs no migration. (#165, #167)
+
 ## [3.2.0] - 2026-06-24
 
 ### Added
