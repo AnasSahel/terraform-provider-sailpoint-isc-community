@@ -76,7 +76,7 @@ func (c *Client) GetSegment(ctx context.Context, id string) (*SegmentAPI, error)
 	if err != nil {
 		return nil, c.formatSegmentError(segmentErrorContext{Operation: "get", ID: id}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatSegmentError(
 			segmentErrorContext{Operation: "get", ID: id, ResponseBody: string(resp.Bytes())},
 			nil, resp.StatusCode(),
@@ -114,7 +114,7 @@ func (c *Client) CreateSegment(ctx context.Context, segment *SegmentAPI) (*Segme
 	if err != nil {
 		return nil, c.formatSegmentError(segmentErrorContext{Operation: "create", Name: segment.Name}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -160,7 +160,7 @@ func (c *Client) PatchSegment(ctx context.Context, id string, patchOps []JSONPat
 	if err != nil {
 		return nil, c.formatSegmentError(segmentErrorContext{Operation: "update", ID: id}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -193,7 +193,7 @@ func (c *Client) DeleteSegment(ctx context.Context, id string) error {
 	if err != nil {
 		return c.formatSegmentError(segmentErrorContext{Operation: "delete", ID: id}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		if resp.StatusCode() == http.StatusNotFound {
 			tflog.Debug(ctx, "Segment not found, treating as already deleted", map[string]any{"id": id})
 			return nil

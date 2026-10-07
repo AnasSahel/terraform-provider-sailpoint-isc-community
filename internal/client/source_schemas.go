@@ -91,7 +91,7 @@ func (c *Client) ListSourceSchemas(ctx context.Context, sourceID string, include
 
 	resp, err := req.Get(sourceSchemaEndpointList)
 
-	if resp != nil && resp.IsError() {
+	if resp != nil && resp.IsStatusFailure() {
 		return nil, c.formatSourceSchemaError(
 			sourceSchemaErrorContext{Operation: "list", SourceID: sourceID, ResponseBody: string(resp.Bytes())},
 			nil,
@@ -142,7 +142,7 @@ func (c *Client) GetSourceSchema(ctx context.Context, sourceID, schemaID string)
 	// Check HTTP status first — Resty v3 may return a decoding error
 	// (e.g., "content decoder not found") for non-JSON error responses
 	// before we get a chance to inspect the status code.
-	if resp != nil && resp.IsError() {
+	if resp != nil && resp.IsStatusFailure() {
 		return nil, c.formatSourceSchemaError(
 			sourceSchemaErrorContext{Operation: "get", SourceID: sourceID, SchemaID: schemaID, ResponseBody: string(resp.Bytes())},
 			nil,
@@ -198,7 +198,7 @@ func (c *Client) CreateSourceSchema(ctx context.Context, sourceID string, schema
 		SetPathParam("sourceId", sourceID).
 		Post(sourceSchemaEndpointCreate)
 
-	if resp != nil && resp.IsError() {
+	if resp != nil && resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -260,7 +260,7 @@ func (c *Client) UpdateSourceSchema(ctx context.Context, sourceID, schemaID stri
 		SetPathParam("schemaId", schemaID).
 		Put(sourceSchemaEndpointUpdate)
 
-	if resp != nil && resp.IsError() {
+	if resp != nil && resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -310,7 +310,7 @@ func (c *Client) DeleteSourceSchema(ctx context.Context, sourceID, schemaID stri
 		SetPathParam("schemaId", schemaID).
 		Delete(sourceSchemaEndpointDelete)
 
-	if resp != nil && resp.IsError() {
+	if resp != nil && resp.IsStatusFailure() {
 		// 404 is acceptable for delete - resource might already be deleted
 		if resp.StatusCode() == http.StatusNotFound {
 			tflog.Debug(ctx, "Source schema not found, treating as already deleted", map[string]any{

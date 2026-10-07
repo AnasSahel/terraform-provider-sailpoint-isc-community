@@ -75,7 +75,7 @@ func (c *Client) GetProvisioningPolicy(ctx context.Context, sourceID, usageType 
 		SetPathParam("usageType", usageType).
 		Get(provisioningPolicyEndpointGet)
 
-	if resp != nil && resp.IsError() {
+	if resp != nil && resp.IsStatusFailure() {
 		return nil, c.formatProvisioningPolicyError(
 			provisioningPolicyErrorContext{Operation: "get", SourceID: sourceID, UsageType: usageType, ResponseBody: string(resp.Bytes())},
 			nil,
@@ -131,7 +131,7 @@ func (c *Client) CreateProvisioningPolicy(ctx context.Context, sourceID string, 
 		SetPathParam("sourceId", sourceID).
 		Post(provisioningPolicyEndpointCreate)
 
-	if resp != nil && resp.IsError() {
+	if resp != nil && resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -192,7 +192,7 @@ func (c *Client) UpdateProvisioningPolicy(ctx context.Context, sourceID, usageTy
 		SetPathParam("usageType", usageType).
 		Put(provisioningPolicyEndpointUpdate)
 
-	if resp != nil && resp.IsError() {
+	if resp != nil && resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -242,7 +242,7 @@ func (c *Client) DeleteProvisioningPolicy(ctx context.Context, sourceID, usageTy
 		SetPathParam("usageType", usageType).
 		Delete(provisioningPolicyEndpointDelete)
 
-	if resp != nil && resp.IsError() {
+	if resp != nil && resp.IsStatusFailure() {
 		// 404 is acceptable for delete - resource might already be deleted
 		if resp.StatusCode() == http.StatusNotFound {
 			tflog.Debug(ctx, "Provisioning policy not found, treating as already deleted", map[string]any{

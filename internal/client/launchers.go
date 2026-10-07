@@ -77,7 +77,7 @@ func (c *Client) GetLauncher(ctx context.Context, id string) (*LauncherAPI, erro
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatLauncherError(
 			launcherErrorContext{Operation: "get", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
@@ -126,7 +126,7 @@ func (c *Client) CreateLauncher(ctx context.Context, launcher *LauncherCreateAPI
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -180,7 +180,7 @@ func (c *Client) UpdateLauncher(ctx context.Context, id string, launcher *Launch
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -222,7 +222,7 @@ func (c *Client) DeleteLauncher(ctx context.Context, id string) error {
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		// 404 is acceptable for delete - resource might already be deleted
 		if resp.StatusCode() == http.StatusNotFound {
 			tflog.Debug(ctx, "Launcher not found, treating as already deleted", map[string]any{

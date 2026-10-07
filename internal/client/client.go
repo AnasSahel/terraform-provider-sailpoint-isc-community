@@ -100,7 +100,10 @@ func NewClient(baseURL, clientID, clientSecret string) (*Client, error) {
 		AddContentDecompresser("utf-8", noopDecompresser)
 
 	// Initial authentication
-	if err := client.refreshToken(context.Background()); err != nil {
+	client.tokenMutex.Lock()
+	err := client.refreshToken(context.Background())
+	client.tokenMutex.Unlock()
+	if err != nil {
 		return nil, fmt.Errorf("initial authentication failed: %w", err)
 	}
 

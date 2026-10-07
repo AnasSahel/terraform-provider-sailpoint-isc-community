@@ -62,7 +62,7 @@ func (c *Client) GetEntitlement(ctx context.Context, id string) (*EntitlementAPI
 	if err != nil {
 		return nil, c.formatEntitlementError(entitlementErrorContext{Operation: "get", ID: id}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatEntitlementError(
 			entitlementErrorContext{Operation: "get", ID: id, ResponseBody: string(resp.Bytes())},
 			nil, resp.StatusCode(),
@@ -95,7 +95,7 @@ func (c *Client) ListEntitlements(ctx context.Context, filters string, limit int
 	if err != nil {
 		return nil, c.formatEntitlementError(entitlementErrorContext{Operation: "list"}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatEntitlementError(
 			entitlementErrorContext{Operation: "list", ResponseBody: string(resp.Bytes())},
 			nil, resp.StatusCode(),
@@ -134,7 +134,7 @@ func (c *Client) PatchEntitlement(ctx context.Context, id string, patchOps []JSO
 	if err != nil {
 		return nil, c.formatEntitlementError(entitlementErrorContext{Operation: "update", ID: id}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),

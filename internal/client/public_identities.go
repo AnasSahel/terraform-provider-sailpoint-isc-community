@@ -35,7 +35,7 @@ func (c *Client) GetFirstPublicIdentity(ctx context.Context) (*PublicIdentityAPI
 		return nil, fmt.Errorf("failed to list public identities: %w", err)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, fmt.Errorf("failed to list public identities: status %d", resp.StatusCode())
 	}
 

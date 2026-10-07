@@ -112,7 +112,7 @@ func (c *Client) ListFormDefinitions(ctx context.Context) ([]FormDefinitionAPI, 
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatFormError(
 			formErrorContext{Operation: "list"},
 			nil,
@@ -154,7 +154,7 @@ func (c *Client) GetFormDefinition(ctx context.Context, id string) (*FormDefinit
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatFormError(
 			formErrorContext{Operation: "get", ID: id},
 			nil,
@@ -202,7 +202,7 @@ func (c *Client) CreateFormDefinition(ctx context.Context, form *FormDefinitionA
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -259,7 +259,7 @@ func (c *Client) PatchFormDefinition(ctx context.Context, id string, patchOps []
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		responseBody := string(resp.Bytes())
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
@@ -322,7 +322,7 @@ func (c *Client) DeleteFormDefinition(ctx context.Context, id string) error {
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		// 404 is acceptable for delete - resource might already be deleted
 		if resp.StatusCode() == http.StatusNotFound {
 			tflog.Debug(ctx, "Form definition not found, treating as already deleted", map[string]any{

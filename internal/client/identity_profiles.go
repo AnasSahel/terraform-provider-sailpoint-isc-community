@@ -116,7 +116,7 @@ func (c *Client) GetIdentityProfile(ctx context.Context, id string) (*IdentityPr
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatIdentityProfileError(
 			identityProfileErrorContext{Operation: "get", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
@@ -165,7 +165,7 @@ func (c *Client) CreateIdentityProfile(ctx context.Context, profile *IdentityPro
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -222,7 +222,7 @@ func (c *Client) PatchIdentityProfile(ctx context.Context, id string, patchOps [
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -269,7 +269,7 @@ func (c *Client) DeleteIdentityProfile(ctx context.Context, id string) (*TaskRes
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		// 404 is acceptable for delete - resource might already be deleted
 		if resp.StatusCode() == http.StatusNotFound {
 			tflog.Debug(ctx, "Identity profile not found, treating as already deleted", map[string]any{

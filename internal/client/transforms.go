@@ -56,7 +56,7 @@ func (c *Client) ListTransforms(ctx context.Context) ([]TransformAPI, error) {
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatTransformError(
 			transformErrorContext{Operation: "list", ResponseBody: string(resp.Bytes())},
 			nil,
@@ -97,7 +97,7 @@ func (c *Client) GetTransform(ctx context.Context, id string) (*TransformAPI, er
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatTransformError(
 			transformErrorContext{Operation: "get", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
@@ -151,7 +151,7 @@ func (c *Client) CreateTransform(ctx context.Context, transform *TransformAPI) (
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -206,7 +206,7 @@ func (c *Client) UpdateTransform(ctx context.Context, id string, transform *Tran
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -249,7 +249,7 @@ func (c *Client) DeleteTransform(ctx context.Context, id string) error {
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		// 404 is acceptable for delete - resource might already be deleted
 		if resp.StatusCode() == http.StatusNotFound {
 			tflog.Debug(ctx, "Transform not found, treating as already deleted", map[string]any{

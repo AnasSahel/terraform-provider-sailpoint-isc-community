@@ -17,6 +17,9 @@ type tokenResponse struct {
 	TokenType   string `json:"token_type"`
 }
 
+// refreshToken fetches a new access token and stores it on the client.
+// The caller must hold c.tokenMutex for writing: sync.RWMutex is not
+// reentrant, so taking the lock here would deadlock getToken.
 func (c *Client) refreshToken(ctx context.Context) error {
 	var tokenResp tokenResponse
 
@@ -34,12 +37,9 @@ func (c *Client) refreshToken(ctx context.Context) error {
 		return fmt.Errorf("token request failed: %w", err)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return fmt.Errorf("token request returned %s: %s", resp.Status(), resp.String())
 	}
-
-	c.tokenMutex.Lock()
-	defer c.tokenMutex.Unlock()
 
 	c.token = tokenResp.AccessToken
 	// Refresh 5 minutes before actual expiry for safety

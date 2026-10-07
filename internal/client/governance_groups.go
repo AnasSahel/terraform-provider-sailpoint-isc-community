@@ -79,7 +79,7 @@ func (c *Client) ListGovernanceGroups(ctx context.Context, filters string) ([]Go
 	if err != nil {
 		return nil, c.formatGovernanceGroupError(governanceGroupErrorContext{Operation: "list"}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatGovernanceGroupError(
 			governanceGroupErrorContext{Operation: "list", ResponseBody: string(resp.Bytes())},
 			nil, resp.StatusCode(),
@@ -107,7 +107,7 @@ func (c *Client) GetGovernanceGroup(ctx context.Context, id string) (*Governance
 	if err != nil {
 		return nil, c.formatGovernanceGroupError(governanceGroupErrorContext{Operation: "get", ID: id}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatGovernanceGroupError(
 			governanceGroupErrorContext{Operation: "get", ID: id, ResponseBody: string(resp.Bytes())},
 			nil, resp.StatusCode(),
@@ -142,7 +142,7 @@ func (c *Client) CreateGovernanceGroup(ctx context.Context, gg *GovernanceGroupA
 	if err != nil {
 		return nil, c.formatGovernanceGroupError(governanceGroupErrorContext{Operation: "create", Name: gg.Name}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -185,7 +185,7 @@ func (c *Client) PatchGovernanceGroup(ctx context.Context, id string, patchOps [
 	if err != nil {
 		return nil, c.formatGovernanceGroupError(governanceGroupErrorContext{Operation: "update", ID: id}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -215,7 +215,7 @@ func (c *Client) DeleteGovernanceGroup(ctx context.Context, id string) error {
 	if err != nil {
 		return c.formatGovernanceGroupError(governanceGroupErrorContext{Operation: "delete", ID: id}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		if resp.StatusCode() == http.StatusNotFound {
 			tflog.Debug(ctx, "Governance group not found, treating as already deleted", map[string]any{"id": id})
 			return nil
@@ -251,7 +251,7 @@ func (c *Client) ListGovernanceGroupMembers(ctx context.Context, id string) ([]G
 		if err != nil {
 			return nil, c.formatGovernanceGroupError(governanceGroupErrorContext{Operation: "list members", ID: id}, err, 0)
 		}
-		if resp.IsError() {
+		if resp.IsStatusFailure() {
 			return nil, c.formatGovernanceGroupError(
 				governanceGroupErrorContext{Operation: "list members", ID: id, ResponseBody: string(resp.Bytes())},
 				nil, resp.StatusCode(),
@@ -289,7 +289,7 @@ func (c *Client) AddGovernanceGroupMembers(ctx context.Context, id string, membe
 	if err != nil {
 		return c.formatGovernanceGroupError(governanceGroupErrorContext{Operation: "add members", ID: id}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return c.formatGovernanceGroupError(
 			governanceGroupErrorContext{Operation: "add members", ID: id, ResponseBody: string(resp.Bytes())},
 			nil, resp.StatusCode(),
@@ -334,7 +334,7 @@ func (c *Client) RemoveGovernanceGroupMembers(ctx context.Context, id string, me
 	if err != nil {
 		return c.formatGovernanceGroupError(governanceGroupErrorContext{Operation: "remove members", ID: id}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return c.formatGovernanceGroupError(
 			governanceGroupErrorContext{Operation: "remove members", ID: id, ResponseBody: string(resp.Bytes())},
 			nil, resp.StatusCode(),
