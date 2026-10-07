@@ -18,7 +18,10 @@
 # See TESTING.md.
 #
 # Usage:
-#   scripts/try-pr.sh [--pr N | --branch NAME] [--dir PATH] [--yes] [--plan-only] [-- TF_ARGS...]
+#   scripts/try-pr.sh [--pr N | --branch NAME] [--dir PATH] [--yes] [--plan-only] [--tofu | --terraform] [-- TF_ARGS...]
+#
+# Uses tofu when installed, else terraform (override with --tofu, --terraform
+# or SAILPOINT_TF_BIN). Both read TF_CLI_CONFIG_FILE and dev_overrides.
 #
 # Examples:
 #   scripts/try-pr.sh --pr 193 --dir ~/sailpoint-test
@@ -38,6 +41,7 @@ branch=""
 test_dir="${SAILPOINT_TEST_PROJECT:-}"
 auto_approve=false
 plan_only=false
+tf="${SAILPOINT_TF_BIN:-}"
 tf_args=()
 
 usage() {
@@ -52,6 +56,8 @@ while [ $# -gt 0 ]; do
     --dir) test_dir="$2"; shift 2 ;;
     --yes) auto_approve=true; shift ;;
     --plan-only) plan_only=true; shift ;;
+    --tofu) tf=tofu; shift ;;
+    --terraform) tf=terraform; shift ;;
     -h|--help) usage 0 ;;
     --) shift; tf_args=("$@"); break ;;
     *) echo "Unknown argument: $1" >&2; usage 1 ;;
@@ -62,7 +68,12 @@ info() { printf '\n==> %s\n' "$*"; }
 fail() { printf '\nFAIL: %s\n' "$*" >&2; exit 1; }
 
 command -v go >/dev/null || fail "go is not installed"
-command -v terraform >/dev/null || fail "terraform is not installed"
+if [ -z "$tf" ]; then
+  if command -v tofu >/dev/null; then tf=tofu
+  elif command -v terraform >/dev/null; then tf=terraform
+  else fail "neither tofu nor terraform is installed"; fi
+fi
+command -v "$tf" >/dev/null || fail "$tf is not installed"
 [ -n "$test_dir" ] || fail "no test project: pass --dir PATH or set SAILPOINT_TEST_PROJECT"
 [ -d "$test_dir" ] || fail "test project directory not found: $test_dir"
 
@@ -119,30 +130,30 @@ info "Building $label at $commit into $BIN_DIR"
 mkdir -p "$BIN_DIR"
 (cd "$src_dir" && go build -o "$BIN_DIR/$BINARY_NAME" -ldflags "-X main.version=dev-$commit" .)
 echo "To run other commands (import, state ...) with this build afterwards, prefix them with:"
-echo "  TF_CLI_CONFIG_FILE=$DEV_TERRAFORMRC terraform ..."
+echo "  TF_CLI_CONFIG_FILE=$DEV_TERRAFORMRC $tf ..."
 
 # --- 3. Smoke test -----------------------------------------------------------
 cd "$test_dir"
 export TF_IN_AUTOMATION=1
 
-info "terraform plan (first)"
-terraform plan -input=false "${tf_args[@]+"${tf_args[@]}"}"
+info "$tf plan (first)"
+"$tf" plan -input=false "${tf_args[@]+"${tf_args[@]}"}"
 
 if [ "$plan_only" = true ]; then
   info "PASS (plan only): $label at $commit planned cleanly in $test_dir"
   exit 0
 fi
 
-info "terraform apply"
+info "$tf apply"
 if [ "$auto_approve" = true ]; then
-  terraform apply -input=false -auto-approve "${tf_args[@]+"${tf_args[@]}"}"
+  "$tf" apply -input=false -auto-approve "${tf_args[@]+"${tf_args[@]}"}"
 else
-  terraform apply "${tf_args[@]+"${tf_args[@]}"}"
+  "$tf" apply "${tf_args[@]+"${tf_args[@]}"}"
 fi
 
-info "terraform plan (second, must be empty)"
+info "$tf plan (second, must be empty)"
 set +e
-terraform plan -input=false -detailed-exitcode "${tf_args[@]+"${tf_args[@]}"}"
+"$tf" plan -input=false -detailed-exitcode "${tf_args[@]+"${tf_args[@]}"}"
 rc=$?
 set -e
 
