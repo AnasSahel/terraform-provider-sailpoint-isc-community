@@ -158,11 +158,9 @@ func (r *workflowResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				},
 			},
 			"modified_by": schema.SingleNestedAttribute{
-				MarkdownDescription: "The identity who last modified the workflow.",
-				Computed:            true,
-				PlanModifiers: []planmodifier.Object{
-					objectplanmodifier.UseStateForUnknown(),
-				},
+				MarkdownDescription: "The identity who last modified the workflow. ISC stamps it with the " +
+					"calling identity on every write, so it is `(known after apply)` whenever the workflow changes.",
+				Computed: true,
 				Attributes: map[string]schema.Attribute{
 					"type": schema.StringAttribute{
 						MarkdownDescription: "The type of the modifier (e.g., `IDENTITY`).",

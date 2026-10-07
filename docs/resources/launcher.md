@@ -19,13 +19,13 @@ Resource for SailPoint Launcher. Launchers are used to trigger workflows through
 
 - `config` (String) JSON configuration associated with this launcher, restricted to a max size of 4KB.
 - `name` (String) The name of the launcher, limited to 255 characters.
-- `owner` (Attributes) The owner of the launcher. (see [below for nested schema](#nestedatt--owner))
 - `type` (String) The type of the launcher. Currently only `INTERACTIVE_PROCESS` is supported.
 
 ### Optional
 
 - `description` (String) The description of the launcher, limited to 2000 characters.
 - `disabled` (Boolean) Whether the launcher is disabled. Defaults to `false`.
+- `owner` (Attributes, Deprecated) The owner of the launcher. ISC assigns it on every create and update to the identity behind the provider credentials, whatever is submitted, so the provider always reads it back from the API. Leave it unset; it shows as `(known after apply)` whenever the launcher changes. If set, it must match the calling identity, otherwise the apply fails with `inconsistent result after apply`. (see [below for nested schema](#nestedatt--owner))
 - `reference` (Attributes) The reference to the resource this launcher triggers (e.g., a workflow). (see [below for nested schema](#nestedatt--reference))
 
 ### Read-Only
