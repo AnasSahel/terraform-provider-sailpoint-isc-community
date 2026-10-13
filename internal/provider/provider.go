@@ -11,6 +11,7 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/access_profile"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/application"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/approval_config"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/entitlement"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/form_definition"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/governance_group"
@@ -206,6 +207,7 @@ func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resou
 	return []func() resource.Resource{
 		access_profile.NewAccessProfileResource,
 		application.NewApplicationResource,
+		approval_config.NewApprovalConfigResource,
 		entitlement.NewEntitlementResource,
 		form_definition.NewFormDefinitionResource,
 		governance_group.NewGovernanceGroupResource,
