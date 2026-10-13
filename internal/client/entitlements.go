@@ -14,29 +14,50 @@ import (
 )
 
 const (
-	entitlementEndpointGet   = "/v2025/entitlements/{id}"
-	entitlementEndpointPatch = "/v2025/entitlements/{id}"
-	entitlementEndpointList  = "/v2025/entitlements"
+	entitlementEndpointGet   = "/entitlements/v1/{id}"
+	entitlementEndpointPatch = "/entitlements/v1/{id}"
+	entitlementEndpointList  = "/entitlements/v1"
+)
+
+// Privilege levels accepted by the entitlements v1 API.
+const (
+	EntitlementPrivilegeLevelHigh   = "HIGH"
+	EntitlementPrivilegeLevelMedium = "MEDIUM"
+	EntitlementPrivilegeLevelLow    = "LOW"
+	EntitlementPrivilegeLevelNone   = "NONE"
 )
 
 // EntitlementAPI represents a SailPoint Entitlement from the API.
 // Entitlements are managed by source aggregation; no create or delete endpoint exists.
 type EntitlementAPI struct {
-	ID                     string          `json:"id"`
-	Name                   string          `json:"name"`
-	Description            *string         `json:"description,omitempty"`
-	Attribute              string          `json:"attribute"`
-	Value                  string          `json:"value"`
-	SourceSchemaObjectType string          `json:"sourceSchemaObjectType"`
-	Privileged             *bool           `json:"privileged,omitempty"`
-	CloudGoverned          *bool           `json:"cloudGoverned,omitempty"`
-	Requestable            *bool           `json:"requestable,omitempty"`
-	Owner                  *ObjectRefAPI   `json:"owner,omitempty"`
-	Source                 *ObjectRefAPI   `json:"source,omitempty"`
-	Segments               []string        `json:"segments,omitempty"`
-	ManuallyUpdatedFields  map[string]bool `json:"manuallyUpdatedFields,omitempty"`
-	Created                *string         `json:"created,omitempty"`
-	Modified               *string         `json:"modified,omitempty"`
+	ID                     string                        `json:"id"`
+	Name                   string                        `json:"name"`
+	Description            *string                       `json:"description,omitempty"`
+	Attribute              string                        `json:"attribute"`
+	Value                  string                        `json:"value"`
+	SourceSchemaObjectType string                        `json:"sourceSchemaObjectType"`
+	PrivilegeLevel         *EntitlementPrivilegeLevelAPI `json:"privilegeLevel,omitempty"`
+	Tags                   []string                      `json:"tags,omitempty"`
+	CloudGoverned          *bool                         `json:"cloudGoverned,omitempty"`
+	Requestable            *bool                         `json:"requestable,omitempty"`
+	Owner                  *ObjectRefAPI                 `json:"owner,omitempty"`
+	Source                 *ObjectRefAPI                 `json:"source,omitempty"`
+	Segments               []string                      `json:"segments,omitempty"`
+	ManuallyUpdatedFields  map[string]bool               `json:"manuallyUpdatedFields,omitempty"`
+	Created                *string                       `json:"created,omitempty"`
+	Modified               *string                       `json:"modified,omitempty"`
+}
+
+// EntitlementPrivilegeLevelAPI is the privilege level block returned by the
+// entitlements v1 API. It replaces the boolean `privileged` of /v2025.
+// Direct is the level set on the entitlement itself (by override or by
+// criteria); Effective also accounts for any inherited level.
+type EntitlementPrivilegeLevelAPI struct {
+	Direct    *string `json:"direct,omitempty"`
+	SetBy     *string `json:"setBy,omitempty"`
+	SetByType *string `json:"setByType,omitempty"`
+	Inherited *string `json:"inherited,omitempty"`
+	Effective *string `json:"effective,omitempty"`
 }
 
 type entitlementErrorContext struct {

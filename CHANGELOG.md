@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Move to SailPoint's per-API versioned endpoints (`/<api>/v1`).** Every resource, data source and action, except entitlements, now calls the per-API versioned paths (`/sources/v1`, `/roles/v1`, `/transforms/v1`, `/workflows/v1`, …) instead of `/v2025` and `/beta`. The request and response bodies are identical, so there is nothing to change in configuration or state. `sailpoint_source_attribute_sync_config` moves from `/beta` to `/sources/v1` and now sends `X-SailPoint-Experimental: true`, which that endpoint requires. Entitlements stay on `/v2025` for now, because `/entitlements/v1` replaces `privileged` with `privilegeLevel`.
+- **Entitlements move to `/entitlements/v1`, with privilege levels.** `sailpoint_entitlement` and its data source now call `/entitlements/v1`. That API replaces the boolean `privileged` with a privilege level (`HIGH`, `MEDIUM`, `LOW`, `NONE`), so both gain `privilege_level` (the entitlement's direct level, patchable on the resource through a privilege override), `effective_privilege_level` (read-only, includes inherited levels) and `tags` (read-only; the API does not patch tags). Existing state needs no migration.
+
+### Deprecated
+
+- **`sailpoint_entitlement.privileged`** is deprecated in favour of `privilege_level`. It keeps working: it reads `true` unless the level is `NONE`, and setting it writes `HIGH` (`true`) or `NONE` (`false`) only when it differs from the current value. It cannot be combined with `privilege_level`. Behaviour change: an entitlement at level `LOW` or `MEDIUM` now reads `privileged = true`. The attribute will be removed in a future major version.
 
 ### Fixed
 

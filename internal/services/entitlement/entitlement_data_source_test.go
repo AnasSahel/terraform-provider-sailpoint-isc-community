@@ -70,7 +70,7 @@ func TestBuildEntitlementFilters(t *testing.T) {
 }
 
 // newTestDataSource wires the data source to a fake tenant whose
-// /v2025/entitlements list endpoint returns the given entitlements.
+// /entitlements/v1 list endpoint returns the given entitlements.
 func newTestDataSource(t *testing.T, ents []client.EntitlementAPI, gotFilters *string) *entitlementDataSource {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -79,7 +79,7 @@ func newTestDataSource(t *testing.T, ents []client.EntitlementAPI, gotFilters *s
 			_, _ = w.Write([]byte(`{"access_token":"test","expires_in":3600,"token_type":"bearer"}`))
 			return
 		}
-		if r.URL.Path != "/v2025/entitlements" {
+		if r.URL.Path != "/entitlements/v1" {
 			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)
 			return

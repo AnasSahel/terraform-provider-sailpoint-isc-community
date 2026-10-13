@@ -15,21 +15,24 @@ import (
 
 // entitlementModel represents the Terraform state for an Entitlement resource.
 type entitlementModel struct {
-	ID                     types.String `tfsdk:"id"`
-	Name                   types.String `tfsdk:"name"`
-	Description            types.String `tfsdk:"description"`
-	Attribute              types.String `tfsdk:"attribute"`
-	Value                  types.String `tfsdk:"value"`
-	SourceSchemaObjectType types.String `tfsdk:"source_schema_object_type"`
-	Privileged             types.Bool   `tfsdk:"privileged"`
-	CloudGoverned          types.Bool   `tfsdk:"cloud_governed"`
-	Requestable            types.Bool   `tfsdk:"requestable"`
-	Owner                  types.Object `tfsdk:"owner"`
-	Source                 types.Object `tfsdk:"source"`
-	Segments               types.Set    `tfsdk:"segments"`
-	ManuallyUpdatedFields  types.Map    `tfsdk:"manually_updated_fields"`
-	Created                types.String `tfsdk:"created"`
-	Modified               types.String `tfsdk:"modified"`
+	ID                      types.String `tfsdk:"id"`
+	Name                    types.String `tfsdk:"name"`
+	Description             types.String `tfsdk:"description"`
+	Attribute               types.String `tfsdk:"attribute"`
+	Value                   types.String `tfsdk:"value"`
+	SourceSchemaObjectType  types.String `tfsdk:"source_schema_object_type"`
+	Privileged              types.Bool   `tfsdk:"privileged"`
+	PrivilegeLevel          types.String `tfsdk:"privilege_level"`
+	EffectivePrivilegeLevel types.String `tfsdk:"effective_privilege_level"`
+	Tags                    types.Set    `tfsdk:"tags"`
+	CloudGoverned           types.Bool   `tfsdk:"cloud_governed"`
+	Requestable             types.Bool   `tfsdk:"requestable"`
+	Owner                   types.Object `tfsdk:"owner"`
+	Source                  types.Object `tfsdk:"source"`
+	Segments                types.Set    `tfsdk:"segments"`
+	ManuallyUpdatedFields   types.Map    `tfsdk:"manually_updated_fields"`
+	Created                 types.String `tfsdk:"created"`
+	Modified                types.String `tfsdk:"modified"`
 }
 
 // FromAPI maps the API response into the Terraform state.
@@ -43,7 +46,21 @@ func (m *entitlementModel) FromAPI(ctx context.Context, api *client.EntitlementA
 	m.Value = types.StringValue(api.Value)
 	m.SourceSchemaObjectType = types.StringValue(api.SourceSchemaObjectType)
 
-	m.Privileged = boolPtrToTF(api.Privileged)
+	m.PrivilegeLevel = types.StringNull()
+	m.EffectivePrivilegeLevel = types.StringNull()
+	m.Privileged = types.BoolNull()
+	if pl := api.PrivilegeLevel; pl != nil {
+		m.PrivilegeLevel = common.StringOrNull(pl.Direct)
+		m.EffectivePrivilegeLevel = common.StringOrNull(pl.Effective)
+		// The deprecated boolean follows the direct level (the one Terraform
+		// manages), falling back to the effective level when none is set.
+		switch {
+		case pl.Direct != nil && *pl.Direct != "":
+			m.Privileged = types.BoolValue(privilegedFromLevel(*pl.Direct))
+		case pl.Effective != nil && *pl.Effective != "":
+			m.Privileged = types.BoolValue(privilegedFromLevel(*pl.Effective))
+		}
+	}
 	m.CloudGoverned = boolPtrToTF(api.CloudGoverned)
 	m.Requestable = boolPtrToTF(api.Requestable)
 
@@ -74,6 +91,14 @@ func (m *entitlementModel) FromAPI(ctx context.Context, api *client.EntitlementA
 		m.Segments = types.SetNull(types.StringType)
 	}
 
+	if api.Tags != nil {
+		tags, diags := types.SetValueFrom(ctx, types.StringType, api.Tags)
+		diagnostics.Append(diags...)
+		m.Tags = tags
+	} else {
+		m.Tags = types.SetNull(types.StringType)
+	}
+
 	if api.ManuallyUpdatedFields != nil {
 		muf, diags := types.MapValueFrom(ctx, types.BoolType, api.ManuallyUpdatedFields)
 		diagnostics.Append(diags...)
@@ -86,7 +111,8 @@ func (m *entitlementModel) FromAPI(ctx context.Context, api *client.EntitlementA
 }
 
 // ToPatchOperations compares the plan (m) against state and returns JSON Patch ops for changed fields.
-// Only patchable fields are considered: name, description, requestable, privileged, owner, segments.
+// Only patchable fields are considered: name, description, requestable, privilege_level
+// (or the deprecated privileged), owner, segments.
 //
 // Unknown plan values mean "not set in config, let the server decide" and never produce a patch.
 // A remove patch is only emitted when the plan is explicitly null and the state still holds a value.
@@ -110,8 +136,16 @@ func (m *entitlementModel) ToPatchOperations(ctx context.Context, state *entitle
 		ops = append(ops, client.NewReplacePatch("/requestable", m.Requestable.ValueBool()))
 	}
 
-	if !m.Privileged.Equal(state.Privileged) && !m.Privileged.IsNull() && !m.Privileged.IsUnknown() {
-		ops = append(ops, client.NewReplacePatch("/privileged", m.Privileged.ValueBool()))
+	// The v1 API sets the level through /privilegeOverride/level. privilege_level
+	// wins; the deprecated privileged only patches when privilege_level is not
+	// planned, and maps true to HIGH and false to NONE.
+	switch {
+	case isKnown(m.PrivilegeLevel):
+		if !m.PrivilegeLevel.Equal(state.PrivilegeLevel) {
+			ops = append(ops, client.NewReplacePatch(privilegeOverridePath, m.PrivilegeLevel.ValueString()))
+		}
+	case !m.Privileged.IsNull() && !m.Privileged.IsUnknown() && !m.Privileged.Equal(state.Privileged):
+		ops = append(ops, client.NewReplacePatch(privilegeOverridePath, levelFromPrivileged(m.Privileged.ValueBool())))
 	}
 
 	if !m.Owner.IsUnknown() {
@@ -167,6 +201,27 @@ func objectRefFromAPI(ctx context.Context, api *client.ObjectRefAPI) (types.Obje
 	obj, objDiags := types.ObjectValueFrom(ctx, common.ObjectRefObjectType.AttrTypes, ref)
 	diags.Append(objDiags...)
 	return obj, diags
+}
+
+// privilegeOverridePath is the JSON Patch path that sets an entitlement's
+// direct privilege level in the v1 API.
+const privilegeOverridePath = "/privilegeOverride/level"
+
+// privilegedFromLevel derives the deprecated boolean from a privilege level.
+func privilegedFromLevel(level string) bool {
+	return level != client.EntitlementPrivilegeLevelNone
+}
+
+// levelFromPrivileged maps the deprecated boolean onto a privilege level.
+func levelFromPrivileged(privileged bool) string {
+	if privileged {
+		return client.EntitlementPrivilegeLevelHigh
+	}
+	return client.EntitlementPrivilegeLevelNone
+}
+
+func isKnown(v types.String) bool {
+	return !v.IsNull() && !v.IsUnknown()
 }
 
 // boolPtrToTF converts *bool to types.Bool (nil → null).

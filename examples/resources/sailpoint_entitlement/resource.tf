@@ -1,10 +1,10 @@
 # Adopt an entitlement and manage its metadata.
 # The entitlement must already exist in ISC — it's created by source aggregation.
 resource "sailpoint_entitlement" "admin_group" {
-  id          = "REPLACE_WITH_ENTITLEMENT_ID"
-  requestable = true
-  privileged  = true
-  description = "AD Admin group — elevated access, requires approval"
+  id              = "REPLACE_WITH_ENTITLEMENT_ID"
+  requestable     = true
+  privilege_level = "HIGH" # HIGH, MEDIUM, LOW or NONE
+  description     = "AD Admin group — elevated access, requires approval"
 
   owner = {
     type = "IDENTITY"

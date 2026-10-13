@@ -31,14 +31,17 @@ Filter lookup is how you reach entitlements ISC generates for you, such as the o
 - `cloud_governed` (Boolean)
 - `created` (String)
 - `description` (String)
+- `effective_privilege_level` (String) The effective privilege level, which also accounts for any inherited level.
 - `manually_updated_fields` (Map of Boolean)
 - `modified` (String)
 - `owner` (Attributes) (see [below for nested schema](#nestedatt--owner))
-- `privileged` (Boolean)
+- `privilege_level` (String) The direct privilege level of the entitlement: `HIGH`, `MEDIUM`, `LOW` or `NONE`.
+- `privileged` (Boolean, Deprecated) **Deprecated**: use `privilege_level`. `true` unless the privilege level is `NONE`.
 - `requestable` (Boolean)
 - `segments` (Set of String)
 - `source` (Attributes) (see [below for nested schema](#nestedatt--source))
 - `source_schema_object_type` (String)
+- `tags` (Set of String) Tags assigned to the entitlement.
 
 <a id="nestedatt--owner"></a>
 ### Nested Schema for `owner`
