@@ -22,8 +22,8 @@ func TestListEntitlementsSendsFiltersAndLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListEntitlements: %v", err)
 	}
-	if gotPath != "/v2025/entitlements" {
-		t.Errorf("path = %q, want /v2025/entitlements", gotPath)
+	if gotPath != "/entitlements/v1" {
+		t.Errorf("path = %q, want /entitlements/v1", gotPath)
 	}
 	if gotFilters != `name eq "Launcher"` {
 		t.Errorf("filters = %q", gotFilters)

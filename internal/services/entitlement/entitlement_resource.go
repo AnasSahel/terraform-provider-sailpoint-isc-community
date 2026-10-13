@@ -7,6 +7,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
@@ -24,10 +26,20 @@ import (
 )
 
 var (
-	_ resource.Resource                = &entitlementResource{}
-	_ resource.ResourceWithConfigure   = &entitlementResource{}
-	_ resource.ResourceWithImportState = &entitlementResource{}
+	_ resource.Resource                   = &entitlementResource{}
+	_ resource.ResourceWithConfigure      = &entitlementResource{}
+	_ resource.ResourceWithImportState    = &entitlementResource{}
+	_ resource.ResourceWithValidateConfig = &entitlementResource{}
+	_ resource.ResourceWithModifyPlan     = &entitlementResource{}
 )
+
+// privilegeLevels lists the values accepted for privilege_level.
+var privilegeLevels = []string{
+	client.EntitlementPrivilegeLevelHigh,
+	client.EntitlementPrivilegeLevelMedium,
+	client.EntitlementPrivilegeLevelLow,
+	client.EntitlementPrivilegeLevelNone,
+}
 
 type entitlementResource struct {
 	client *client.Client
@@ -94,10 +106,30 @@ func (r *entitlementResource) Schema(_ context.Context, _ resource.SchemaRequest
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"privileged": schema.BoolAttribute{
-				MarkdownDescription: "Whether the entitlement grants elevated access. Patchable.",
-				Optional:            true,
+				MarkdownDescription: "**Deprecated**: use `privilege_level`. Whether the entitlement grants elevated access," +
+					" derived from its privilege level (`true` unless the level is `NONE`). Setting `true` writes `HIGH` and" +
+					" `false` writes `NONE`, unless the current level already matches. Conflicts with `privilege_level`.",
+				DeprecationMessage: "SailPoint's entitlements v1 API replaced the boolean `privileged` with a privilege level." +
+					" Use `privilege_level` instead (`HIGH`, `MEDIUM`, `LOW` or `NONE`).",
+				Optional:      true,
+				Computed:      true,
+				PlanModifiers: []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
+			},
+			"privilege_level": schema.StringAttribute{
+				MarkdownDescription: "The direct privilege level of the entitlement: `HIGH`, `MEDIUM`, `LOW` or `NONE`." +
+					" Patchable; setting it writes a privilege level override. Conflicts with `privileged`.",
+				Optional:      true,
+				Computed:      true,
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+			},
+			"effective_privilege_level": schema.StringAttribute{
+				MarkdownDescription: "The effective privilege level, which also accounts for any inherited level. Read-only.",
 				Computed:            true,
-				PlanModifiers:       []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
+			},
+			"tags": schema.SetAttribute{
+				MarkdownDescription: "Tags assigned to the entitlement. Read-only: the entitlements API does not patch tags.",
+				Computed:            true,
+				ElementType:         types.StringType,
 			},
 			"cloud_governed": schema.BoolAttribute{
 				MarkdownDescription: "Whether the entitlement is cloud-governed. Read-only.",
@@ -165,6 +197,64 @@ func (r *entitlementResource) Schema(_ context.Context, _ resource.SchemaRequest
 				Computed:            true,
 			},
 		},
+	}
+}
+
+// ValidateConfig rejects an unknown privilege_level and the combination of
+// privilege_level with the deprecated privileged.
+func (r *entitlementResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var level types.String
+	var privileged types.Bool
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("privilege_level"), &level)...)
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("privileged"), &privileged)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if isKnown(level) && !slices.Contains(privilegeLevels, level.ValueString()) {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("privilege_level"),
+			"Invalid privilege level",
+			fmt.Sprintf("privilege_level must be one of %s, got %q.", strings.Join(privilegeLevels, ", "), level.ValueString()),
+		)
+	}
+	if !level.IsNull() && !privileged.IsNull() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("privileged"),
+			"Conflicting attributes",
+			"Set either privilege_level or the deprecated privileged, not both.",
+		)
+	}
+}
+
+// ModifyPlan keeps privileged and privilege_level consistent when only one of
+// them is configured, so the plan matches what the API returns after apply.
+func (r *entitlementResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	if req.Plan.Raw.IsNull() {
+		return // destroy
+	}
+
+	var level types.String
+	var privileged types.Bool
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("privilege_level"), &level)...)
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("privileged"), &privileged)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	switch {
+	case isKnown(level):
+		// The deprecated boolean is fully determined by the level.
+		resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root("privileged"),
+			types.BoolValue(privilegedFromLevel(level.ValueString())))...)
+	case !privileged.IsNull() && !privileged.IsUnknown() && !req.State.Raw.IsNull():
+		// A change of the deprecated boolean rewrites the level; let the API
+		// report the resulting level rather than keeping the stale one.
+		var statePrivileged types.Bool
+		resp.Diagnostics.Append(req.State.GetAttribute(ctx, path.Root("privileged"), &statePrivileged)...)
+		if !privileged.Equal(statePrivileged) {
+			resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root("privilege_level"), types.StringUnknown())...)
+		}
 	}
 }
 
