@@ -43,18 +43,13 @@ data "sailpoint_managed_cluster" "by_id" {
 
 ### Read-Only
 
-- `alert_key` (String) Key describing any immediate cluster alert (for example `LIMITED_RESOURCES`).
 - `ccg_version` (String) The CCG version used by the cluster.
 - `client_ids` (List of String) IDs of the clients (virtual appliances) in the cluster.
 - `client_type` (String) The type of client in the cluster (for example `CCG` or `VA`).
-- `configuration` (Map of String) The cluster configuration map (for example `gmtOffset`, `clusterType`).
-- `consolidated_health_indicators_status` (String) The consolidated health status: `NORMAL`, `WARNING` or `ERROR`.
 - `created_at` (String) When the cluster was created.
-- `current_installed_release_version` (String) The release currently installed on the cluster.
 - `description` (String) The description of the managed cluster.
 - `operational` (Boolean) Whether the cluster is operational.
 - `org` (String) The tenant (org) the cluster belongs to.
-- `pinned_config` (Boolean) Whether the cluster configuration is pinned.
 - `pod` (String) The SailPoint pod hosting the cluster.
 - `service_count` (Number) Number of services bound to the cluster.
 - `status` (String) The cluster status: `CONFIGURING`, `FAILED`, `NO_CLIENTS`, `NORMAL` or `WARNING`.

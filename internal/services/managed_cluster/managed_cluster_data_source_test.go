@@ -18,8 +18,9 @@ import (
 
 const testClustersJSON = `[
   {"id":"c1","name":"Prod","type":"idn","clientType":"CCG","ccgVersion":"v01","status":"NORMAL","operational":true,
-   "clientIds":["va1"],"serviceCount":2,"configuration":{"gmtOffset":"1"},
-   "keyPair":{"publicKey":"-----BEGIN PUBLIC KEY-----x"},"attributes":{"keystore":"secret"}},
+   "clientIds":["va1"],"serviceCount":2,
+   "keyPair":{"publicKey":"PUBKEY-SECRET-MARKER"},"alertKey":"ALERT-SECRET-MARKER","encryptionConfiguration":{"format":"V3"},
+   "configuration":{"gmtOffset":"-5"},"attributes":{"keystore":"KEYSTORE-SECRET-MARKER"}},
   {"id":"c2","name":"Dup","clientType":"CCG","ccgVersion":"v01"},
   {"id":"c3","name":"Dup","clientType":"CCG","ccgVersion":"v01"}
 ]`
@@ -89,8 +90,11 @@ func TestManagedClusterDataSourceReadByName(t *testing.T) {
 	if state.ID.ValueString() != "c1" || state.Status.ValueString() != "NORMAL" || !state.Operational.ValueBool() {
 		t.Errorf("state = %+v", state)
 	}
-	if raw := resp.State.Raw.String(); strings.Contains(raw, "secret") || strings.Contains(raw, "PUBLIC KEY") {
-		t.Errorf("key material leaked into state: %s", raw)
+	raw := resp.State.Raw.String()
+	for _, marker := range []string{"SECRET-MARKER", "V3", "gmtOffset"} {
+		if strings.Contains(raw, marker) {
+			t.Errorf("state contains %q: %s", marker, raw)
+		}
 	}
 }
 
@@ -117,7 +121,7 @@ func TestManagedClusterDataSourceReadErrors(t *testing.T) {
 		"ambiguous":  {map[string]string{"name": "Dup"}, "Multiple managed clusters found"},
 		"no input":   {map[string]string{}, "Missing required argument"},
 		"both":       {map[string]string{"id": "c1", "name": "Prod"}, "Conflicting arguments"},
-		"id missing": {map[string]string{"id": "zzz"}, "Error Reading SailPoint Managed Cluster"},
+		"id missing": {map[string]string{"id": "zzz"}, "No managed cluster found"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

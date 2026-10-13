@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 func strPtr(s string) *string { return &s }
@@ -18,15 +17,14 @@ func TestFromAPIMapsFields(t *testing.T) {
 	operational := true
 	count := int32(4)
 	api := &client.ManagedClusterAPI{
-		ID:            "c1",
-		Name:          "Cluster",
-		Type:          "idn",
-		ClientType:    strPtr("CCG"),
-		Configuration: map[string]*string{"gmtOffset": strPtr("1"), "empty": nil},
-		Operational:   &operational,
-		Status:        strPtr("NORMAL"),
-		ClientIDs:     []string{"a", "b"},
-		ServiceCount:  &count,
+		ID:           "c1",
+		Name:         "Cluster",
+		Type:         "idn",
+		ClientType:   strPtr("CCG"),
+		Operational:  &operational,
+		Status:       strPtr("NORMAL"),
+		ClientIDs:    []string{"a", "b"},
+		ServiceCount: &count,
 	}
 
 	var m managedClusterModel
@@ -40,15 +38,8 @@ func TestFromAPIMapsFields(t *testing.T) {
 	if !m.Operational.ValueBool() || m.ServiceCount.ValueInt64() != 4 {
 		t.Errorf("operational/service_count = %v/%v", m.Operational, m.ServiceCount)
 	}
-	if !m.Description.IsNull() || !m.PinnedConfig.IsNull() {
-		t.Errorf("absent fields should be null: description=%v pinned_config=%v", m.Description, m.PinnedConfig)
-	}
-	cfg := m.Configuration.Elements()
-	if v, ok := cfg["gmtOffset"].(types.String); !ok || v.ValueString() != "1" {
-		t.Errorf("configuration[gmtOffset] = %v", cfg["gmtOffset"])
-	}
-	if v, ok := cfg["empty"].(types.String); !ok || !v.IsNull() {
-		t.Errorf("configuration[empty] = %v, want null", cfg["empty"])
+	if !m.Description.IsNull() {
+		t.Errorf("absent fields should be null: description=%v", m.Description)
 	}
 	if len(m.ClientIDs.Elements()) != 2 {
 		t.Errorf("client_ids = %v", m.ClientIDs)
@@ -60,9 +51,6 @@ func TestFromAPIEmptyCollections(t *testing.T) {
 	var m managedClusterModel
 	if diags := m.FromAPI(context.Background(), &client.ManagedClusterAPI{ID: "c1"}); diags.HasError() {
 		t.Fatalf("FromAPI: %v", diags)
-	}
-	if m.Configuration.IsNull() || len(m.Configuration.Elements()) != 0 {
-		t.Errorf("configuration = %v, want empty map", m.Configuration)
 	}
 	if m.ClientIDs.IsNull() || len(m.ClientIDs.Elements()) != 0 {
 		t.Errorf("client_ids = %v, want empty list", m.ClientIDs)

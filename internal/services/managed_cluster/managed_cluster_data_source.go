@@ -5,6 +5,7 @@ package managed_cluster
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
@@ -83,25 +84,12 @@ func (d *managedClusterDataSource) Schema(_ context.Context, _ datasource.Schema
 				MarkdownDescription: "The CCG version used by the cluster.",
 				Computed:            true,
 			},
-			"configuration": schema.MapAttribute{
-				MarkdownDescription: "The cluster configuration map (for example `gmtOffset`, `clusterType`).",
-				Computed:            true,
-				ElementType:         types.StringType,
-			},
-			"pinned_config": schema.BoolAttribute{
-				MarkdownDescription: "Whether the cluster configuration is pinned.",
-				Computed:            true,
-			},
 			"operational": schema.BoolAttribute{
 				MarkdownDescription: "Whether the cluster is operational.",
 				Computed:            true,
 			},
 			"status": schema.StringAttribute{
 				MarkdownDescription: "The cluster status: `CONFIGURING`, `FAILED`, `NO_CLIENTS`, `NORMAL` or `WARNING`.",
-				Computed:            true,
-			},
-			"alert_key": schema.StringAttribute{
-				MarkdownDescription: "Key describing any immediate cluster alert (for example `LIMITED_RESOURCES`).",
 				Computed:            true,
 			},
 			"client_ids": schema.ListAttribute{
@@ -111,14 +99,6 @@ func (d *managedClusterDataSource) Schema(_ context.Context, _ datasource.Schema
 			},
 			"service_count": schema.Int64Attribute{
 				MarkdownDescription: "Number of services bound to the cluster.",
-				Computed:            true,
-			},
-			"current_installed_release_version": schema.StringAttribute{
-				MarkdownDescription: "The release currently installed on the cluster.",
-				Computed:            true,
-			},
-			"consolidated_health_indicators_status": schema.StringAttribute{
-				MarkdownDescription: "The consolidated health status: `NORMAL`, `WARNING` or `ERROR`.",
 				Computed:            true,
 			},
 			"created_at": schema.StringAttribute{
@@ -163,6 +143,10 @@ func (d *managedClusterDataSource) Read(ctx context.Context, req datasource.Read
 	if hasID {
 		tflog.Debug(ctx, "Reading managed cluster data source by ID", map[string]any{"id": config.ID.ValueString()})
 		cluster, err := d.client.GetManagedCluster(ctx, config.ID.ValueString())
+		if errors.Is(err, client.ErrNotFound) {
+			resp.Diagnostics.AddError("No managed cluster found", fmt.Sprintf("No managed cluster has id %q.", config.ID.ValueString()))
+			return
+		}
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Error Reading SailPoint Managed Cluster",
