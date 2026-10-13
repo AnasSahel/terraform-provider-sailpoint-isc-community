@@ -5,6 +5,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -20,25 +21,24 @@ const (
 )
 
 // ManagedClientAPI represents a SailPoint managed client (virtual appliance or CCG).
-// The secret, alertKey and vaDownloadUrl fields returned by the API are deliberately
-// not mapped, so they never reach Terraform state.
+// The secret, alertKey, vaDownloadUrl, clientId, cookbook and ccId fields returned by the API are
+// deliberately not mapped, so they never reach Terraform state.
 type ManagedClientAPI struct {
-	ID                string  `json:"id,omitempty"`
-	ClientID          string  `json:"clientId,omitempty"`
-	ClusterID         string  `json:"clusterId,omitempty"`
-	Name              *string `json:"name,omitempty"`
-	Description       *string `json:"description,omitempty"`
-	Type              *string `json:"type,omitempty"`
-	ClusterType       *string `json:"clusterType,omitempty"`
-	Status            *string `json:"status,omitempty"`
-	IPAddress         *string `json:"ipAddress,omitempty"`
-	VaVersion         *string `json:"vaVersion,omitempty"`
-	LastSeen          *string `json:"lastSeen,omitempty"`
-	SinceLastSeen     *string `json:"sinceLastSeen,omitempty"`
-	ProvisionStatus   *string `json:"provisionStatus,omitempty"`
-	APIGatewayBaseURL *string `json:"apiGatewayBaseUrl,omitempty"`
-	CreatedAt         *string `json:"createdAt,omitempty"`
-	UpdatedAt         *string `json:"updatedAt,omitempty"`
+	ID                string          `json:"id,omitempty"`
+	ClusterID         string          `json:"clusterId,omitempty"`
+	Name              *string         `json:"name,omitempty"`
+	Description       *string         `json:"description,omitempty"`
+	Type              *string         `json:"type,omitempty"`
+	ClusterType       *string         `json:"clusterType,omitempty"`
+	Status            *string         `json:"status,omitempty"`
+	IPAddress         *string         `json:"ipAddress,omitempty"`
+	VaVersion         *string         `json:"vaVersion,omitempty"`
+	LastSeen          *string         `json:"lastSeen,omitempty"`
+	SinceLastSeen     json.RawMessage `json:"sinceLastSeen,omitempty"`
+	ProvisionStatus   *string         `json:"provisionStatus,omitempty"`
+	APIGatewayBaseURL *string         `json:"apiGatewayBaseUrl,omitempty"`
+	CreatedAt         *string         `json:"createdAt,omitempty"`
+	UpdatedAt         *string         `json:"updatedAt,omitempty"`
 }
 
 type managedClientErrorContext struct {

@@ -5,6 +5,7 @@ package managed_client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
@@ -71,7 +72,6 @@ func (d *managedClientDataSource) Schema(_ context.Context, _ datasource.SchemaR
 				Computed:            true,
 				MarkdownDescription: "The ID of the cluster the managed client belongs to. When set together with `name`, only managed clients of that cluster match. Cannot be set together with `id`.",
 			},
-			"client_id":            computed("The client ID used in API management."),
 			"description":          computed("The managed client description."),
 			"type":                 computed("The managed client type, such as `VA` or `CCG`."),
 			"cluster_type":         computed("The type of the cluster the managed client belongs to, such as `idn`."),
@@ -117,6 +117,10 @@ func (d *managedClientDataSource) Read(ctx context.Context, req datasource.ReadR
 		id := config.ID.ValueString()
 		tflog.Debug(ctx, "Reading managed client data source by ID", map[string]any{"id": id})
 		mc, err := d.client.GetManagedClient(ctx, id)
+		if errors.Is(err, client.ErrNotFound) {
+			resp.Diagnostics.AddError("No managed client found", fmt.Sprintf("No managed client has id %q.", id))
+			return
+		}
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Error Reading SailPoint Managed Client",

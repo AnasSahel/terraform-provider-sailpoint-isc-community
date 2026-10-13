@@ -19,7 +19,7 @@ import (
 // fakeTenantBody is a raw /managed-clients/v1 list response, including the
 // secret fields the data source must never put in state.
 const fakeTenantBody = `[
-  {"id":"mc-1","name":"VA-1","clusterId":"cl-1","type":"VA","status":"NORMAL","vaVersion":"va-1","secret":"s3cr3t","alertKey":"k","vaDownloadUrl":"https://example.invalid"},
+  {"id":"mc-1","name":"VA-1","clusterId":"cl-1","type":"VA","status":"NORMAL","vaVersion":"va-1","sinceLastSeen":15000,"secret":"s3cr3t","alertKey":"k","clientId":"CLIENTID-SECRET","vaDownloadUrl":"https://download.example/x"},
   {"id":"mc-2","name":"VA-1","clusterId":"cl-2","type":"VA","status":"WARNING"},
   {"id":"mc-3","name":"VA-3","clusterId":"cl-1","type":"VA","status":"NORMAL"}
 ]`
@@ -96,7 +96,7 @@ func TestManagedClientDataSourceRead(t *testing.T) {
 		{name: "name narrowed by cluster", args: map[string]string{"name": "VA-1", "cluster_id": "cl-2"}, wantID: "mc-2"},
 		{name: "ambiguous name", args: map[string]string{"name": "VA-1"}, wantErr: "Multiple managed clients found"},
 		{name: "unknown name", args: map[string]string{"name": "nope"}, wantErr: "No managed client found"},
-		{name: "unknown id", args: map[string]string{"id": "missing"}, wantErr: "Error Reading SailPoint Managed Client"},
+		{name: "unknown id", args: map[string]string{"id": "missing"}, wantErr: "No managed client found"},
 		{name: "no lookup key", args: map[string]string{}, wantErr: "Missing required argument"},
 		{name: "id and name", args: map[string]string{"id": "mc-1", "name": "VA-1"}, wantErr: "Conflicting arguments"},
 		{name: "id and cluster", args: map[string]string{"id": "mc-1", "cluster_id": "cl-1"}, wantErr: "Conflicting arguments"},
@@ -117,5 +117,22 @@ func TestManagedClientDataSourceRead(t *testing.T) {
 				t.Errorf("id = %q, want %q", state.ID.ValueString(), tc.wantID)
 			}
 		})
+	}
+}
+
+func TestManagedClientDataSourceNoSecretsInState(t *testing.T) {
+	ds := newTestDataSource(t)
+	resp, state := readWithConfig(t, ds, map[string]string{"name": "VA-1", "cluster_id": "cl-1"})
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", resp.Diagnostics)
+	}
+	if state.SinceLastSeen.ValueString() != "15000" {
+		t.Errorf("since_last_seen = %q, want 15000", state.SinceLastSeen.ValueString())
+	}
+	raw := resp.State.Raw.String()
+	for _, marker := range []string{"s3cr3t", "CLIENTID-SECRET", "download.example"} {
+		if strings.Contains(raw, marker) {
+			t.Errorf("state contains %q", marker)
+		}
 	}
 }

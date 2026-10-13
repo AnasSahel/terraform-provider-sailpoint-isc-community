@@ -52,7 +52,6 @@ output "va_status" {
 ### Read-Only
 
 - `api_gateway_base_url` (String) The API gateway base URL of the managed client.
-- `client_id` (String) The client ID used in API management.
 - `cluster_type` (String) The type of the cluster the managed client belongs to, such as `idn`.
 - `created_at` (String) When the managed client was created.
 - `description` (String) The managed client description.
