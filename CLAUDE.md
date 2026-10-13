@@ -76,6 +76,13 @@ make generate  # tfplugindocs — regenerates docs/ from schema descriptions
 - New `_test.go` files: type assertions MUST use the `, ok :=` form (the `forcetypeassert` linter is enabled). For repeated assertions in tests, define small `must*` helpers with `t.Helper()` rather than scattering bare `x.(T)`.
 - CI runs these exact commands; a local fail here is a guaranteed PR fail.
 
+## Verifying changes against a real tenant
+
+Unit tests only hit fake servers. See `TESTING.md` for the real-tenant check (`scripts/try-pr.sh`: build via dev_overrides, apply, then a second plan that must be empty).
+
+- Every PR fills the **How to verify** section of `.github/pull_request_template.md`: the minimal HCL to add to the test project and what the second plan should show. For a bug fix, start from the issue's "How to reproduce" HCL.
+- Remove tenant names, IDs and secrets from any HCL in PRs or issues.
+
 ## Architecture
 
 ### Directory Structure
