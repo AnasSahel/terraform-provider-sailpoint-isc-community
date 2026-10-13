@@ -4,7 +4,7 @@ page_title: "sailpoint_sync_source_attributes Action - sailpoint"
 subcategory: ""
 description: |-
   Triggers a one-time attribute synchronization for a SailPoint source. Attribute sync pushes identity attribute values from ISC to the target source accounts.
-  Experimental: This action uses the X-SailPoint-Experimental: true header on the POST /v2025/sources/{id}/synchronize-attributes endpoint. Behavior may change without notice.
+  Experimental: This action uses the X-SailPoint-Experimental: true header on the POST /sources/v1/{id}/synchronize-attributes endpoint. Behavior may change without notice.
   Asynchronous: The sync is triggered immediately but attribute propagation happens asynchronously in ISC. The action returns once the request is accepted.
   ORG_ADMIN required.
   Terraform ≥ 1.14 required to use actions.
@@ -14,7 +14,7 @@ description: |-
 
 Triggers a one-time attribute synchronization for a SailPoint source. Attribute sync pushes identity attribute values from ISC to the target source accounts.
 
-**Experimental**: This action uses the `X-SailPoint-Experimental: true` header on the `POST /v2025/sources/{id}/synchronize-attributes` endpoint. Behavior may change without notice.
+**Experimental**: This action uses the `X-SailPoint-Experimental: true` header on the `POST /sources/v1/{id}/synchronize-attributes` endpoint. Behavior may change without notice.
 
 **Asynchronous**: The sync is triggered immediately but attribute propagation happens asynchronously in ISC. The action returns once the request is accepted.
 

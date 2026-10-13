@@ -14,29 +14,50 @@ import (
 )
 
 const (
-	entitlementEndpointGet   = "/v2025/entitlements/{id}"
-	entitlementEndpointPatch = "/v2025/entitlements/{id}"
-	entitlementEndpointList  = "/v2025/entitlements"
+	entitlementEndpointGet   = "/entitlements/v1/{id}"
+	entitlementEndpointPatch = "/entitlements/v1/{id}"
+	entitlementEndpointList  = "/entitlements/v1"
+)
+
+// Privilege levels accepted by the entitlements v1 API.
+const (
+	EntitlementPrivilegeLevelHigh   = "HIGH"
+	EntitlementPrivilegeLevelMedium = "MEDIUM"
+	EntitlementPrivilegeLevelLow    = "LOW"
+	EntitlementPrivilegeLevelNone   = "NONE"
 )
 
 // EntitlementAPI represents a SailPoint Entitlement from the API.
 // Entitlements are managed by source aggregation; no create or delete endpoint exists.
 type EntitlementAPI struct {
-	ID                     string          `json:"id"`
-	Name                   string          `json:"name"`
-	Description            *string         `json:"description,omitempty"`
-	Attribute              string          `json:"attribute"`
-	Value                  string          `json:"value"`
-	SourceSchemaObjectType string          `json:"sourceSchemaObjectType"`
-	Privileged             *bool           `json:"privileged,omitempty"`
-	CloudGoverned          *bool           `json:"cloudGoverned,omitempty"`
-	Requestable            *bool           `json:"requestable,omitempty"`
-	Owner                  *ObjectRefAPI   `json:"owner,omitempty"`
-	Source                 *ObjectRefAPI   `json:"source,omitempty"`
-	Segments               []string        `json:"segments,omitempty"`
-	ManuallyUpdatedFields  map[string]bool `json:"manuallyUpdatedFields,omitempty"`
-	Created                *string         `json:"created,omitempty"`
-	Modified               *string         `json:"modified,omitempty"`
+	ID                     string                        `json:"id"`
+	Name                   string                        `json:"name"`
+	Description            *string                       `json:"description,omitempty"`
+	Attribute              string                        `json:"attribute"`
+	Value                  string                        `json:"value"`
+	SourceSchemaObjectType string                        `json:"sourceSchemaObjectType"`
+	PrivilegeLevel         *EntitlementPrivilegeLevelAPI `json:"privilegeLevel,omitempty"`
+	Tags                   []string                      `json:"tags,omitempty"`
+	CloudGoverned          *bool                         `json:"cloudGoverned,omitempty"`
+	Requestable            *bool                         `json:"requestable,omitempty"`
+	Owner                  *ObjectRefAPI                 `json:"owner,omitempty"`
+	Source                 *ObjectRefAPI                 `json:"source,omitempty"`
+	Segments               []string                      `json:"segments,omitempty"`
+	ManuallyUpdatedFields  map[string]bool               `json:"manuallyUpdatedFields,omitempty"`
+	Created                *string                       `json:"created,omitempty"`
+	Modified               *string                       `json:"modified,omitempty"`
+}
+
+// EntitlementPrivilegeLevelAPI is the privilege level block returned by the
+// entitlements v1 API. It replaces the boolean `privileged` of /v2025.
+// Direct is the level set on the entitlement itself (by override or by
+// criteria); Effective also accounts for any inherited level.
+type EntitlementPrivilegeLevelAPI struct {
+	Direct    *string `json:"direct,omitempty"`
+	SetBy     *string `json:"setBy,omitempty"`
+	SetByType *string `json:"setByType,omitempty"`
+	Inherited *string `json:"inherited,omitempty"`
+	Effective *string `json:"effective,omitempty"`
 }
 
 type entitlementErrorContext struct {
@@ -62,7 +83,7 @@ func (c *Client) GetEntitlement(ctx context.Context, id string) (*EntitlementAPI
 	if err != nil {
 		return nil, c.formatEntitlementError(entitlementErrorContext{Operation: "get", ID: id}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatEntitlementError(
 			entitlementErrorContext{Operation: "get", ID: id, ResponseBody: string(resp.Bytes())},
 			nil, resp.StatusCode(),
@@ -95,7 +116,7 @@ func (c *Client) ListEntitlements(ctx context.Context, filters string, limit int
 	if err != nil {
 		return nil, c.formatEntitlementError(entitlementErrorContext{Operation: "list"}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatEntitlementError(
 			entitlementErrorContext{Operation: "list", ResponseBody: string(resp.Bytes())},
 			nil, resp.StatusCode(),
@@ -134,7 +155,7 @@ func (c *Client) PatchEntitlement(ctx context.Context, id string, patchOps []JSO
 	if err != nil {
 		return nil, c.formatEntitlementError(entitlementErrorContext{Operation: "update", ID: id}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),

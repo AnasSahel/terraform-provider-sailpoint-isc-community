@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	identityEndpointGet  = "/v2025/identities/{id}"
-	identityEndpointList = "/v2025/identities"
+	identityEndpointGet  = "/identities/v1/{id}"
+	identityEndpointList = "/identities/v1"
 )
 
 // IdentityAPI represents a SailPoint Identity from the full identities endpoint.
@@ -67,7 +67,7 @@ func (c *Client) GetIdentity(ctx context.Context, id string) (*IdentityAPI, erro
 	if err != nil {
 		return nil, c.formatIdentityError(identityErrorContext{Operation: "get", ID: id}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatIdentityError(
 			identityErrorContext{Operation: "get", ID: id, ResponseBody: string(resp.Bytes())},
 			nil, resp.StatusCode(),
@@ -97,7 +97,7 @@ func (c *Client) ListIdentities(ctx context.Context, filters string, limit int) 
 	if err != nil {
 		return nil, c.formatIdentityError(identityErrorContext{Operation: "list"}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatIdentityError(
 			identityErrorContext{Operation: "list", ResponseBody: string(resp.Bytes())},
 			nil, resp.StatusCode(),

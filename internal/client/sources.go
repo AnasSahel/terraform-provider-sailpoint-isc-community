@@ -8,16 +8,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 const (
-	sourceEndpointGet    = "/v2025/sources/{id}"
-	sourceEndpointCreate = "/v2025/sources"
-	sourceEndpointUpdate = "/v2025/sources/{id}"
-	sourceEndpointPatch  = "/v2025/sources/{id}"
-	sourceEndpointDelete = "/v2025/sources/{id}"
+	sourceEndpointGet    = "/sources/v1/{id}"
+	sourceEndpointList   = "/sources/v1"
+	sourceEndpointCreate = "/sources/v1"
+	sourceEndpointUpdate = "/sources/v1/{id}"
+	sourceEndpointPatch  = "/sources/v1/{id}"
+	sourceEndpointDelete = "/sources/v1/{id}"
 )
 
 // SourceAPI represents a SailPoint Source from the API.
@@ -68,7 +70,7 @@ func (c *Client) GetSource(ctx context.Context, id string) (*SourceAPI, error) {
 		SetPathParam("id", id).
 		Get(sourceEndpointGet)
 
-	if resp != nil && resp.IsError() {
+	if resp != nil && resp.IsStatusFailure() {
 		return nil, c.formatSourceError(
 			sourceErrorContext{Operation: "get", ID: id, ResponseBody: string(resp.Bytes())},
 			nil,
@@ -90,6 +92,36 @@ func (c *Client) GetSource(ctx context.Context, id string) (*SourceAPI, error) {
 	})
 
 	return &source, nil
+}
+
+// ListSources retrieves sources matching an ISC filter expression
+// (e.g. `name eq "Active Directory"`); pass "" for no filter.
+// limit caps the number of results returned; pass 0 for the API default.
+func (c *Client) ListSources(ctx context.Context, filters string, limit int) ([]SourceAPI, error) {
+	tflog.Debug(ctx, "Listing sources", map[string]any{"filters": filters, "limit": limit})
+
+	req := c.prepareRequest(ctx)
+	if filters != "" {
+		req = req.SetQueryParam("filters", filters)
+	}
+	if limit > 0 {
+		req = req.SetQueryParam("limit", strconv.Itoa(limit))
+	}
+
+	var result []SourceAPI
+	resp, err := req.SetResult(&result).Get(sourceEndpointList)
+	if err != nil {
+		return nil, c.formatSourceError(sourceErrorContext{Operation: "list"}, err, 0)
+	}
+	if resp.IsStatusFailure() {
+		return nil, c.formatSourceError(
+			sourceErrorContext{Operation: "list", ResponseBody: string(resp.Bytes())},
+			nil, resp.StatusCode(),
+		)
+	}
+
+	tflog.Debug(ctx, "Successfully listed sources", map[string]any{"count": len(result)})
+	return result, nil
 }
 
 // CreateSource creates a new source.
@@ -119,7 +151,7 @@ func (c *Client) CreateSource(ctx context.Context, source *SourceAPI, provisionA
 
 	resp, err := req.Post(sourceEndpointCreate)
 
-	if resp != nil && resp.IsError() {
+	if resp != nil && resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -170,7 +202,7 @@ func (c *Client) UpdateSource(ctx context.Context, id string, source *SourceAPI)
 		SetPathParam("id", id).
 		Put(sourceEndpointUpdate)
 
-	if resp != nil && resp.IsError() {
+	if resp != nil && resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -224,7 +256,7 @@ func (c *Client) PatchSource(ctx context.Context, id string, patchOps []JSONPatc
 		SetPathParam("id", id).
 		Patch(sourceEndpointPatch)
 
-	if resp != nil && resp.IsError() {
+	if resp != nil && resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -267,7 +299,7 @@ func (c *Client) DeleteSource(ctx context.Context, id string) error {
 		SetPathParam("id", id).
 		Delete(sourceEndpointDelete)
 
-	if resp != nil && resp.IsError() {
+	if resp != nil && resp.IsStatusFailure() {
 		// 404 is acceptable for delete - resource might already be deleted
 		if resp.StatusCode() == http.StatusNotFound {
 			tflog.Debug(ctx, "Source not found, treating as already deleted", map[string]any{

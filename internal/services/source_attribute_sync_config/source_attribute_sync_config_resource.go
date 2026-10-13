@@ -48,12 +48,12 @@ func (r *sourceAttrSyncConfigResource) Configure(ctx context.Context, req resour
 
 func (r *sourceAttrSyncConfigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Manages the attribute synchronization configuration for a SailPoint source (Beta API). " +
+		Description: "Manages the attribute synchronization configuration for a SailPoint source (experimental /sources/v1 API). " +
 			"Adopt-only lifecycle: Create reads the existing config and applies declared enabled flags via PUT, " +
 			"Update sends a full PUT, and Delete is a no-op. " +
 			"Partial management is supported: unlisted attributes keep their current server value. " +
 			"Requires ORG_ADMIN. Terraform >= 1.14 required for lifecycle-triggered actions.",
-		MarkdownDescription: "Manages the attribute synchronization configuration for a SailPoint source (Beta API). " +
+		MarkdownDescription: "Manages the attribute synchronization configuration for a SailPoint source (experimental /sources/v1 API). " +
 			"Adopt-only lifecycle: Create reads the existing config and applies declared enabled flags via PUT, " +
 			"Update sends a full PUT, and Delete is a no-op. " +
 			"Partial management is supported: unlisted attributes keep their current server value. " +

@@ -16,10 +16,10 @@ Adopts an existing SailPoint Entitlement and manages its patchable metadata. Ent
 # Adopt an entitlement and manage its metadata.
 # The entitlement must already exist in ISC — it's created by source aggregation.
 resource "sailpoint_entitlement" "admin_group" {
-  id          = "REPLACE_WITH_ENTITLEMENT_ID"
-  requestable = true
-  privileged  = true
-  description = "AD Admin group — elevated access, requires approval"
+  id              = "REPLACE_WITH_ENTITLEMENT_ID"
+  requestable     = true
+  privilege_level = "HIGH" # HIGH, MEDIUM, LOW or NONE
+  description     = "AD Admin group — elevated access, requires approval"
 
   owner = {
     type = "IDENTITY"
@@ -47,7 +47,8 @@ resource "sailpoint_entitlement" "readonly_group" {
 - `description` (String) Description of the entitlement. Patchable.
 - `name` (String) The name of the entitlement. Patchable; overrides the source-aggregated name when set.
 - `owner` (Attributes) The owner of the entitlement. Patchable. (see [below for nested schema](#nestedatt--owner))
-- `privileged` (Boolean) Whether the entitlement grants elevated access. Patchable.
+- `privilege_level` (String) The direct privilege level of the entitlement: `HIGH`, `MEDIUM`, `LOW` or `NONE`. Patchable; setting it writes a privilege level override. Conflicts with `privileged`.
+- `privileged` (Boolean, Deprecated) **Deprecated**: use `privilege_level`. Whether the entitlement grants elevated access, derived from its privilege level (`true` unless the level is `NONE`). Setting `true` writes `HIGH` and `false` writes `NONE`, unless the current level already matches. Conflicts with `privilege_level`.
 - `requestable` (Boolean) Whether users can request this entitlement directly. Patchable.
 - `segments` (Set of String) Segment UUIDs the entitlement is assigned to. Patchable.
 
@@ -56,10 +57,12 @@ resource "sailpoint_entitlement" "readonly_group" {
 - `attribute` (String) Source attribute name (e.g., `memberOf`). Read-only from aggregation.
 - `cloud_governed` (Boolean) Whether the entitlement is cloud-governed. Read-only.
 - `created` (String) When the entitlement was first aggregated.
+- `effective_privilege_level` (String) The effective privilege level, which also accounts for any inherited level. Read-only.
 - `manually_updated_fields` (Map of Boolean) Tracks which fields were manually overridden (protected from aggregation overwrites). Read-only.
 - `modified` (String) When the entitlement was last modified.
 - `source` (Attributes) Source the entitlement was aggregated from. Read-only. (see [below for nested schema](#nestedatt--source))
 - `source_schema_object_type` (String) Type of the entitlement in the source schema (e.g., `group`). Read-only.
+- `tags` (Set of String) Tags assigned to the entitlement. Read-only: the entitlements API does not patch tags.
 - `value` (String) Source attribute value (e.g., a group DN). Read-only from aggregation.
 
 <a id="nestedatt--owner"></a>

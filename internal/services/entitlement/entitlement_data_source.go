@@ -93,9 +93,26 @@ func (d *entitlementDataSource) Schema(_ context.Context, _ datasource.SchemaReq
 				MarkdownDescription: "The ID of the source the entitlement belongs to. When set without `id`, restricts the lookup to that source.",
 			},
 			"source_schema_object_type": schema.StringAttribute{Computed: true},
-			"privileged":                schema.BoolAttribute{Computed: true},
-			"cloud_governed":            schema.BoolAttribute{Computed: true},
-			"requestable":               schema.BoolAttribute{Computed: true},
+			"privileged": schema.BoolAttribute{
+				Computed:            true,
+				MarkdownDescription: "**Deprecated**: use `privilege_level`. `true` unless the privilege level is `NONE`.",
+				DeprecationMessage:  "Use privilege_level instead.",
+			},
+			"privilege_level": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "The direct privilege level of the entitlement: `HIGH`, `MEDIUM`, `LOW` or `NONE`.",
+			},
+			"effective_privilege_level": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "The effective privilege level, which also accounts for any inherited level.",
+			},
+			"tags": schema.SetAttribute{
+				Computed:            true,
+				ElementType:         types.StringType,
+				MarkdownDescription: "Tags assigned to the entitlement.",
+			},
+			"cloud_governed": schema.BoolAttribute{Computed: true},
+			"requestable":    schema.BoolAttribute{Computed: true},
 			"owner": schema.SingleNestedAttribute{
 				Computed: true,
 				Attributes: map[string]schema.Attribute{
@@ -218,7 +235,7 @@ func buildEntitlementFilters(m entitlementDSModel) string {
 	var clauses []string
 	add := func(field string, v types.String) {
 		if isSet(v) {
-			clauses = append(clauses, fmt.Sprintf("%s eq %s", field, quoteFilterValue(v.ValueString())))
+			clauses = append(clauses, fmt.Sprintf("%s eq %s", field, common.QuoteFilterValue(v.ValueString())))
 		}
 	}
 	add("name", m.Name)
@@ -226,14 +243,6 @@ func buildEntitlementFilters(m entitlementDSModel) string {
 	add("attribute", m.Attribute)
 	add("source.id", m.SourceID)
 	return strings.Join(clauses, " and ")
-}
-
-// quoteFilterValue wraps s in double quotes for an ISC filter expression,
-// escaping backslashes and embedded quotes.
-func quoteFilterValue(s string) string {
-	s = strings.ReplaceAll(s, `\`, `\\`)
-	s = strings.ReplaceAll(s, `"`, `\"`)
-	return `"` + s + `"`
 }
 
 func isSet(v types.String) bool {

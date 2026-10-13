@@ -15,11 +15,11 @@ import (
 )
 
 const (
-	identityAttributesEndpointList   = "/v2025/identity-attributes"
-	identityAttributesEndpointGet    = "/v2025/identity-attributes/{attributeName}"
-	identityAttributesEndpointCreate = "/v2025/identity-attributes"
-	identityAttributesEndpointUpdate = "/v2025/identity-attributes/{attributeName}"
-	identityAttributesEndpointDelete = "/v2025/identity-attributes/{attributeName}"
+	identityAttributesEndpointList   = "/identity-attributes/v1"
+	identityAttributesEndpointGet    = "/identity-attributes/v1/{attributeName}"
+	identityAttributesEndpointCreate = "/identity-attributes/v1"
+	identityAttributesEndpointUpdate = "/identity-attributes/v1/{attributeName}"
+	identityAttributesEndpointDelete = "/identity-attributes/v1/{attributeName}"
 )
 
 // defaultIdentityAttributeReadBackDelays is how long CreateIdentityAttribute
@@ -73,7 +73,7 @@ func (c *Client) ListIdentityAttributes(ctx context.Context) ([]IdentityAttribut
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatIdentityAttributeError(
 			identityAttributeErrorContext{Operation: "list", ResponseBody: string(resp.Bytes())},
 			nil,
@@ -114,7 +114,7 @@ func (c *Client) GetIdentityAttribute(ctx context.Context, name string) (*Identi
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatIdentityAttributeError(
 			identityAttributeErrorContext{Operation: "get", Name: name, ResponseBody: string(resp.Bytes())},
 			nil,
@@ -169,7 +169,7 @@ func (c *Client) CreateIdentityAttribute(ctx context.Context, attribute *Identit
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -276,7 +276,7 @@ func (c *Client) UpdateIdentityAttribute(ctx context.Context, name string, attri
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -322,7 +322,7 @@ func (c *Client) DeleteIdentityAttribute(ctx context.Context, name string) error
 		)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		// 404 is acceptable for delete - resource might already be deleted
 		if resp.StatusCode() == http.StatusNotFound {
 			tflog.Debug(ctx, "Identity attribute not found, treating as already deleted", map[string]any{

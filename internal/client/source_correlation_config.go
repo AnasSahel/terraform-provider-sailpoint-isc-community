@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	sourceCorrelationConfigGet = "/v2025/sources/{sourceId}/correlation-config"
-	sourceCorrelationConfigPut = "/v2025/sources/{sourceId}/correlation-config"
+	sourceCorrelationConfigGet = "/sources/v1/{sourceId}/correlation-config"
+	sourceCorrelationConfigPut = "/sources/v1/{sourceId}/correlation-config"
 )
 
 // SourceCorrelationConfigAPI represents a SailPoint source correlation config.
@@ -58,7 +58,7 @@ func (c *Client) GetSourceCorrelationConfig(ctx context.Context, sourceID string
 	if err != nil {
 		return nil, c.formatSourceCorrelationConfigError(sourceCorrelationConfigErrorContext{Operation: "get", SourceID: sourceID}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatSourceCorrelationConfigError(
 			sourceCorrelationConfigErrorContext{Operation: "get", SourceID: sourceID, ResponseBody: string(resp.Bytes())},
 			nil, resp.StatusCode(),
@@ -94,7 +94,7 @@ func (c *Client) PutSourceCorrelationConfig(ctx context.Context, sourceID string
 	if err != nil {
 		return nil, c.formatSourceCorrelationConfigError(sourceCorrelationConfigErrorContext{Operation: "update", SourceID: sourceID}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),

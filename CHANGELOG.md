@@ -7,11 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`sailpoint_managed_cluster` data source.** Looks up a managed (VA) cluster by `id` or exact `name`, so `sailpoint_source.cluster.id` no longer needs a hardcoded, tenant-specific ID. The API has no reliable name filter, so the provider lists all clusters and matches the name itself. Key material is never read into state. (#204)
+- **`sailpoint_managed_client` data source.** Reads a virtual appliance (managed client) by `id`, or by exact `name` optionally narrowed with `cluster_id`, and exposes its cluster, status, version, IP and last-seen time. The client secret, alert key and VA download URL are never read into state. (#205)
+
+## [3.3.0] - 2026-10-13
+
+### Added
+
+- **`sailpoint_application` resource and data source.** Manages source apps (the applications within a source shown in the request center and used for password management) on the experimental `/source-apps/v1` API. The resource creates the app, then applies `enabled`, `provision_request_enabled`, `app_center_enabled` and `owner` with a follow-up JSON Patch, since the create call does not accept them. Attributes left out of the configuration keep their server value instead of being reset. Import by ID is supported. The data source looks up an app by `id` or by exact `name`. Ported from André Faria's fork. (#194)
+- **`sailpoint_source` data source lookup by `name`.** The data source accepts `name` as an alternative to `id` (exactly one must be set) and fails when zero or several sources match. This also fixes the data source failing on every read since #121. Name-based lookup was first designed by André Faria in his fork. (#195)
+- **`sailpoint_entitlement` data source lookup by filters.** Besides `id`, the data source accepts any combination of `name`, `value`, `attribute` and `source_id`, and must match exactly one entitlement. This lets you adopt an entitlement ISC generates (for example for an `INTERACTIVE_PROCESS` launcher) without hardcoding a tenant-specific ID. (#180)
+
+### Changed
+
+- **Move to SailPoint's per-API versioned endpoints (`/<api>/v1`).** Every resource, data source and action, except entitlements, now calls the per-API versioned paths (`/sources/v1`, `/roles/v1`, `/transforms/v1`, `/workflows/v1`, …) instead of `/v2025` and `/beta`. The request and response bodies are identical, so there is nothing to change in configuration or state. `sailpoint_source_attribute_sync_config` moves from `/beta` to `/sources/v1` and now sends `X-SailPoint-Experimental: true`, which that endpoint requires.
+- **Governance groups move to `/workgroups/v1`.** Fixes governance group calls on tenants where the old path no longer answers. (#182)
+- **Entitlements move to `/entitlements/v1`, with privilege levels.** `sailpoint_entitlement` and its data source now call `/entitlements/v1`. That API replaces the boolean `privileged` with a privilege level (`HIGH`, `MEDIUM`, `LOW`, `NONE`), so both gain `privilege_level` (the entitlement's direct level, patchable on the resource through a privilege override), `effective_privilege_level` (read-only, includes inherited levels) and `tags` (read-only; the API does not patch tags). Existing state needs no migration.
+
+### Deprecated
+
+- **`sailpoint_entitlement.privileged`** is deprecated in favour of `privilege_level`. It keeps working: it reads `true` unless the level is `NONE`, and setting it writes `HIGH` (`true`) or `NONE` (`false`) only when it differs from the current value. It cannot be combined with `privilege_level`. Behaviour change: an entitlement at level `LOW` or `MEDIUM` now reads `privileged = true`. The attribute will be removed in a future major version.
+
 ### Fixed
 
 - **Launcher `owner` no longer required, and no longer fails apply.** ISC rewrites a launcher's owner with the identity behind the calling credentials on every create and update. The provider required `owner` and kept the planned value, so an owner other than the caller produced a permanent diff and `inconsistent result after apply`. `owner` is now Optional+Computed, always read back from the API, and deprecated as an input: remove it from configuration. `sailpoint_workflow.modified_by` is server-stamped the same way and no longer pins its prior value, fixing the same error on workflow updates. (#177)
 - **Workflow created with `enabled = true` no longer fails at plan.** The provider used to force the planned `enabled` to `false` on create, which Terraform and OpenTofu reject as an invalid plan ("planned value cty.False does not match config value cty.True"), blocking the whole plan. The configured value is now kept: the workflow is created (the API always creates it disabled) and then enabled in the same apply. If enabling fails, the created workflow is kept in state as tainted and the error is reported. (#175)
 - **`sailpoint_source_schema` no longer needs `ignore_changes = [attributes]`.** `attributes` is now a set matched by content, so a schema whose attributes come back from ISC in another order than the config plans nothing (and no longer fails the apply with "inconsistent result"), and adding or removing one attribute is a single-element diff. When `is_multi`, `is_entitlement` or `is_group` is omitted, the value already on the schema is carried over (matched by attribute `name`) instead of being planned as `(known after apply)` on every run. The `sailpoint_source_schema` data source's `attributes` is a set too, so index it with a `for` expression rather than `[0]`. Existing state needs no migration. (#165, #167)
+- **`sailpoint_identity` data source no longer fails on multi-valued attributes.** Non-string attribute values (lists, numbers, booleans, objects) are exposed as compact JSON text, usable with `jsondecode()`; string values are unchanged. (#171)
+- **Identity attributes created in parallel no longer get lost.** ISC acknowledged concurrent creates but kept only one. Writes are now serialized, and each create is read back before the provider records it in state. (#179)
+- **Entitlement in-place updates no longer fail on unknown computed attributes.** (#185)
+- **No more spurious diffs on `sailpoint_lifecycle_state.description` and `sailpoint_form_definition.used_by`.** `description` keeps the server value when omitted; `used_by` is now read-only. (#166, #176)
+- **Removing a workflow trigger no longer fails the apply** when the workflow cannot be re-enabled without it; that case is now a warning. (#178)
+- **Provider no longer hangs when its access token expires** during a long run (a lock was taken twice on token refresh).
 
 ## [3.2.0] - 2026-06-24
 
@@ -605,6 +634,7 @@ This release ensures all documentation and examples match the actual provider ca
 
 ---
 
+[3.3.0]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v3.2.0...v3.3.0
 [3.2.0]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v3.0.0...v3.1.0
 [2.3.3]: https://github.com/AnasSahel/terraform-provider-sailpoint-isc-community/compare/v2.3.2...v2.3.3

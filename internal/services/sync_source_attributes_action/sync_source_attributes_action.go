@@ -43,7 +43,7 @@ func (a *syncSourceAttributesAction) Schema(_ context.Context, _ action.SchemaRe
 			"Attribute sync pushes identity attribute values from ISC to the target source accounts." +
 			"\n\n" +
 			"**Experimental**: This action uses the `X-SailPoint-Experimental: true` header on the " +
-			"`POST /v2025/sources/{id}/synchronize-attributes` endpoint. Behavior may change without notice." +
+			"`POST /sources/v1/{id}/synchronize-attributes` endpoint. Behavior may change without notice." +
 			"\n\n" +
 			"**Asynchronous**: The sync is triggered immediately but attribute propagation happens " +
 			"asynchronously in ISC. The action returns once the request is accepted." +

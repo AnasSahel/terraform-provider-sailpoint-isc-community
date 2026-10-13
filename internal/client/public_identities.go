@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
-const publicIdentitiesEndpoint = "/v2025/public-identities"
+const publicIdentitiesEndpoint = "/public-identities/v1"
 
 // PublicIdentityAPI represents a public identity from the SailPoint API.
 type PublicIdentityAPI struct {
@@ -35,7 +35,7 @@ func (c *Client) GetFirstPublicIdentity(ctx context.Context) (*PublicIdentityAPI
 		return nil, fmt.Errorf("failed to list public identities: %w", err)
 	}
 
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, fmt.Errorf("failed to list public identities: status %d", resp.StatusCode())
 	}
 

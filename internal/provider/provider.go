@@ -10,6 +10,7 @@ import (
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/access_profile"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/application"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/entitlement"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/form_definition"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/governance_group"
@@ -18,6 +19,8 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/identity_profile"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/launcher"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/lifecycle_state"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/managed_client"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/managed_cluster"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/role"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/segment"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/source"
@@ -176,6 +179,7 @@ func (p *sailpointProvider) Configure(ctx context.Context, req provider.Configur
 func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		access_profile.NewAccessProfileDataSource,
+		application.NewApplicationDataSource,
 		entitlement.NewEntitlementDataSource,
 		form_definition.NewFormDefinitionDataSource,
 		governance_group.NewGovernanceGroupDataSource,
@@ -184,6 +188,8 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 		identity_profile.NewIdentityProfileDataSource,
 		launcher.NewLauncherDataSource,
 		lifecycle_state.NewLifecycleStateDataSource,
+		managed_client.NewManagedClientDataSource,
+		managed_cluster.NewManagedClusterDataSource,
 		role.NewRoleDataSource,
 		segment.NewSegmentDataSource,
 		source.NewSourceDataSource,
@@ -199,6 +205,7 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		access_profile.NewAccessProfileResource,
+		application.NewApplicationResource,
 		entitlement.NewEntitlementResource,
 		form_definition.NewFormDefinitionResource,
 		governance_group.NewGovernanceGroupResource,

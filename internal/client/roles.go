@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	roleEndpointGet    = "/v2025/roles/{id}"
-	roleEndpointCreate = "/v2025/roles"
-	roleEndpointPatch  = "/v2025/roles/{id}"
-	roleEndpointDelete = "/v2025/roles/{id}"
+	roleEndpointGet    = "/roles/v1/{id}"
+	roleEndpointCreate = "/roles/v1"
+	roleEndpointPatch  = "/roles/v1/{id}"
+	roleEndpointDelete = "/roles/v1/{id}"
 )
 
 // RoleAPI represents a SailPoint Role from the API.
@@ -98,7 +98,7 @@ func (c *Client) GetRole(ctx context.Context, id string) (*RoleAPI, error) {
 	if err != nil {
 		return nil, c.formatRoleError(roleErrorContext{Operation: "get", ID: id}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatRoleError(
 			roleErrorContext{Operation: "get", ID: id, ResponseBody: string(resp.Bytes())},
 			nil, resp.StatusCode(),
@@ -132,7 +132,7 @@ func (c *Client) CreateRole(ctx context.Context, role *RoleAPI) (*RoleAPI, error
 	if err != nil {
 		return nil, c.formatRoleError(roleErrorContext{Operation: "create", Name: role.Name}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -173,7 +173,7 @@ func (c *Client) PatchRole(ctx context.Context, id string, patchOps []JSONPatchO
 	if err != nil {
 		return nil, c.formatRoleError(roleErrorContext{Operation: "update", ID: id}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -202,7 +202,7 @@ func (c *Client) DeleteRole(ctx context.Context, id string) error {
 	if err != nil {
 		return c.formatRoleError(roleErrorContext{Operation: "delete", ID: id}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		if resp.StatusCode() == http.StatusNotFound {
 			tflog.Debug(ctx, "Role not found, treating as already deleted", map[string]any{"id": id})
 			return nil

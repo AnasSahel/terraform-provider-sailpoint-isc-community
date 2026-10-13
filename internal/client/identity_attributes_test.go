@@ -32,7 +32,7 @@ func (f *fakeIdentityAttributeServer) handler(t *testing.T) http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"access_token":"test","expires_in":3600,"token_type":"bearer"}`))
 	})
-	mux.HandleFunc("POST /v2025/identity-attributes", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /identity-attributes/v1", func(w http.ResponseWriter, r *http.Request) {
 		var attr IdentityAttributeAPI
 		if err := json.NewDecoder(r.Body).Decode(&attr); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -62,7 +62,7 @@ func (f *fakeIdentityAttributeServer) handler(t *testing.T) http.Handler {
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(attr)
 	})
-	mux.HandleFunc("GET /v2025/identity-attributes/{name}", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /identity-attributes/v1/{name}", func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		attr, ok := f.attrs[r.PathValue("name")]
 		f.mu.Unlock()

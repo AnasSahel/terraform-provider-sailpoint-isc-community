@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	accessProfileEndpointGet    = "/v2025/access-profiles/{id}"
-	accessProfileEndpointCreate = "/v2025/access-profiles"
-	accessProfileEndpointPatch  = "/v2025/access-profiles/{id}"
-	accessProfileEndpointDelete = "/v2025/access-profiles/{id}"
+	accessProfileEndpointGet    = "/access-profiles/v1/{id}"
+	accessProfileEndpointCreate = "/access-profiles/v1"
+	accessProfileEndpointPatch  = "/access-profiles/v1/{id}"
+	accessProfileEndpointDelete = "/access-profiles/v1/{id}"
 )
 
 // AccessProfileAPI represents a SailPoint Access Profile from the API.
@@ -92,7 +92,7 @@ func (c *Client) GetAccessProfile(ctx context.Context, id string) (*AccessProfil
 	if err != nil {
 		return nil, c.formatAccessProfileError(accessProfileErrorContext{Operation: "get", ID: id}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		return nil, c.formatAccessProfileError(
 			accessProfileErrorContext{Operation: "get", ID: id, ResponseBody: string(resp.Bytes())},
 			nil, resp.StatusCode(),
@@ -126,7 +126,7 @@ func (c *Client) CreateAccessProfile(ctx context.Context, ap *AccessProfileAPI) 
 	if err != nil {
 		return nil, c.formatAccessProfileError(accessProfileErrorContext{Operation: "create", Name: ap.Name}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -167,7 +167,7 @@ func (c *Client) PatchAccessProfile(ctx context.Context, id string, patchOps []J
 	if err != nil {
 		return nil, c.formatAccessProfileError(accessProfileErrorContext{Operation: "update", ID: id}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		tflog.Error(ctx, "SailPoint API error response", map[string]any{
 			"status_code":   resp.StatusCode(),
 			"response_body": string(resp.Bytes()),
@@ -196,7 +196,7 @@ func (c *Client) DeleteAccessProfile(ctx context.Context, id string) error {
 	if err != nil {
 		return c.formatAccessProfileError(accessProfileErrorContext{Operation: "delete", ID: id}, err, 0)
 	}
-	if resp.IsError() {
+	if resp.IsStatusFailure() {
 		if resp.StatusCode() == http.StatusNotFound {
 			tflog.Debug(ctx, "Access profile not found, treating as already deleted", map[string]any{"id": id})
 			return nil
