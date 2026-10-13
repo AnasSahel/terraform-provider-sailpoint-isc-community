@@ -19,6 +19,7 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/identity_profile"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/launcher"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/lifecycle_state"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/managed_client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/managed_cluster"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/role"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/segment"
@@ -187,6 +188,7 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 		identity_profile.NewIdentityProfileDataSource,
 		launcher.NewLauncherDataSource,
 		lifecycle_state.NewLifecycleStateDataSource,
+		managed_client.NewManagedClientDataSource,
 		managed_cluster.NewManagedClusterDataSource,
 		role.NewRoleDataSource,
 		segment.NewSegmentDataSource,
