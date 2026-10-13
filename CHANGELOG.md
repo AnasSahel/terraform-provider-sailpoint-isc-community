@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`sailpoint_managed_cluster` data source.** Looks up a managed (VA) cluster by `id` or exact `name`, so `sailpoint_source.cluster.id` no longer needs a hardcoded, tenant-specific ID. The API has no reliable name filter, so the provider lists all clusters and matches the name itself. Key material is never read into state. (#204)
 - **`sailpoint_managed_client` data source.** Reads a virtual appliance (managed client) by `id`, or by exact `name` optionally narrowed with `cluster_id`, and exposes its cluster, status, version, IP and last-seen time. The client secret, alert key and VA download URL are never read into state. (#205)
 
 ## [3.3.0] - 2026-10-13
