@@ -29,8 +29,6 @@ func (f *fakeWorkflowUpdater) UpdateWorkflow(_ context.Context, id string, workf
 	return &out, nil
 }
 
-func boolPtr(v bool) *bool { return &v }
-
 func TestEnableCreatedWorkflow_EnablesDisabledWorkflow(t *testing.T) {
 	t.Parallel()
 

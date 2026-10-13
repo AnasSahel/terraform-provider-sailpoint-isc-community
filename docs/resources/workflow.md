@@ -63,7 +63,7 @@ resource "sailpoint_workflow" "send_email" {
 
 - `definition` (Attributes) The workflow definition containing the steps to execute. If not specified, the workflow will have no definition. (see [below for nested schema](#nestedatt--definition))
 - `description` (String) The description of the workflow.
-- `enabled` (Boolean) Whether the workflow is enabled. Defaults to `false`. The SailPoint API always creates workflows disabled, so when `enabled = true` is declared the provider creates the workflow and then enables it in the same apply.
+- `enabled` (Boolean) Whether the workflow is enabled. Defaults to `false`. The SailPoint API always creates workflows disabled, so when `enabled = true` is declared the provider creates the workflow and then enables it in the same apply. SailPoint also refuses changes to an enabled workflow, so when an enabled workflow is updated the provider disables it, applies the change and enables it again in the same apply.
 - `ignore_json_changes` (List of String) Paths inside JSON step fields whose server-minted drift the practitioner chooses to ignore (analogous to `ignore_changes`, but reaching inside JSON-string attributes). Each entry has the form `definition.steps['<step name>'].<field>.<json-path>` where `<field>` is one of `attributes`, `config`, or `catch` and `<json-path>` is a dotted path inside that JSON object (e.g. `param_oauth.refID`).
 
 ### Read-Only

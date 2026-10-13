@@ -12,6 +12,7 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -112,7 +113,9 @@ func (r *workflowResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			"enabled": schema.BoolAttribute{
 				MarkdownDescription: "Whether the workflow is enabled. Defaults to `false`. " +
 					"The SailPoint API always creates workflows disabled, so when `enabled = true` is declared " +
-					"the provider creates the workflow and then enables it in the same apply.",
+					"the provider creates the workflow and then enables it in the same apply. " +
+					"SailPoint also refuses changes to an enabled workflow, so when an enabled workflow is updated the provider " +
+					"disables it, applies the change and enables it again in the same apply.",
 				Optional: true,
 				Computed: true,
 				Default:  booldefault.StaticBool(false),
@@ -517,13 +520,23 @@ func (r *workflowResource) Update(ctx context.Context, req resource.UpdateReques
 		}
 	}
 
-	// Update the workflow via the API client using PUT (full update)
+	// Update the workflow via the API client using PUT (full update). ISC rejects
+	// updates to an enabled workflow, so updateWorkflow disables it around the PUT.
 	tflog.Debug(ctx, "Updating workflow via SailPoint API", map[string]any{
 		"id": state.ID.ValueString(),
 	})
-	workflowAPIResponse, err := r.client.UpdateWorkflow(ctx, state.ID.ValueString(), &apiUpdateRequest)
+	workflowAPIResponse, err, restoreErr := updateWorkflow(ctx, r.client, state.ID.ValueString(), &apiUpdateRequest)
+	// Update errors are collected apart from resp.Diagnostics so that a workflow
+	// updated but left disabled is still recorded in state below.
+	var updateDiags diag.Diagnostics
+	if restoreErr != nil {
+		updateDiags.AddError(
+			"Workflow Left Disabled After Failed Update",
+			fmt.Sprintf("SailPoint Workflow %q was disabled for the update and could not be re-enabled: %s", state.ID.ValueString(), restoreErr.Error()),
+		)
+	}
 	if err != nil {
-		resp.Diagnostics.AddError(
+		updateDiags.AddError(
 			"Error Updating SailPoint Workflow",
 			fmt.Sprintf("Could not update SailPoint Workflow %q: %s", state.ID.ValueString(), err.Error()),
 		)
@@ -531,16 +544,14 @@ func (r *workflowResource) Update(ctx context.Context, req resource.UpdateReques
 			"id":    state.ID.ValueString(),
 			"error": err.Error(),
 		})
-		return
+		if workflowAPIResponse == nil {
+			resp.Diagnostics.Append(updateDiags...)
+			return
+		}
+		// The update was applied but the workflow could not be re-enabled: fall
+		// through and record the disabled workflow so state matches the server.
 	}
-
-	if workflowAPIResponse == nil {
-		resp.Diagnostics.AddError(
-			"Error Updating SailPoint Workflow",
-			"Received nil response from SailPoint API",
-		)
-		return
-	}
+	defer resp.Diagnostics.Append(updateDiags...)
 
 	// Map the API response back to the resource model
 	var newState workflowModel
@@ -568,7 +579,7 @@ func (r *workflowResource) Update(ctx context.Context, req resource.UpdateReques
 		"id": newState.ID.ValueString(),
 	})
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
-	if resp.Diagnostics.HasError() {
+	if resp.Diagnostics.HasError() || updateDiags.HasError() {
 		return
 	}
 	tflog.Info(ctx, "Successfully updated SailPoint Workflow resource", map[string]any{
