@@ -23,6 +23,7 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/managed_client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/managed_cluster"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/role"
+	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/role_dimension"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/segment"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/source"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/services/source_aggregation_schedule"
@@ -192,6 +193,7 @@ func (p *sailpointProvider) DataSources(_ context.Context) []func() datasource.D
 		managed_client.NewManagedClientDataSource,
 		managed_cluster.NewManagedClusterDataSource,
 		role.NewRoleDataSource,
+		role_dimension.NewRoleDimensionDataSource,
 		segment.NewSegmentDataSource,
 		source.NewSourceDataSource,
 		source.NewSourceSchemaDataSource,
@@ -216,6 +218,7 @@ func (p *sailpointProvider) Resources(_ context.Context) []func() resource.Resou
 		launcher.NewLauncherResource,
 		lifecycle_state.NewLifecycleStateResource,
 		role.NewRoleResource,
+		role_dimension.NewRoleDimensionResource,
 		segment.NewSegmentResource,
 		source.NewSourceResource,
 		source.NewSourceSchemaResource,
