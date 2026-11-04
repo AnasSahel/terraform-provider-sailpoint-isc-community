@@ -80,3 +80,34 @@ resource "sailpoint_role" "special_access" {
     ]
   }
 }
+
+# Dynamic (dimensional) role with a dimension schema
+resource "sailpoint_role" "dynamic" {
+  name        = "Dynamic Role"
+  dimensional = true
+  owner = {
+    type = "IDENTITY"
+    id   = "REPLACE_WITH_OWNER_IDENTITY_ID"
+  }
+  membership = {
+    type = "STANDARD"
+    criteria = {
+      operation = "EQUALS"
+      key = {
+        type     = "IDENTITY"
+        property = "attribute.department"
+      }
+      string_value = "Engineering"
+    }
+  }
+  access_request_config = {
+    comments_required = true
+    dimension_schema = {
+      dimension_attributes = [
+        { name = "department", display_name = "Department" },
+        { name = "location", display_name = "Location", derived = false },
+      ]
+    }
+    form_definition_id = "REPLACE_WITH_FORM_DEFINITION_ID"
+  }
+}

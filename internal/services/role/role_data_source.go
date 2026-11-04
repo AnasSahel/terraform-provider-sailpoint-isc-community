@@ -178,7 +178,23 @@ func (d *roleDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 							"time_unit": schema.StringAttribute{Computed: true},
 						},
 					},
-					"approval_schemes": computedApprovalSchemes(),
+					"approval_schemes":   computedApprovalSchemes(),
+					"form_definition_id": schema.StringAttribute{Computed: true},
+					"dimension_schema": schema.SingleNestedAttribute{
+						Computed: true,
+						Attributes: map[string]schema.Attribute{
+							"dimension_attributes": schema.ListNestedAttribute{
+								Computed: true,
+								NestedObject: schema.NestedAttributeObject{
+									Attributes: map[string]schema.Attribute{
+										"name":         schema.StringAttribute{Computed: true},
+										"display_name": schema.StringAttribute{Computed: true},
+										"derived":      schema.BoolAttribute{Computed: true},
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 			"revoke_request_config": schema.SingleNestedAttribute{

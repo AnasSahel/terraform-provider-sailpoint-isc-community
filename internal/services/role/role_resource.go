@@ -11,11 +11,16 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common/planmodifiers"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
@@ -103,6 +108,81 @@ func approvalSchemesAttr(desc string) schema.ListNestedAttribute {
 	}
 }
 
+// optComputedBool is an Optional+Computed bool that keeps its state value when left out of the configuration.
+func optComputedBool(desc string) schema.BoolAttribute {
+	return schema.BoolAttribute{
+		MarkdownDescription: desc,
+		Optional:            true,
+		Computed:            true,
+		PlanModifiers:       []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
+	}
+}
+
+// dimensionRefsAttr keeps every leaf computable: Terraform proposes null for a left-out Optional+Computed
+// nested attribute whose prior value holds non-computed attributes, which would plan a diff on every
+// role that has dimensions.
+func dimensionRefsAttr() schema.SetNestedAttribute {
+	return schema.SetNestedAttribute{
+		MarkdownDescription: "Dimensions of this role (when `dimensional = true`). Read-only: SailPoint fills it from the role's " +
+			"dimensions. Leave it unset; if set, it must match what the API returns, otherwise the apply fails with " +
+			"`inconsistent result after apply`.",
+		Optional: true,
+		Computed: true,
+		DeprecationMessage: "dimension_refs is read-only in the SailPoint API and is no longer sent. Remove it from the configuration; " +
+			"it remains readable as a computed attribute and will become read-only in the next major version.",
+		NestedObject: schema.NestedAttributeObject{
+			Attributes: map[string]schema.Attribute{
+				"type": schema.StringAttribute{Optional: true, Computed: true},
+				"id":   schema.StringAttribute{Optional: true, Computed: true},
+				"name": schema.StringAttribute{
+					Computed: true,
+					PlanModifiers: []planmodifier.String{
+						planmodifiers.UseStateForUnknownUnlessSiblingChanges("id"),
+					},
+				},
+			},
+		},
+	}
+}
+
+// mustBeSet makes an Optional+Computed attribute required in configuration. dimension_schema needs it:
+// Terraform proposes null for a left-out Optional+Computed nested attribute whose prior value holds
+// non-computed attributes, which would turn "keep the schema" into a perpetual diff.
+type mustBeSet struct{}
+
+func (mustBeSet) Description(_ context.Context) string { return "Value must be set." }
+
+func (v mustBeSet) MarkdownDescription(ctx context.Context) string { return v.Description(ctx) }
+
+func (mustBeSet) ValidateString(_ context.Context, req validator.StringRequest, resp *validator.StringResponse) {
+	if req.ConfigValue.IsNull() {
+		resp.Diagnostics.AddAttributeError(req.Path, "Missing Required Attribute", fmt.Sprintf("%s must be set.", req.Path))
+	}
+}
+
+func (mustBeSet) ValidateList(_ context.Context, req validator.ListRequest, resp *validator.ListResponse) {
+	if req.ConfigValue.IsNull() {
+		resp.Diagnostics.AddAttributeError(req.Path, "Missing Required Attribute", fmt.Sprintf("%s must be set.", req.Path))
+	}
+}
+
+// derivedDefault plans `true` (the API default) for a configured dimension attribute that leaves `derived`
+// out. It is a plan modifier, not a schema Default, because the framework also applies defaults when the
+// whole dimension_schema is left out, which would overwrite a `false` kept from state.
+type derivedDefault struct{}
+
+func (derivedDefault) Description(_ context.Context) string {
+	return "Defaults to `true` when not configured."
+}
+
+func (m derivedDefault) MarkdownDescription(ctx context.Context) string { return m.Description(ctx) }
+
+func (derivedDefault) PlanModifyBool(_ context.Context, req planmodifier.BoolRequest, resp *planmodifier.BoolResponse) {
+	if req.ConfigValue.IsNull() && req.PlanValue.IsUnknown() {
+		resp.PlanValue = types.BoolValue(true)
+	}
+}
+
 // criteriaLeafAttrs is the level-3 (leaf) criteria attribute set.
 func criteriaLeafAttrs() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
@@ -140,16 +220,29 @@ func (r *roleResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Optional:            true,
 				MarkdownDescription: "Description (max 2000 chars).",
 			},
-			"enabled":         schema.BoolAttribute{Optional: true, Computed: true, MarkdownDescription: "Whether the role is enabled."},
-			"requestable":     schema.BoolAttribute{Optional: true, Computed: true, MarkdownDescription: "Whether the role can be requested. Defaults to `false`."},
-			"dimensional":     schema.BoolAttribute{Optional: true, Computed: true, MarkdownDescription: "Whether this is a dimensional role."},
+			"enabled":     schema.BoolAttribute{Optional: true, Computed: true, MarkdownDescription: "Whether the role is enabled."},
+			"requestable": schema.BoolAttribute{Optional: true, Computed: true, MarkdownDescription: "Whether the role can be requested. Defaults to `false`."},
+			"dimensional": schema.BoolAttribute{
+				Optional: true,
+				Computed: true,
+				MarkdownDescription: "Whether this is a dimensional (dynamic) role. Changing it replaces the role: the roles API cannot " +
+					"patch it, and switching a dynamic role to standard deletes its dimensions.",
+				// UseStateForUnknown must run first: an unconfigured Computed value is unknown on every update,
+				// and RequiresReplace would otherwise replace the role each time.
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+					boolplanmodifier.RequiresReplace(),
+				},
+			},
 			"owner":           objectRefSingle("The owner of the role. Typically `type = IDENTITY`.", true),
 			"access_profiles": objectRefSet("Access profiles bundled into this role."),
 			"entitlements":    objectRefSet("Entitlements bundled directly into this role."),
 			"segments": schema.SetAttribute{
-				MarkdownDescription: "Segment UUIDs the role is visible in.",
+				MarkdownDescription: "Segment UUIDs the role is visible in. Defaults to an empty set.",
 				Optional:            true,
+				Computed:            true,
 				ElementType:         types.StringType,
+				Default:             setdefault.StaticValue(types.SetValueMust(types.StringType, []attr.Value{})),
 			},
 			"additional_owners": schema.SetNestedAttribute{
 				MarkdownDescription: "Additional owners. Each may be `IDENTITY` or `GOVERNANCE_GROUP`.",
@@ -239,12 +332,15 @@ func (r *roleResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				},
 			},
 			"access_request_config": schema.SingleNestedAttribute{
-				Optional: true,
+				MarkdownDescription: "Access request configuration. SailPoint fills in defaults, so settings you leave out keep the role's current value.",
+				Optional:            true,
+				Computed:            true,
+				PlanModifiers:       []planmodifier.Object{objectplanmodifier.UseStateForUnknown()},
 				Attributes: map[string]schema.Attribute{
-					"comments_required":        schema.BoolAttribute{Optional: true},
-					"denial_comments_required": schema.BoolAttribute{Optional: true},
-					"reauthorization_required": schema.BoolAttribute{Optional: true},
-					"require_end_date":         schema.BoolAttribute{Optional: true},
+					"comments_required":        optComputedBool("Whether the requester must add a comment."),
+					"denial_comments_required": optComputedBool("Whether the approver must add a comment when denying."),
+					"reauthorization_required": optComputedBool("Whether reauthorization is required for the request."),
+					"require_end_date":         optComputedBool("Whether the requester must set an access end date."),
 					"max_permitted_access_duration": schema.SingleNestedAttribute{
 						Optional: true,
 						Attributes: map[string]schema.Attribute{
@@ -253,6 +349,51 @@ func (r *roleResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 						},
 					},
 					"approval_schemes": approvalSchemesAttr("Ordered approval chain for access requests."),
+					"form_definition_id": schema.StringAttribute{
+						MarkdownDescription: "ID of the form definition shown to the requester. Leave it out to keep the form already on the role.",
+						Optional:            true,
+						Computed:            true,
+						PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+					},
+					"dimension_schema": schema.SingleNestedAttribute{
+						MarkdownDescription: "Dimension attributes of a dynamic role (the role's Dimension Attributes tab). Leave it out to keep " +
+							"the schema already on the role; changing another access request setting keeps it.",
+						Optional:      true,
+						Computed:      true,
+						PlanModifiers: []planmodifier.Object{objectplanmodifier.UseStateForUnknown()},
+						Attributes: map[string]schema.Attribute{
+							"dimension_attributes": schema.ListNestedAttribute{
+								MarkdownDescription: "Identity attributes the role's dimensions are keyed on. Must be set when `dimension_schema` is set.",
+								Optional:            true,
+								Computed:            true,
+								Validators:          []validator.List{mustBeSet{}},
+								NestedObject: schema.NestedAttributeObject{
+									Attributes: map[string]schema.Attribute{
+										"name": schema.StringAttribute{
+											MarkdownDescription: "Identity attribute name, for example `department`. Must be set.",
+											Optional:            true,
+											Computed:            true,
+											Validators:          []validator.String{mustBeSet{}},
+										},
+										"display_name": schema.StringAttribute{
+											MarkdownDescription: "Display name of the attribute. Resolved by SailPoint when left out.",
+											Optional:            true,
+											Computed:            true,
+											PlanModifiers: []planmodifier.String{
+												planmodifiers.UseStateForUnknownUnlessSiblingChanges("name"),
+											},
+										},
+										"derived": schema.BoolAttribute{
+											MarkdownDescription: "`true` (default) takes the value from the identity; `false` lets the requester supply it.",
+											Optional:            true,
+											Computed:            true,
+											PlanModifiers:       []planmodifier.Bool{derivedDefault{}},
+										},
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 			"revoke_request_config": schema.SingleNestedAttribute{
@@ -263,7 +404,7 @@ func (r *roleResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 					"approval_schemes":         approvalSchemesAttr("Ordered approval chain for revoke requests."),
 				},
 			},
-			"dimension_refs": objectRefSet("Dimensions referenced by this role (when dimensional=true)."),
+			"dimension_refs": dimensionRefsAttr(),
 			"created": schema.StringAttribute{
 				Computed: true,
 				PlanModifiers: []planmodifier.String{

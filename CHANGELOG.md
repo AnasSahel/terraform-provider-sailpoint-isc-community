@@ -12,6 +12,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`sailpoint_managed_cluster` data source.** Looks up a managed (VA) cluster by `id` or exact `name`, so `sailpoint_source.cluster.id` no longer needs a hardcoded, tenant-specific ID. The API has no reliable name filter, so the provider lists all clusters and matches the name itself. Key material is never read into state. (#204)
 - **`sailpoint_managed_client` data source.** Reads a virtual appliance (managed client) by `id`, or by exact `name` optionally narrowed with `cluster_id`, and exposes its cluster, status, version, IP and last-seen time. The client secret, alert key and VA download URL are never read into state. (#205)
 - **`sailpoint_approval_config` resource.** Manages approval reminders, escalation, timeout and fallback approver for a role, access profile, entitlement or the whole tenant, on the experimental `/generic-approvals/v1/config` API. Settings you leave out keep SailPoint's value. Destroy deletes the object's own config so it inherits the tenant config again; for the tenant config, destroy only removes it from state. Import with `<scope>/<object_id>`. (#203)
+- **`sailpoint_role.access_request_config` gains `dimension_schema` and `form_definition_id`.** `dimension_schema.dimension_attributes` lists the identity attributes a dynamic role's dimensions are keyed on (`name`, `display_name`, and `derived`, which defaults to `true`), and `form_definition_id` sets the form shown to the requester. Both are also exposed by the `sailpoint_role` data source. Leaving them out keeps the role's current values, so changing another access request setting no longer strips a dynamic role's dimension schema. Contributed by Aaron Glass. (#212)
+
+### Changed
+
+- **Changing `sailpoint_role.dimensional` now replaces the role.** The roles API does not patch `dimensional`, and the provider used to send `replace /dimensional`. (#212)
+- **`sailpoint_role.access_request_config` keeps SailPoint's values for settings you leave out.** The block itself and its `comments_required`, `denial_comments_required`, `reauthorization_required` and `require_end_date` are now read back from SailPoint when left out of the configuration, instead of being removed. (#212)
+
+### Deprecated
+
+- **`sailpoint_role.dimension_refs`** is deprecated as an input. SailPoint fills it from the role's dimensions, and the provider no longer sends it on create or update. Remove it from the configuration; it remains readable and will become read-only in a future major version. (#212)
+
+### Fixed
+
+- **Creating a `sailpoint_role` without `segments` or `access_request_config` no longer fails** with `Provider produced inconsistent result after apply` and leaves the role tainted. `segments` defaults to `[]`, and `access_request_config` is read back from SailPoint. Existing state needs no migration. (#212)
 
 ## [3.3.0] - 2026-10-13
 
