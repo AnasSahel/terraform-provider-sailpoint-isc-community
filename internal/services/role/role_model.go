@@ -6,10 +6,13 @@ package role
 import (
 	"context"
 	"reflect"
+	"strings"
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -67,12 +70,14 @@ type criteriaLevel3Model struct {
 	Operation   types.String      `tfsdk:"operation"`
 	Key         *criteriaKeyModel `tfsdk:"key"`
 	StringValue types.String      `tfsdk:"string_value"`
+	Values      types.List        `tfsdk:"values"`
 }
 
 type criteriaLevel2Model struct {
 	Operation   types.String          `tfsdk:"operation"`
 	Key         *criteriaKeyModel     `tfsdk:"key"`
 	StringValue types.String          `tfsdk:"string_value"`
+	Values      types.List            `tfsdk:"values"`
 	Children    []criteriaLevel3Model `tfsdk:"children"`
 }
 
@@ -80,6 +85,7 @@ type roleCriteriaModel struct {
 	Operation   types.String          `tfsdk:"operation"`
 	Key         *criteriaKeyModel     `tfsdk:"key"`
 	StringValue types.String          `tfsdk:"string_value"`
+	Values      types.List            `tfsdk:"values"`
 	Children    []criteriaLevel2Model `tfsdk:"children"`
 }
 
@@ -535,28 +541,34 @@ func criteriaFromAPI(api *client.RoleCriteriaAPI) *roleCriteriaModel {
 	if api == nil {
 		return nil
 	}
+	sv, vals := criteriaValuesFromAPI(api.StringValue, api.Values)
 	m := &roleCriteriaModel{
 		Operation:   types.StringValue(api.Operation),
 		Key:         criteriaKeyFromAPI(api.Key),
-		StringValue: stringPtrToTF(api.StringValue),
+		StringValue: sv,
+		Values:      vals,
 	}
 	if len(api.Children) > 0 {
 		m.Children = make([]criteriaLevel2Model, 0, len(api.Children))
 		for i := range api.Children {
 			child := &api.Children[i]
+			sv, vals := criteriaValuesFromAPI(child.StringValue, child.Values)
 			lvl2 := criteriaLevel2Model{
 				Operation:   types.StringValue(child.Operation),
 				Key:         criteriaKeyFromAPI(child.Key),
-				StringValue: stringPtrToTF(child.StringValue),
+				StringValue: sv,
+				Values:      vals,
 			}
 			if len(child.Children) > 0 {
 				lvl2.Children = make([]criteriaLevel3Model, 0, len(child.Children))
 				for j := range child.Children {
 					leaf := &child.Children[j]
+					sv, vals := criteriaValuesFromAPI(leaf.StringValue, leaf.Values)
 					lvl2.Children = append(lvl2.Children, criteriaLevel3Model{
 						Operation:   types.StringValue(leaf.Operation),
 						Key:         criteriaKeyFromAPI(leaf.Key),
-						StringValue: stringPtrToTF(leaf.StringValue),
+						StringValue: sv,
+						Values:      vals,
 					})
 				}
 			}
@@ -574,6 +586,7 @@ func criteriaToAPI(m *roleCriteriaModel) *client.RoleCriteriaAPI {
 		Operation:   m.Operation.ValueString(),
 		Key:         criteriaKeyToAPI(m.Key),
 		StringValue: tfToStringPtr(m.StringValue),
+		Values:      criteriaValuesToAPI(m.Values),
 	}
 	if len(m.Children) > 0 {
 		api.Children = make([]client.RoleCriteriaAPI, 0, len(m.Children))
@@ -583,6 +596,7 @@ func criteriaToAPI(m *roleCriteriaModel) *client.RoleCriteriaAPI {
 				Operation:   child.Operation.ValueString(),
 				Key:         criteriaKeyToAPI(child.Key),
 				StringValue: tfToStringPtr(child.StringValue),
+				Values:      criteriaValuesToAPI(child.Values),
 			}
 			if len(child.Children) > 0 {
 				lvl2.Children = make([]client.RoleCriteriaAPI, 0, len(child.Children))
@@ -592,6 +606,7 @@ func criteriaToAPI(m *roleCriteriaModel) *client.RoleCriteriaAPI {
 						Operation:   leaf.Operation.ValueString(),
 						Key:         criteriaKeyToAPI(leaf.Key),
 						StringValue: tfToStringPtr(leaf.StringValue),
+						Values:      criteriaValuesToAPI(leaf.Values),
 					})
 				}
 			}
@@ -620,6 +635,98 @@ func criteriaKeyToAPI(m *criteriaKeyModel) *client.RoleCriteriaKeyAPI {
 		Type:     m.Type.ValueString(),
 		Property: m.Property.ValueString(),
 		SourceID: tfToStringPtr(m.SourceID),
+	}
+}
+
+// criteriaValuesFromAPI maps a node's stringValue/values pair. A non-empty
+// values list wins and leaves string_value null; an empty or missing list
+// reads as null, so AND/OR nodes and stringValue leaves keep their form.
+func criteriaValuesFromAPI(stringValue *string, values []string) (types.String, types.List) {
+	if len(values) == 0 {
+		return stringPtrToTF(stringValue), types.ListNull(types.StringType)
+	}
+	elems := make([]attr.Value, 0, len(values))
+	for _, v := range values {
+		elems = append(elems, types.StringValue(v))
+	}
+	return types.StringNull(), types.ListValueMust(types.StringType, elems)
+}
+
+// criteriaValuesToAPI returns the known values in order, or nil when the
+// list is null or unknown.
+func criteriaValuesToAPI(l types.List) []string {
+	if l.IsNull() || l.IsUnknown() {
+		return nil
+	}
+	out := make([]string, 0, len(l.Elements()))
+	for _, e := range l.Elements() {
+		s, ok := e.(types.String)
+		if !ok || s.IsNull() || s.IsUnknown() {
+			continue
+		}
+		out = append(out, s.ValueString())
+	}
+	return out
+}
+
+// validateCriteriaValues walks the three criteria levels for ValidateConfig.
+func validateCriteriaValues(c *roleCriteriaModel) diag.Diagnostics {
+	var diags diag.Diagnostics
+	p := path.Root("membership").AtName("criteria")
+	checkCriteriaNode(p, c.Operation, c.StringValue, c.Values, &diags)
+	for i := range c.Children {
+		child := &c.Children[i]
+		p2 := p.AtName("children").AtListIndex(i)
+		checkCriteriaNode(p2, child.Operation, child.StringValue, child.Values, &diags)
+		for j := range child.Children {
+			leaf := &child.Children[j]
+			checkCriteriaNode(p2.AtName("children").AtListIndex(j), leaf.Operation, leaf.StringValue, leaf.Values, &diags)
+		}
+	}
+	return diags
+}
+
+// checkCriteriaNode applies the string_value/values rules to one node. Nodes
+// with an unknown or null operation are skipped.
+func checkCriteriaNode(p path.Path, op, sv types.String, vals types.List, diags *diag.Diagnostics) {
+	const summary = "Invalid membership criteria"
+	if op.IsNull() || op.IsUnknown() {
+		return
+	}
+	switch op.ValueString() {
+	case "AND", "OR":
+		if !vals.IsNull() {
+			diags.AddAttributeError(p.AtName("values"), summary, "`values` is not allowed on an AND/OR node.")
+		}
+		if !sv.IsNull() {
+			diags.AddAttributeError(p.AtName("string_value"), summary, "`string_value` is not allowed on an AND/OR node.")
+		}
+		return
+	}
+	if !sv.IsUnknown() && !vals.IsUnknown() {
+		switch {
+		case !sv.IsNull() && !vals.IsNull():
+			diags.AddAttributeError(p, summary, "Set either `string_value` or `values`, not both.")
+		case sv.IsNull() && vals.IsNull():
+			diags.AddAttributeError(p, summary, "Set `string_value` or `values`.")
+		}
+	}
+	if vals.IsNull() || vals.IsUnknown() {
+		return
+	}
+	elems := vals.Elements()
+	if len(elems) == 0 {
+		diags.AddAttributeError(p.AtName("values"), summary, "`values` must contain at least one value.")
+		return
+	}
+	for i, e := range elems {
+		if e.IsUnknown() {
+			continue
+		}
+		s, ok := e.(types.String)
+		if e.IsNull() || (ok && strings.TrimSpace(s.ValueString()) == "") {
+			diags.AddAttributeError(p.AtName("values").AtListIndex(i), summary, "`values` entries must not be blank.")
+		}
 	}
 }
 

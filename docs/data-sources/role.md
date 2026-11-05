@@ -124,6 +124,7 @@ Read-Only:
 - `key` (Attributes) (see [below for nested schema](#nestedatt--membership--criteria--key))
 - `operation` (String)
 - `string_value` (String)
+- `values` (List of String)
 
 <a id="nestedatt--membership--criteria--children"></a>
 ### Nested Schema for `membership.criteria.children`
@@ -134,6 +135,7 @@ Read-Only:
 - `key` (Attributes) (see [below for nested schema](#nestedatt--membership--criteria--children--key))
 - `operation` (String)
 - `string_value` (String)
+- `values` (List of String)
 
 <a id="nestedatt--membership--criteria--children--children"></a>
 ### Nested Schema for `membership.criteria.children.children`
@@ -143,6 +145,7 @@ Read-Only:
 - `key` (Attributes) (see [below for nested schema](#nestedatt--membership--criteria--children--children--key))
 - `operation` (String)
 - `string_value` (String)
+- `values` (List of String)
 
 <a id="nestedatt--membership--criteria--children--children--key"></a>
 ### Nested Schema for `membership.criteria.children.children.key`

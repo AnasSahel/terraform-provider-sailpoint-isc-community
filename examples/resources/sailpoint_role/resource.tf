@@ -44,7 +44,8 @@ resource "sailpoint_role" "engineering" {
             type     = "IDENTITY"
             property = "attribute.cloudLifecycleState"
           }
-          string_value = "active"
+          # values matches any of the listed values (the form the SailPoint UI saves)
+          values = ["active", "prehire"]
         },
       ]
     }

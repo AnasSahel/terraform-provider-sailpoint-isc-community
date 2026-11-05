@@ -59,7 +59,8 @@ resource "sailpoint_role" "engineering" {
             type     = "IDENTITY"
             property = "attribute.cloudLifecycleState"
           }
-          string_value = "active"
+          # values matches any of the listed values (the form the SailPoint UI saves)
+          values = ["active", "prehire"]
         },
       ]
     }
@@ -249,6 +250,7 @@ Optional:
 - `children` (Attributes List) (see [below for nested schema](#nestedatt--membership--criteria--children))
 - `key` (Attributes) (see [below for nested schema](#nestedatt--membership--criteria--key))
 - `string_value` (String)
+- `values` (List of String) Values to compare, as a list. Use instead of `string_value`: set exactly one of `string_value` or `values` on a leaf, and neither on `AND`/`OR`. The SailPoint UI saves every criteria row as `values`, so copy them from an imported role. For `EQUALS`, several values match any of them. The UI accepts up to 25 values. SailPoint rejects `NOT_EQUALS` with more than one value (400 on create and update). Order is kept.
 
 <a id="nestedatt--membership--criteria--children"></a>
 ### Nested Schema for `membership.criteria.children`
@@ -262,6 +264,7 @@ Optional:
 - `children` (Attributes List) (see [below for nested schema](#nestedatt--membership--criteria--children--children))
 - `key` (Attributes) (see [below for nested schema](#nestedatt--membership--criteria--children--key))
 - `string_value` (String)
+- `values` (List of String) Values to compare, as a list. Use instead of `string_value`: set exactly one of `string_value` or `values` on a leaf, and neither on `AND`/`OR`. The SailPoint UI saves every criteria row as `values`, so copy them from an imported role. For `EQUALS`, several values match any of them. The UI accepts up to 25 values. SailPoint rejects `NOT_EQUALS` with more than one value (400 on create and update). Order is kept.
 
 <a id="nestedatt--membership--criteria--children--children"></a>
 ### Nested Schema for `membership.criteria.children.children`
@@ -274,6 +277,7 @@ Optional:
 
 - `key` (Attributes) (see [below for nested schema](#nestedatt--membership--criteria--children--children--key))
 - `string_value` (String)
+- `values` (List of String) Values to compare, as a list. Use instead of `string_value`: set exactly one of `string_value` or `values` on a leaf, and neither on `AND`/`OR`. The SailPoint UI saves every criteria row as `values`, so copy them from an imported role. For `EQUALS`, several values match any of them. The UI accepts up to 25 values. SailPoint rejects `NOT_EQUALS` with more than one value (400 on create and update). Order is kept.
 
 <a id="nestedatt--membership--criteria--children--children--key"></a>
 ### Nested Schema for `membership.criteria.children.children.key`
