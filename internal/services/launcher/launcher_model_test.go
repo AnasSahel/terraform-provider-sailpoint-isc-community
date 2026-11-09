@@ -59,6 +59,24 @@ func TestLauncherSchema_OwnerIsOptionalComputedAndNotPinned(t *testing.T) {
 	}
 }
 
+// TestLauncherSchema_OwnerChildrenNotRequired guards #209. If a child of the
+// computed owner object is Required, Terraform/OpenTofu concludes that an owner
+// present in state but absent from config was deleted by the user, plans
+// owner -> null on every run, and the launcher never reaches "No changes".
+func TestLauncherSchema_OwnerChildrenNotRequired(t *testing.T) {
+	t.Parallel()
+
+	owner := mustOwnerAttribute(t)
+	for name, child := range owner.Attributes {
+		if child.IsRequired() {
+			t.Errorf("owner.%s must not be Required (see #209)", name)
+		}
+		if !child.IsComputed() {
+			t.Errorf("owner.%s must be Computed (see #209)", name)
+		}
+	}
+}
+
 func TestLauncherFromAPI_TakesOwnerFromResponse(t *testing.T) {
 	t.Parallel()
 
