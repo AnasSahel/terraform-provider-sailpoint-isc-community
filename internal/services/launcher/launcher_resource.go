@@ -109,14 +109,20 @@ func (r *launcherResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 							"`USER` regardless of what is submitted; `IDENTITY` is silently normalized to `USER` " +
 							"server-side. The provider applies the same normalization at plan time so " +
 							"`tofu apply` does not fail with `inconsistent result after apply`.",
-						Required: true,
+						// Optional+Computed rather than Required: a Required child makes
+						// Terraform/OpenTofu treat the computed owner read back from the
+						// API as config the user deleted, so it plans owner -> null on
+						// every run and never converges (#209).
+						Optional: true,
+						Computed: true,
 						PlanModifiers: []planmodifier.String{
 							planmodifiers.NormalizeString(map[string]string{"IDENTITY": "USER"}),
 						},
 					},
 					"id": schema.StringAttribute{
 						MarkdownDescription: "The ID of the owner.",
-						Required:            true,
+						Optional:            true,
+						Computed:            true,
 					},
 					"name": schema.StringAttribute{
 						MarkdownDescription: "The name of the owner. Resolved by the server from the owner ID.",
@@ -139,6 +145,9 @@ func (r *launcherResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 					"name": schema.StringAttribute{
 						MarkdownDescription: "The name of the referenced resource.",
 						Computed:            true,
+						PlanModifiers: []planmodifier.String{
+							planmodifiers.UseStateForUnknownUnlessSiblingChanges("id"),
+						},
 					},
 				},
 			},
