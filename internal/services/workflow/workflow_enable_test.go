@@ -35,7 +35,10 @@ func TestEnableCreatedWorkflow_EnablesDisabledWorkflow(t *testing.T) {
 	t.Parallel()
 
 	updater := &fakeWorkflowUpdater{}
-	created := &client.WorkflowAPI{ID: "wf-1", Name: "Repro", Enabled: boolPtr(false)}
+	created := &client.WorkflowAPI{
+		ID: "wf-1", Name: "Repro", Enabled: boolPtr(false),
+		Created: "2026-11-09T10:00:00Z", Creator: &client.ObjectRefAPI{ID: "id-1"},
+	}
 
 	got, err := enableCreatedWorkflow(context.Background(), updater, created)
 	if err != nil {
@@ -49,6 +52,9 @@ func TestEnableCreatedWorkflow_EnablesDisabledWorkflow(t *testing.T) {
 	}
 	if updater.gotBody.Name != "Repro" {
 		t.Errorf("expected update body to keep the created workflow's fields, got name %q", updater.gotBody.Name)
+	}
+	if updater.gotBody.ID != "" || updater.gotBody.Created != "" || updater.gotBody.Creator != nil {
+		t.Error("expected server-owned fields to stay out of the update body")
 	}
 	if created.Enabled == nil || *created.Enabled {
 		t.Error("expected the created workflow passed in to stay unmodified")
@@ -96,4 +102,25 @@ func TestEnableCreatedWorkflow_PropagatesUpdateError(t *testing.T) {
 	if err == nil || err.Error() != "boom" {
 		t.Errorf("expected update error to propagate, got %v", err)
 	}
+}
+
+func TestDisableForCreate_ForcesEnabledFalse(t *testing.T) {
+	t.Parallel()
+
+	for _, in := range []*bool{nil, boolPtr(true), boolPtr(false)} {
+		req := &client.WorkflowAPI{Name: "Repro", Enabled: in}
+		disableForCreate(req)
+		if req.Enabled == nil || *req.Enabled {
+			t.Errorf("expected enabled = false in the create body, got %v", req.Enabled)
+		}
+		if req.Name != "Repro" {
+			t.Errorf("expected other fields untouched, got name %q", req.Name)
+		}
+	}
+}
+
+func TestDisableForCreate_NilIsNoop(t *testing.T) {
+	t.Parallel()
+
+	disableForCreate(nil)
 }

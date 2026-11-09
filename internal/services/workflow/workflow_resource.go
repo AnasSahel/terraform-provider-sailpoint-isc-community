@@ -311,6 +311,10 @@ func (r *workflowResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
+	// The API refuses to create a workflow in an enabled state, so always POST it
+	// disabled; enabled = true is applied right after with a follow-up update. (#175)
+	disableForCreate(&apiCreateRequest)
+
 	// Create the workflow via the API client
 	tflog.Debug(ctx, "Creating workflow via SailPoint API", map[string]any{
 		"name": plan.Name.ValueString(),
