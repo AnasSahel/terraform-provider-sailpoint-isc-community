@@ -3,12 +3,12 @@
 page_title: "sailpoint_source_attribute_sync_config Resource - sailpoint"
 subcategory: ""
 description: |-
-  Manages the attribute synchronization configuration for a SailPoint source (experimental /sources/v1 API). Adopt-only lifecycle: Create reads the existing config and applies declared enabled flags via PUT, Update sends a full PUT, and Delete is a no-op. Partial management is supported: unlisted attributes keep their current server value. Requires ORG_ADMIN. Terraform >= 1.14 required for lifecycle-triggered actions.
+  Manages the attribute synchronization configuration for a SailPoint source (experimental /sources/v1 API). Adopt-only lifecycle: Create reads the existing config and applies declared enabled flags via PUT, Update sends a full PUT, and Delete is a no-op. Partial management is supported: unlisted attributes keep their current server value. An attribute declared with enabled = false that is absent on the server is treated as converged (ISC drops disabled entries whose target is not mapped by the CREATE provisioning policy). Requires ORG_ADMIN. Terraform >= 1.14 required for lifecycle-triggered actions.
 ---
 
 # sailpoint_source_attribute_sync_config (Resource)
 
-Manages the attribute synchronization configuration for a SailPoint source (experimental /sources/v1 API). Adopt-only lifecycle: Create reads the existing config and applies declared enabled flags via PUT, Update sends a full PUT, and Delete is a no-op. Partial management is supported: unlisted attributes keep their current server value. Requires ORG_ADMIN. Terraform >= 1.14 required for lifecycle-triggered actions.
+Manages the attribute synchronization configuration for a SailPoint source (experimental /sources/v1 API). Adopt-only lifecycle: Create reads the existing config and applies declared enabled flags via PUT, Update sends a full PUT, and Delete is a no-op. Partial management is supported: unlisted attributes keep their current server value. An attribute declared with `enabled = false` that is absent on the server is treated as converged (ISC drops disabled entries whose target is not mapped by the CREATE provisioning policy). Requires ORG_ADMIN. Terraform >= 1.14 required for lifecycle-triggered actions.
 
 ## Example Usage
 

@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -52,11 +53,15 @@ func (r *sourceAttrSyncConfigResource) Schema(_ context.Context, _ resource.Sche
 			"Adopt-only lifecycle: Create reads the existing config and applies declared enabled flags via PUT, " +
 			"Update sends a full PUT, and Delete is a no-op. " +
 			"Partial management is supported: unlisted attributes keep their current server value. " +
+			"An attribute declared with enabled = false that is absent on the server is treated as converged " +
+			"(ISC drops disabled entries whose target is not mapped by the CREATE provisioning policy). " +
 			"Requires ORG_ADMIN. Terraform >= 1.14 required for lifecycle-triggered actions.",
 		MarkdownDescription: "Manages the attribute synchronization configuration for a SailPoint source (experimental /sources/v1 API). " +
 			"Adopt-only lifecycle: Create reads the existing config and applies declared enabled flags via PUT, " +
 			"Update sends a full PUT, and Delete is a no-op. " +
 			"Partial management is supported: unlisted attributes keep their current server value. " +
+			"An attribute declared with `enabled = false` that is absent on the server is treated as converged " +
+			"(ISC drops disabled entries whose target is not mapped by the CREATE provisioning policy). " +
 			"Requires ORG_ADMIN. Terraform >= 1.14 required for lifecycle-triggered actions.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -76,6 +81,9 @@ func (r *sourceAttrSyncConfigResource) Schema(_ context.Context, _ resource.Sche
 			"source": schema.SingleNestedAttribute{
 				Computed:            true,
 				MarkdownDescription: "Reference to the source. Server-populated.",
+				PlanModifiers: []planmodifier.Object{
+					objectplanmodifier.UseStateForUnknown(),
+				},
 				Attributes: map[string]schema.Attribute{
 					"type": schema.StringAttribute{Computed: true},
 					"id":   schema.StringAttribute{Computed: true},
@@ -149,7 +157,7 @@ func (r *sourceAttrSyncConfigResource) Create(ctx context.Context, req resource.
 	}
 
 	// Build PUT body: merge plan's enabled flags into the full remote list.
-	apiReq, diags := plan.ToAPI(ctx, existing.Attributes)
+	apiReq, diags := plan.ToAPI(existing, r.currentDisplayNames(ctx))
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -175,6 +183,7 @@ func (r *sourceAttrSyncConfigResource) Create(ctx context.Context, req resource.
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	state.keepAbsentDisabled(plan.Attributes, updated)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	tflog.Info(ctx, "Successfully adopted source attribute sync config", map[string]any{"source_id": sourceID})
 }
@@ -206,11 +215,13 @@ func (r *sourceAttrSyncConfigResource) Read(ctx context.Context, req resource.Re
 	}
 
 	// Filter to the configured subset to avoid a perpetual diff when managing only some attributes.
-	cfgNames := configuredAttributeNames(state.Attributes)
+	prior := state.Attributes
+	cfgNames := configuredAttributeNames(prior)
 	resp.Diagnostics.Append(state.FromAPI(ctx, apiResp, cfgNames)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	state.keepAbsentDisabled(prior, apiResp)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -243,7 +254,7 @@ func (r *sourceAttrSyncConfigResource) Update(ctx context.Context, req resource.
 		return
 	}
 
-	apiReq, diags := plan.ToAPI(ctx, existing.Attributes)
+	apiReq, diags := plan.ToAPI(existing, r.currentDisplayNames(ctx))
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -269,8 +280,26 @@ func (r *sourceAttrSyncConfigResource) Update(ctx context.Context, req resource.
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	newState.keepAbsentDisabled(plan.Attributes, apiResp)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 	tflog.Info(ctx, "Successfully updated source attribute sync config", map[string]any{"source_id": sourceID})
+}
+
+// currentDisplayNames returns each identity attribute's current display name, keyed by name.
+// The sync config GET can return a display name that is stale after a rename, and the PUT
+// rejects it, so the PUT body uses these values instead. On failure it returns nil and the
+// remote values are sent unchanged.
+func (r *sourceAttrSyncConfigResource) currentDisplayNames(ctx context.Context) map[string]string {
+	attrs, err := r.client.ListIdentityAttributes(ctx)
+	if err != nil {
+		tflog.Warn(ctx, "Could not list identity attributes; sending display names from the sync config as-is", map[string]any{"error": err.Error()})
+		return nil
+	}
+	names := make(map[string]string, len(attrs))
+	for _, a := range attrs {
+		names[a.Name] = a.DisplayName
+	}
+	return names
 }
 
 // Delete is a no-op — attribute sync configs always exist on the server for a source;

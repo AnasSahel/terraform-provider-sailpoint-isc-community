@@ -10,6 +10,7 @@ import (
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
 func makeTestAPI() *client.SourceAttributeSyncConfigAPI {
@@ -79,11 +80,15 @@ func TestFromAPI_RoundTrip(t *testing.T) {
 	if m.ID.ValueString() != "src-1" {
 		t.Errorf("expected id=src-1, got %s", m.ID.ValueString())
 	}
-	if m.Source == nil {
-		t.Fatal("expected non-nil source")
+	if m.Source.IsNull() || m.Source.IsUnknown() {
+		t.Fatal("expected a known source")
 	}
-	if m.Source.ID.ValueString() != "src-1" {
-		t.Errorf("expected source.id=src-1, got %s", m.Source.ID.ValueString())
+	var src common.ObjectRefModel
+	if diags := m.Source.As(context.Background(), &src, basetypes.ObjectAsOptions{}); diags.HasError() {
+		t.Fatalf("source: %v", diags)
+	}
+	if src.ID.ValueString() != "src-1" {
+		t.Errorf("expected source.id=src-1, got %s", src.ID.ValueString())
 	}
 }
 
@@ -95,13 +100,7 @@ func TestToAPI_MergeLogic(t *testing.T) {
 	m := makeModel([]sourceAttrSyncAttributeModel{
 		{Name: types.StringValue("email"), Enabled: types.BoolValue(false)},
 	})
-	m.Source = &common.ObjectRefModel{
-		Type: types.StringValue("SOURCE"),
-		ID:   types.StringValue("src-1"),
-		Name: types.StringValue("AD"),
-	}
-
-	result, diags := m.ToAPI(context.Background(), remote.Attributes)
+	result, diags := m.ToAPI(remote, nil)
 	if diags.HasError() {
 		t.Fatalf("unexpected diagnostics: %v", diags)
 	}
@@ -132,15 +131,112 @@ func TestToAPI_InvalidAttributeName(t *testing.T) {
 	m := makeModel([]sourceAttrSyncAttributeModel{
 		{Name: types.StringValue("nonexistent"), Enabled: types.BoolValue(true)},
 	})
-	m.Source = &common.ObjectRefModel{
-		Type: types.StringValue("SOURCE"),
-		ID:   types.StringValue("src-1"),
-		Name: types.StringValue("AD"),
-	}
-
-	_, diags := m.ToAPI(context.Background(), remote.Attributes)
+	_, diags := m.ToAPI(remote, nil)
 	if !diags.HasError() {
 		t.Fatal("expected error for unknown attribute name, got none")
+	}
+}
+
+// TestToAPI_SourceFromRemote verifies the PUT body carries the source returned by the GET,
+// so an unknown planned `source` never reaches the request (#211).
+func TestToAPI_SourceFromRemote(t *testing.T) {
+	t.Parallel()
+	m := makeModel([]sourceAttrSyncAttributeModel{
+		{Name: types.StringValue("email"), Enabled: types.BoolValue(true)},
+	})
+	m.Source = types.ObjectUnknown(common.ObjectRefObjectType.AttrTypes)
+
+	result, diags := m.ToAPI(makeTestAPI(), nil)
+	if diags.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", diags)
+	}
+	if result.Source.ID != "src-1" || result.Source.Type != "SOURCE" {
+		t.Errorf("source = %+v, want SOURCE/src-1", result.Source)
+	}
+}
+
+// TestToAPI_CurrentDisplayName verifies a stale display name from the GET is replaced by the
+// identity attribute's current one, and unknown names keep the remote value (#211).
+func TestToAPI_CurrentDisplayName(t *testing.T) {
+	t.Parallel()
+	m := makeModel([]sourceAttrSyncAttributeModel{
+		{Name: types.StringValue("email"), Enabled: types.BoolValue(true)},
+	})
+	result, diags := m.ToAPI(makeTestAPI(), map[string]string{"email": "Work Email", "department": ""})
+	if diags.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", diags)
+	}
+	got := map[string]string{}
+	for _, a := range result.Attributes {
+		got[a.Name] = a.DisplayName
+	}
+	if got["email"] != "Work Email" {
+		t.Errorf("email displayName = %q, want %q", got["email"], "Work Email")
+	}
+	if got["department"] != "Department" {
+		t.Errorf("department displayName = %q, want remote value %q", got["department"], "Department")
+	}
+	if got["firstname"] != "First Name" {
+		t.Errorf("firstname displayName = %q, want remote value %q", got["firstname"], "First Name")
+	}
+}
+
+// TestToAPI_AbsentDisabledIsConverged verifies a declared disabled entry that ISC dropped is
+// skipped without error, while an absent enabled entry still fails (#211).
+func TestToAPI_AbsentDisabledIsConverged(t *testing.T) {
+	t.Parallel()
+	m := makeModel([]sourceAttrSyncAttributeModel{
+		{Name: types.StringValue("email"), Enabled: types.BoolValue(true)},
+		{Name: types.StringValue("dropped"), Enabled: types.BoolValue(false)},
+	})
+	result, diags := m.ToAPI(makeTestAPI(), nil)
+	if diags.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", diags)
+	}
+	for _, a := range result.Attributes {
+		if a.Name == "dropped" {
+			t.Error("absent entry must not be added to the PUT body")
+		}
+	}
+
+	m.Attributes[1].Enabled = types.BoolValue(true)
+	if _, diags := m.ToAPI(makeTestAPI(), nil); !diags.HasError() {
+		t.Error("expected an error for an absent entry declared enabled")
+	}
+}
+
+// TestKeepAbsentDisabled verifies the dropped disabled entry stays in state (no perpetual diff),
+// and that absent enabled entries are not kept (real drift must show).
+func TestKeepAbsentDisabled(t *testing.T) {
+	t.Parallel()
+	api := makeTestAPI()
+	declared := []sourceAttrSyncAttributeModel{
+		{Name: types.StringValue("email"), Enabled: types.BoolValue(true), DisplayName: types.StringUnknown(), Target: types.StringUnknown()},
+		{Name: types.StringValue("dropped"), Enabled: types.BoolValue(false), DisplayName: types.StringUnknown(), Target: types.StringValue("x")},
+		{Name: types.StringValue("gone"), Enabled: types.BoolValue(true), DisplayName: types.StringUnknown(), Target: types.StringUnknown()},
+	}
+	m := makeModel(nil)
+	if diags := m.FromAPI(context.Background(), api, configuredAttributeNames(declared)); diags.HasError() {
+		t.Fatal(diags)
+	}
+	m.keepAbsentDisabled(declared, api)
+
+	byName := map[string]sourceAttrSyncAttributeModel{}
+	for _, a := range m.Attributes {
+		byName[a.Name.ValueString()] = a
+	}
+	if len(byName) != 2 {
+		t.Fatalf("expected email + dropped in state, got %v", byName)
+	}
+	d, ok := byName["dropped"]
+	if !ok {
+		t.Fatal("dropped entry missing from state")
+	}
+	if d.Enabled.ValueBool() || !d.DisplayName.IsNull() || d.Target.ValueString() != "x" {
+		t.Errorf("dropped entry = %+v, want enabled=false, display_name=null, target=x", d)
+	}
+	if _, ok := byName["gone"]; ok {
+		t.Error("absent enabled entry must not be kept in state")
 	}
 }
 
