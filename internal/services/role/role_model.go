@@ -9,8 +9,10 @@ import (
 
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/client"
 	"github.com/AnasSahel/terraform-provider-sailpoint-isc-community/internal/common"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
 // ---------------------------------------------------------------------------
@@ -34,6 +36,49 @@ type accessRequestConfigModel struct {
 	RequireEndDate             types.Bool            `tfsdk:"require_end_date"`
 	MaxPermittedAccessDuration *accessDurationModel  `tfsdk:"max_permitted_access_duration"`
 	ApprovalSchemes            []approvalSchemeModel `tfsdk:"approval_schemes"`
+	DimensionSchema            types.Object          `tfsdk:"dimension_schema"`
+	FormDefinitionID           types.String          `tfsdk:"form_definition_id"`
+}
+
+type dimensionSchemaModel struct {
+	DimensionAttributes []dimensionAttributeModel `tfsdk:"dimension_attributes"`
+}
+
+type dimensionAttributeModel struct {
+	Name        types.String `tfsdk:"name"`
+	DisplayName types.String `tfsdk:"display_name"`
+	Derived     types.Bool   `tfsdk:"derived"`
+}
+
+var approvalSchemeAttrTypes = map[string]attr.Type{
+	"approver_type": types.StringType,
+	"approver_id":   types.StringType,
+}
+
+var accessDurationAttrTypes = map[string]attr.Type{
+	"value":     types.Int64Type,
+	"time_unit": types.StringType,
+}
+
+var dimensionAttributeAttrTypes = map[string]attr.Type{
+	"name":         types.StringType,
+	"display_name": types.StringType,
+	"derived":      types.BoolType,
+}
+
+var dimensionSchemaAttrTypes = map[string]attr.Type{
+	"dimension_attributes": types.ListType{ElemType: types.ObjectType{AttrTypes: dimensionAttributeAttrTypes}},
+}
+
+var accessRequestConfigAttrTypes = map[string]attr.Type{
+	"comments_required":             types.BoolType,
+	"denial_comments_required":      types.BoolType,
+	"reauthorization_required":      types.BoolType,
+	"require_end_date":              types.BoolType,
+	"max_permitted_access_duration": types.ObjectType{AttrTypes: accessDurationAttrTypes},
+	"approval_schemes":              types.ListType{ElemType: types.ObjectType{AttrTypes: approvalSchemeAttrTypes}},
+	"dimension_schema":              types.ObjectType{AttrTypes: dimensionSchemaAttrTypes},
+	"form_definition_id":            types.StringType,
 }
 
 // Role revoke config has extra comment fields vs access profile revoke config.
@@ -102,9 +147,9 @@ type roleModel struct {
 	Segments            types.Set                 `tfsdk:"segments"`
 	AdditionalOwners    []additionalOwnerModel    `tfsdk:"additional_owners"`
 	Membership          *membershipModel          `tfsdk:"membership"`
-	AccessRequestConfig *accessRequestConfigModel `tfsdk:"access_request_config"`
+	AccessRequestConfig types.Object              `tfsdk:"access_request_config"`
 	RevokeRequestConfig *revokeRequestConfigModel `tfsdk:"revoke_request_config"`
-	DimensionRefs       []common.ObjectRefModel   `tfsdk:"dimension_refs"`
+	DimensionRefs       types.Set                 `tfsdk:"dimension_refs"`
 	Created             types.String              `tfsdk:"created"`
 	Modified            types.String              `tfsdk:"modified"`
 }
@@ -140,15 +185,23 @@ func (m *roleModel) FromAPI(ctx context.Context, api *client.RoleAPI) diag.Diagn
 
 	m.AccessProfiles = objectRefSliceFromAPI(ctx, api.AccessProfiles, &diagnostics)
 	m.Entitlements = objectRefSliceFromAPI(ctx, api.Entitlements, &diagnostics)
-	m.DimensionRefs = objectRefSliceFromAPI(ctx, api.DimensionRefs, &diagnostics)
-
-	if api.Segments != nil {
-		segs, d := types.SetValueFrom(ctx, types.StringType, api.Segments)
+	if dimRefs := objectRefSliceFromAPI(ctx, api.DimensionRefs, &diagnostics); dimRefs != nil {
+		refs, d := types.SetValueFrom(ctx, common.ObjectRefObjectType, dimRefs)
 		diagnostics.Append(d...)
-		m.Segments = segs
+		m.DimensionRefs = refs
 	} else {
-		m.Segments = types.SetNull(types.StringType)
+		m.DimensionRefs = types.SetNull(common.ObjectRefObjectType)
 	}
+
+	// The API returns [] for a role without segments; keep it an empty set (never null) so a
+	// config that leaves segments out (schema default []) stays consistent after apply.
+	segments := api.Segments
+	if segments == nil {
+		segments = []string{}
+	}
+	segs, d := types.SetValueFrom(ctx, types.StringType, segments)
+	diagnostics.Append(d...)
+	m.Segments = segs
 
 	if len(api.AdditionalOwners) > 0 {
 		m.AdditionalOwners = make([]additionalOwnerModel, 0, len(api.AdditionalOwners))
@@ -162,7 +215,7 @@ func (m *roleModel) FromAPI(ctx context.Context, api *client.RoleAPI) diag.Diagn
 	}
 
 	m.Membership = membershipFromAPI(api.Membership)
-	m.AccessRequestConfig = accessRequestConfigFromAPI(api.AccessRequestConfig)
+	m.AccessRequestConfig = accessRequestConfigFromAPI(ctx, api.AccessRequestConfig, &diagnostics)
 	m.RevokeRequestConfig = revokeRequestConfigFromAPI(api.RevokeRequestConfig)
 
 	return diagnostics
@@ -204,7 +257,6 @@ func (m *roleModel) ToAPI(ctx context.Context) (*client.RoleAPI, diag.Diagnostic
 
 	api.AccessProfiles = objectRefSliceToAPI(ctx, m.AccessProfiles, &diagnostics)
 	api.Entitlements = objectRefSliceToAPI(ctx, m.Entitlements, &diagnostics)
-	api.DimensionRefs = objectRefSliceToAPI(ctx, m.DimensionRefs, &diagnostics)
 
 	if !m.Segments.IsNull() && !m.Segments.IsUnknown() {
 		var segs []string
@@ -223,7 +275,7 @@ func (m *roleModel) ToAPI(ctx context.Context) (*client.RoleAPI, diag.Diagnostic
 	}
 
 	api.Membership = membershipToAPI(m.Membership)
-	api.AccessRequestConfig = accessRequestConfigToAPI(m.AccessRequestConfig)
+	api.AccessRequestConfig = accessRequestConfigToAPI(ctx, m.AccessRequestConfig, &diagnostics)
 	api.RevokeRequestConfig = revokeRequestConfigToAPI(m.RevokeRequestConfig)
 
 	return api, diagnostics
@@ -253,9 +305,7 @@ func (m *roleModel) ToPatchOperations(ctx context.Context, state *roleModel) ([]
 	if !m.Requestable.Equal(state.Requestable) && !m.Requestable.IsNull() && !m.Requestable.IsUnknown() {
 		ops = append(ops, client.NewReplacePatch("/requestable", m.Requestable.ValueBool()))
 	}
-	if !m.Dimensional.Equal(state.Dimensional) && !m.Dimensional.IsNull() && !m.Dimensional.IsUnknown() {
-		ops = append(ops, client.NewReplacePatch("/dimensional", m.Dimensional.ValueBool()))
-	}
+	// dimensional is not patchable (RequiresReplace) and dimensionRefs is server-populated; neither is sent.
 
 	if !reflect.DeepEqual(m.Owner, state.Owner) && m.Owner != nil {
 		ownerAPI, d := common.NewObjectRefToAPI(ctx, *m.Owner)
@@ -277,18 +327,14 @@ func (m *roleModel) ToPatchOperations(ctx context.Context, state *roleModel) ([]
 		}
 		ops = append(ops, client.NewReplacePatch("/entitlements", refs))
 	}
-	if !reflect.DeepEqual(m.DimensionRefs, state.DimensionRefs) {
-		refs := objectRefSliceToAPI(ctx, m.DimensionRefs, &diagnostics)
-		if refs == nil {
-			refs = []client.ObjectRefAPI{}
-		}
-		ops = append(ops, client.NewReplacePatch("/dimensionRefs", refs))
-	}
 
-	if !m.Segments.Equal(state.Segments) {
-		if !m.Segments.IsNull() && !m.Segments.IsUnknown() {
+	if !m.Segments.Equal(state.Segments) && !m.Segments.IsUnknown() {
+		if !m.Segments.IsNull() {
 			var segs []string
 			diagnostics.Append(m.Segments.ElementsAs(ctx, &segs, false)...)
+			if segs == nil {
+				segs = []string{}
+			}
 			ops = append(ops, client.NewReplacePatch("/segments", segs))
 		} else {
 			ops = append(ops, client.NewRemovePatch("/segments"))
@@ -318,9 +364,11 @@ func (m *roleModel) ToPatchOperations(ctx context.Context, state *roleModel) ([]
 		}
 	}
 
-	if !reflect.DeepEqual(m.AccessRequestConfig, state.AccessRequestConfig) {
-		if m.AccessRequestConfig != nil {
-			ops = append(ops, client.NewReplacePatch("/accessRequestConfig", accessRequestConfigToAPI(m.AccessRequestConfig)))
+	// The whole object is replaced, so it must carry dimensionSchema and formDefinitionId: a replace
+	// without them strips them from the role.
+	if !m.AccessRequestConfig.IsUnknown() && !m.AccessRequestConfig.Equal(state.AccessRequestConfig) {
+		if !m.AccessRequestConfig.IsNull() {
+			ops = append(ops, client.NewReplacePatch("/accessRequestConfig", accessRequestConfigToAPI(ctx, m.AccessRequestConfig, &diagnostics)))
 		} else {
 			ops = append(ops, client.NewRemovePatch("/accessRequestConfig"))
 		}
@@ -371,11 +419,11 @@ func objectRefSliceToAPI(ctx context.Context, in []common.ObjectRefModel, diags 
 // Conversion helpers: access/revoke request configs
 // ---------------------------------------------------------------------------
 
-func accessRequestConfigFromAPI(api *client.RequestabilityAPI) *accessRequestConfigModel {
+func accessRequestConfigFromAPI(ctx context.Context, api *client.RequestabilityForRoleAPI, diags *diag.Diagnostics) types.Object {
 	if api == nil {
-		return nil
+		return types.ObjectNull(accessRequestConfigAttrTypes)
 	}
-	m := &accessRequestConfigModel{
+	m := accessRequestConfigModel{
 		CommentsRequired:        boolPtrToTF(api.CommentsRequired),
 		DenialCommentsRequired:  boolPtrToTF(api.DenialCommentsRequired),
 		ReauthorizationRequired: boolPtrToTF(api.ReauthorizationRequired),
@@ -390,14 +438,21 @@ func accessRequestConfigFromAPI(api *client.RequestabilityAPI) *accessRequestCon
 	if len(api.ApprovalSchemes) > 0 {
 		m.ApprovalSchemes = approvalSchemesFromAPI(api.ApprovalSchemes)
 	}
-	return m
+	m.FormDefinitionID = stringPtrToTF(api.FormDefinitionID)
+	m.DimensionSchema = dimensionSchemaFromAPI(ctx, api.DimensionSchema, diags)
+
+	obj, d := types.ObjectValueFrom(ctx, accessRequestConfigAttrTypes, m)
+	diags.Append(d...)
+	return obj
 }
 
-func accessRequestConfigToAPI(m *accessRequestConfigModel) *client.RequestabilityAPI {
-	if m == nil {
+func accessRequestConfigToAPI(ctx context.Context, obj types.Object, diags *diag.Diagnostics) *client.RequestabilityForRoleAPI {
+	if obj.IsNull() || obj.IsUnknown() {
 		return nil
 	}
-	api := &client.RequestabilityAPI{}
+	var m accessRequestConfigModel
+	diags.Append(obj.As(ctx, &m, basetypes.ObjectAsOptions{})...)
+	api := &client.RequestabilityForRoleAPI{}
 	if !m.CommentsRequired.IsNull() && !m.CommentsRequired.IsUnknown() {
 		v := m.CommentsRequired.ValueBool()
 		api.CommentsRequired = &v
@@ -422,6 +477,50 @@ func accessRequestConfigToAPI(m *accessRequestConfigModel) *client.Requestabilit
 	}
 	if len(m.ApprovalSchemes) > 0 {
 		api.ApprovalSchemes = approvalSchemesToAPI(m.ApprovalSchemes)
+	}
+	api.FormDefinitionID = tfToStringPtr(m.FormDefinitionID)
+	api.DimensionSchema = dimensionSchemaToAPI(ctx, m.DimensionSchema, diags)
+	return api
+}
+
+func dimensionSchemaFromAPI(ctx context.Context, api *client.DimensionSchemaAPI, diags *diag.Diagnostics) types.Object {
+	if api == nil {
+		return types.ObjectNull(dimensionSchemaAttrTypes)
+	}
+	m := dimensionSchemaModel{DimensionAttributes: make([]dimensionAttributeModel, 0, len(api.DimensionAttributes))}
+	for _, a := range api.DimensionAttributes {
+		derived := true // API default when omitted.
+		if a.Derived != nil {
+			derived = *a.Derived
+		}
+		m.DimensionAttributes = append(m.DimensionAttributes, dimensionAttributeModel{
+			Name:        types.StringValue(a.Name),
+			DisplayName: stringPtrToTF(a.DisplayName),
+			Derived:     types.BoolValue(derived),
+		})
+	}
+	obj, d := types.ObjectValueFrom(ctx, dimensionSchemaAttrTypes, m)
+	diags.Append(d...)
+	return obj
+}
+
+func dimensionSchemaToAPI(ctx context.Context, obj types.Object, diags *diag.Diagnostics) *client.DimensionSchemaAPI {
+	if obj.IsNull() || obj.IsUnknown() {
+		return nil
+	}
+	var m dimensionSchemaModel
+	diags.Append(obj.As(ctx, &m, basetypes.ObjectAsOptions{})...)
+	api := &client.DimensionSchemaAPI{DimensionAttributes: make([]client.DimensionAttributeAPI, 0, len(m.DimensionAttributes))}
+	for _, a := range m.DimensionAttributes {
+		attrAPI := client.DimensionAttributeAPI{
+			Name:        a.Name.ValueString(),
+			DisplayName: tfToStringPtr(a.DisplayName),
+		}
+		if !a.Derived.IsNull() && !a.Derived.IsUnknown() {
+			v := a.Derived.ValueBool()
+			attrAPI.Derived = &v
+		}
+		api.DimensionAttributes = append(api.DimensionAttributes, attrAPI)
 	}
 	return api
 }

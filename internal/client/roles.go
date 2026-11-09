@@ -21,23 +21,23 @@ const (
 
 // RoleAPI represents a SailPoint Role from the API.
 type RoleAPI struct {
-	ID                  string                  `json:"id,omitempty"`
-	Name                string                  `json:"name"`
-	Description         *string                 `json:"description,omitempty"`
-	Enabled             *bool                   `json:"enabled,omitempty"`
-	Requestable         *bool                   `json:"requestable,omitempty"`
-	Dimensional         *bool                   `json:"dimensional,omitempty"`
-	Owner               ObjectRefAPI            `json:"owner"`
-	AccessProfiles      []ObjectRefAPI          `json:"accessProfiles,omitempty"`
-	Entitlements        []ObjectRefAPI          `json:"entitlements,omitempty"`
-	Segments            []string                `json:"segments,omitempty"`
-	AdditionalOwners    []ObjectRefAPI          `json:"additionalOwners,omitempty"`
-	Membership          *RoleMembershipAPI      `json:"membership,omitempty"`
-	AccessRequestConfig *RequestabilityAPI      `json:"accessRequestConfig,omitempty"`
-	RevokeRequestConfig *RevocabilityForRoleAPI `json:"revokeRequestConfig,omitempty"`
-	DimensionRefs       []ObjectRefAPI          `json:"dimensionRefs,omitempty"`
-	Created             *string                 `json:"created,omitempty"`
-	Modified            *string                 `json:"modified,omitempty"`
+	ID                  string                    `json:"id,omitempty"`
+	Name                string                    `json:"name"`
+	Description         *string                   `json:"description,omitempty"`
+	Enabled             *bool                     `json:"enabled,omitempty"`
+	Requestable         *bool                     `json:"requestable,omitempty"`
+	Dimensional         *bool                     `json:"dimensional,omitempty"`
+	Owner               ObjectRefAPI              `json:"owner"`
+	AccessProfiles      []ObjectRefAPI            `json:"accessProfiles,omitempty"`
+	Entitlements        []ObjectRefAPI            `json:"entitlements,omitempty"`
+	Segments            []string                  `json:"segments,omitempty"`
+	AdditionalOwners    []ObjectRefAPI            `json:"additionalOwners,omitempty"`
+	Membership          *RoleMembershipAPI        `json:"membership,omitempty"`
+	AccessRequestConfig *RequestabilityForRoleAPI `json:"accessRequestConfig,omitempty"`
+	RevokeRequestConfig *RevocabilityForRoleAPI   `json:"revokeRequestConfig,omitempty"`
+	DimensionRefs       []ObjectRefAPI            `json:"dimensionRefs,omitempty"`
+	Created             *string                   `json:"created,omitempty"`
+	Modified            *string                   `json:"modified,omitempty"`
 }
 
 // RoleMembershipAPI is a discriminated union. Type="STANDARD" uses Criteria; Type="IDENTITY_LIST" uses Identities.
@@ -73,6 +73,31 @@ type RevocabilityForRoleAPI struct {
 	CommentsRequired       *bool               `json:"commentsRequired,omitempty"`
 	DenialCommentsRequired *bool               `json:"denialCommentsRequired,omitempty"`
 	ApprovalSchemes        []ApprovalSchemeAPI `json:"approvalSchemes,omitempty"`
+}
+
+// RequestabilityForRoleAPI is the role-specific access request config (extends RequestabilityAPI with the
+// dimension schema and form definition).
+type RequestabilityForRoleAPI struct {
+	CommentsRequired           *bool               `json:"commentsRequired,omitempty"`
+	DenialCommentsRequired     *bool               `json:"denialCommentsRequired,omitempty"`
+	ReauthorizationRequired    *bool               `json:"reauthorizationRequired,omitempty"`
+	RequireEndDate             *bool               `json:"requireEndDate,omitempty"`
+	MaxPermittedAccessDuration *AccessDurationAPI  `json:"maxPermittedAccessDuration,omitempty"`
+	ApprovalSchemes            []ApprovalSchemeAPI `json:"approvalSchemes,omitempty"`
+	DimensionSchema            *DimensionSchemaAPI `json:"dimensionSchema,omitempty"`
+	FormDefinitionID           *string             `json:"formDefinitionId,omitempty"`
+}
+
+// DimensionSchemaAPI lists the dimension attributes of a dynamic (dimensional) role.
+type DimensionSchemaAPI struct {
+	DimensionAttributes []DimensionAttributeAPI `json:"dimensionAttributes"`
+}
+
+// DimensionAttributeAPI is one dimension attribute. Derived=true takes the value from the identity.
+type DimensionAttributeAPI struct {
+	Name        string  `json:"name"`
+	DisplayName *string `json:"displayName,omitempty"`
+	Derived     *bool   `json:"derived,omitempty"`
 }
 
 type roleErrorContext struct {

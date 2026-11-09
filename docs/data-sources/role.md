@@ -53,6 +53,8 @@ Read-Only:
 - `approval_schemes` (Attributes List) (see [below for nested schema](#nestedatt--access_request_config--approval_schemes))
 - `comments_required` (Boolean)
 - `denial_comments_required` (Boolean)
+- `dimension_schema` (Attributes) (see [below for nested schema](#nestedatt--access_request_config--dimension_schema))
+- `form_definition_id` (String)
 - `max_permitted_access_duration` (Attributes) (see [below for nested schema](#nestedatt--access_request_config--max_permitted_access_duration))
 - `reauthorization_required` (Boolean)
 - `require_end_date` (Boolean)
@@ -64,6 +66,24 @@ Read-Only:
 
 - `approver_id` (String)
 - `approver_type` (String)
+
+
+<a id="nestedatt--access_request_config--dimension_schema"></a>
+### Nested Schema for `access_request_config.dimension_schema`
+
+Read-Only:
+
+- `dimension_attributes` (Attributes List) (see [below for nested schema](#nestedatt--access_request_config--dimension_schema--dimension_attributes))
+
+<a id="nestedatt--access_request_config--dimension_schema--dimension_attributes"></a>
+### Nested Schema for `access_request_config.dimension_schema.dimension_attributes`
+
+Read-Only:
+
+- `derived` (Boolean)
+- `display_name` (String)
+- `name` (String)
+
 
 
 <a id="nestedatt--access_request_config--max_permitted_access_duration"></a>
