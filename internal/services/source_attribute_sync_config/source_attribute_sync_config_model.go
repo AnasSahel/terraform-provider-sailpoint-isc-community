@@ -24,7 +24,7 @@ type sourceAttrSyncAttributeModel struct {
 type sourceAttrSyncConfigModel struct {
 	ID         types.String                   `tfsdk:"id"`
 	SourceID   types.String                   `tfsdk:"source_id"`
-	Source     *common.ObjectRefModel         `tfsdk:"source"`
+	Source     types.Object                   `tfsdk:"source"`
 	Attributes []sourceAttrSyncAttributeModel `tfsdk:"attributes"`
 }
 
@@ -41,7 +41,9 @@ func (m *sourceAttrSyncConfigModel) FromAPI(ctx context.Context, api *client.Sou
 
 	source, diags := common.NewObjectRefFromAPI(ctx, api.Source)
 	diagnostics.Append(diags...)
-	m.Source = &source
+	sourceObj, diags := types.ObjectValueFrom(ctx, common.ObjectRefObjectType.AttrTypes, source)
+	diagnostics.Append(diags...)
+	m.Source = sourceObj
 
 	var attrs []sourceAttrSyncAttributeModel
 	for _, a := range api.Attributes {
@@ -63,13 +65,21 @@ func (m *sourceAttrSyncConfigModel) FromAPI(ctx context.Context, api *client.Sou
 }
 
 // ToAPI builds the PUT request body by merging the model's enabled flags into the full remote
-// attribute list. Attributes not listed in the model retain their current `enabled` value from
-// the remote, preventing accidental disabling of unmanaged attributes.
+// config. Attributes not listed in the model retain their current `enabled` value from the
+// remote, preventing accidental disabling of unmanaged attributes.
 //
-// Returns a diagnostic error if the model lists an attribute name not present on the source.
+// displayNames maps identity attribute names to their current display name (from
+// /identity-attributes/v1). The sync config GET can return a stale display name after an
+// identity attribute is renamed, and the PUT rejects it, so each entry's display name is
+// replaced when a current one is known.
+//
+// An attribute declared with enabled = false that is absent on the server is skipped: ISC drops
+// entries whose target is not mapped by the CREATE provisioning policy when they are disabled,
+// so the desired state (not synced) is already reached. Any other declared name absent on the
+// server is an error.
 func (m *sourceAttrSyncConfigModel) ToAPI(
-	ctx context.Context,
-	remoteAttributes []client.SourceAttributeSyncAttributeAPI,
+	remote *client.SourceAttributeSyncConfigAPI,
+	displayNames map[string]string,
 ) (*client.SourceAttributeSyncConfigAPI, diag.Diagnostics) {
 	var diagnostics diag.Diagnostics
 
@@ -81,44 +91,75 @@ func (m *sourceAttrSyncConfigModel) ToAPI(
 
 	// Merge: start from the full remote list, override only user-specified names.
 	found := make(map[string]struct{}, len(m.Attributes))
-	result := make([]client.SourceAttributeSyncAttributeAPI, 0, len(remoteAttributes))
-	for _, remote := range remoteAttributes {
-		attr := remote
-		if enabled, ok := userMap[remote.Name]; ok {
+	result := make([]client.SourceAttributeSyncAttributeAPI, 0, len(remote.Attributes))
+	for _, r := range remote.Attributes {
+		attr := r
+		if enabled, ok := userMap[r.Name]; ok {
 			attr.Enabled = enabled
-			found[remote.Name] = struct{}{}
+			found[r.Name] = struct{}{}
+		}
+		if dn, ok := displayNames[r.Name]; ok && dn != "" {
+			attr.DisplayName = dn
 		}
 		result = append(result, attr)
 	}
 
-	// Validate: any user-specified name not found on the source is an error.
+	// Validate: a declared name not found on the source is an error, unless it is declared
+	// disabled (absent == not synced, which is the desired state).
 	for _, a := range m.Attributes {
 		name := a.Name.ValueString()
-		if _, ok := found[name]; !ok {
-			diagnostics.AddError(
-				"Invalid attribute name",
-				"Attribute \""+name+"\" does not exist in the source's attribute sync config. "+
-					"Only attributes present in the source's Create Account definition can be synced. "+
-					"Check the source's Create Account provisioning policy and remove or fix the attribute name.",
-			)
+		if _, ok := found[name]; ok || !a.Enabled.ValueBool() {
+			continue
 		}
+		diagnostics.AddError(
+			"Invalid attribute name",
+			"Attribute \""+name+"\" does not exist in the source's attribute sync config. "+
+				"Only attributes present in the source's Create Account definition can be synced. "+
+				"Check the source's Create Account provisioning policy and remove or fix the attribute name.",
+		)
 	}
 
 	if diagnostics.HasError() {
 		return nil, diagnostics
 	}
 
-	source := client.ObjectRefAPI{}
-	if m.Source != nil {
-		src, diags := m.Source.ToAPI(ctx)
-		diagnostics.Append(diags...)
-		source = src
-	}
-
 	return &client.SourceAttributeSyncConfigAPI{
-		Source:     source,
+		Source:     remote.Source,
 		Attributes: result,
 	}, diagnostics
+}
+
+// keepAbsentDisabled adds back to the state the declared attributes that have enabled = false
+// and are absent from the server response. ISC removes disabled entries that the CREATE
+// provisioning policy does not map, so "absent" means "not synced": the declared state is
+// reached and keeping the entry avoids a perpetual diff. Computed fields keep their prior
+// value when known, otherwise they are null.
+func (m *sourceAttrSyncConfigModel) keepAbsentDisabled(declared []sourceAttrSyncAttributeModel, api *client.SourceAttributeSyncConfigAPI) {
+	onServer := make(map[string]struct{}, len(api.Attributes))
+	for _, a := range api.Attributes {
+		onServer[a.Name] = struct{}{}
+	}
+	for _, d := range declared {
+		if d.Enabled.IsUnknown() || d.Enabled.ValueBool() {
+			continue
+		}
+		if _, ok := onServer[d.Name.ValueString()]; ok {
+			continue
+		}
+		entry := sourceAttrSyncAttributeModel{
+			Name:        d.Name,
+			Enabled:     types.BoolValue(false),
+			DisplayName: types.StringNull(),
+			Target:      types.StringNull(),
+		}
+		if !d.DisplayName.IsUnknown() {
+			entry.DisplayName = d.DisplayName
+		}
+		if !d.Target.IsUnknown() {
+			entry.Target = d.Target
+		}
+		m.Attributes = append(m.Attributes, entry)
+	}
 }
 
 // configuredAttributeNames returns the set of attribute names currently tracked in Terraform state.
