@@ -87,6 +87,7 @@ func computedCriteriaLeaf() map[string]schema.Attribute {
 			},
 		},
 		"string_value": schema.StringAttribute{Computed: true},
+		"values":       schema.ListAttribute{Computed: true, ElementType: types.StringType},
 	}
 }
 
@@ -126,6 +127,7 @@ func (d *roleDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 								},
 							},
 							"string_value": schema.StringAttribute{Computed: true},
+							"values":       schema.ListAttribute{Computed: true, ElementType: types.StringType},
 							"children": schema.ListNestedAttribute{
 								Computed: true,
 								NestedObject: schema.NestedAttributeObject{
@@ -140,6 +142,7 @@ func (d *roleDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 											},
 										},
 										"string_value": schema.StringAttribute{Computed: true},
+										"values":       schema.ListAttribute{Computed: true, ElementType: types.StringType},
 										"children": schema.ListNestedAttribute{
 											Computed: true,
 											NestedObject: schema.NestedAttributeObject{

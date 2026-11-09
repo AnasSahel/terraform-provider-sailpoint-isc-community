@@ -55,10 +55,12 @@ type RoleMembershipIdentityAPI struct {
 }
 
 // RoleCriteriaAPI is the recursive membership criteria tree. Max 3 levels.
+// A leaf carries either StringValue or Values; AND/OR nodes carry neither.
 type RoleCriteriaAPI struct {
 	Operation   string              `json:"operation"`
 	Key         *RoleCriteriaKeyAPI `json:"key,omitempty"`
 	StringValue *string             `json:"stringValue,omitempty"`
+	Values      []string            `json:"values,omitempty"`
 	Children    []RoleCriteriaAPI   `json:"children,omitempty"`
 }
 

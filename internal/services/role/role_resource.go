@@ -17,13 +17,15 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 var (
-	_ resource.Resource                = &roleResource{}
-	_ resource.ResourceWithConfigure   = &roleResource{}
-	_ resource.ResourceWithImportState = &roleResource{}
+	_ resource.Resource                   = &roleResource{}
+	_ resource.ResourceWithConfigure      = &roleResource{}
+	_ resource.ResourceWithImportState    = &roleResource{}
+	_ resource.ResourceWithValidateConfig = &roleResource{}
 )
 
 type roleResource struct {
@@ -116,6 +118,19 @@ func criteriaLeafAttrs() map[string]schema.Attribute {
 			},
 		},
 		"string_value": schema.StringAttribute{Optional: true},
+		"values":       criteriaValuesAttr(),
+	}
+}
+
+// criteriaValuesAttr is the `values` list at every criteria level.
+func criteriaValuesAttr() schema.ListAttribute {
+	return schema.ListAttribute{
+		MarkdownDescription: "Values to compare, as a list. Use instead of `string_value`: set exactly one of `string_value` or" +
+			" `values` on a leaf, and neither on `AND`/`OR`. The SailPoint UI saves every criteria row as `values`, so copy" +
+			" them from an imported role. For `EQUALS`, several values match any of them. The UI accepts up to 25 values." +
+			" SailPoint rejects `NOT_EQUALS` with more than one value (400 on create and update). Order is kept.",
+		Optional:    true,
+		ElementType: types.StringType,
 	}
 }
 
@@ -189,6 +204,7 @@ func (r *roleResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 								},
 							},
 							"string_value": schema.StringAttribute{Optional: true},
+							"values":       criteriaValuesAttr(),
 							"children": schema.ListNestedAttribute{
 								Optional: true,
 								NestedObject: schema.NestedAttributeObject{
@@ -203,6 +219,7 @@ func (r *roleResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 											},
 										},
 										"string_value": schema.StringAttribute{Optional: true},
+										"values":       criteriaValuesAttr(),
 										"children": schema.ListNestedAttribute{
 											Optional: true,
 											NestedObject: schema.NestedAttributeObject{
@@ -405,4 +422,22 @@ func (r *roleResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 
 func (r *roleResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}
+
+// ValidateConfig checks string_value/values on every membership criteria
+// node: exactly one on a leaf, neither on AND/OR, and no empty or blank values.
+func (r *roleResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var obj types.Object
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("membership"), &obj)...)
+	if resp.Diagnostics.HasError() || obj.IsNull() || obj.IsUnknown() {
+		return
+	}
+	var m membershipModel
+	resp.Diagnostics.Append(obj.As(ctx, &m, basetypes.ObjectAsOptions{UnhandledNullAsEmpty: true, UnhandledUnknownAsEmpty: true})...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if m.Criteria != nil {
+		resp.Diagnostics.Append(validateCriteriaValues(m.Criteria)...)
+	}
 }
